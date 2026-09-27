@@ -2,14 +2,55 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#0f172a">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="入札サバイバル">
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
     <title>建設業入札サバイバルゲーム（オンライン対応）</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&display=swap');
-        body { font-family: 'Noto Sans JP', sans-serif; background-color: #0f172a; overflow: hidden; }
+        :root {
+            --safe-top: env(safe-area-inset-top, 0px);
+            --safe-right: env(safe-area-inset-right, 0px);
+            --safe-bottom: env(safe-area-inset-bottom, 0px);
+            --safe-left: env(safe-area-inset-left, 0px);
+        }
+        html, body {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            background-color: #0f172a;
+            overscroll-behavior: none;
+        }
+        body {
+            font-family: 'Noto Sans JP', sans-serif;
+            overflow: hidden;
+            -webkit-tap-highlight-color: transparent;
+            -webkit-touch-callout: none;
+        }
+        button, input, select {
+            touch-action: manipulation;
+        }
+        button {
+            min-height: 40px;
+        }
+        input, select {
+            font-size: 16px;
+        }
+        #app-install-btn {
+            display: none;
+        }
+        .standalone-only {
+            display: none;
+        }
         
         .coin-flip { animation: flipCoin 1.5s ease-out forwards; }
         @keyframes flipCoin {
@@ -40,6 +81,101 @@
             #orientation-warning {
                 display: flex;
             }
+        }
+
+        /* スマホ横画面用：ブラウザの表示領域を最大限使う */
+        @media screen and (max-width: 900px) and (orientation: landscape) {
+            body {
+                min-height: 100dvh;
+                height: 100dvh;
+            }
+            header {
+                height: 44px !important;
+                min-height: 44px;
+                padding-top: max(4px, var(--safe-top)) !important;
+                padding-left: max(8px, var(--safe-left)) !important;
+                padding-right: max(8px, var(--safe-right)) !important;
+                padding-bottom: 4px !important;
+            }
+            header h1 { font-size: 12px !important; gap: 4px !important; }
+            header h1 > span:first-child { display: none; }
+            header .flex.items-center.gap-3 { gap: 5px !important; min-width: 0; }
+            #multiplayer-btn, #help-btn, #auto-sim-btn {
+                min-height: 34px;
+                padding: 4px 7px !important;
+                font-size: 10px !important;
+            }
+            #economy-status {
+                padding: 4px 7px !important;
+                font-size: 10px !important;
+                white-space: nowrap;
+            }
+            main {
+                min-height: 0;
+                height: calc(100dvh - 44px);
+                padding: 5px !important;
+                gap: 5px !important;
+            }
+            main > section:first-child {
+                width: 58% !important;
+                min-width: 0;
+            }
+            main > section:last-child {
+                width: 42% !important;
+                min-width: 0;
+                padding: 6px !important;
+            }
+            main > section:first-child > div:first-child {
+                padding: 7px !important;
+            }
+            main > section:first-child > div:last-child {
+                padding: 7px !important;
+            }
+            main h2 {
+                font-size: 10px !important;
+                margin-bottom: 4px !important;
+                padding-bottom: 4px !important;
+            }
+            #players-container { gap: 4px !important; }
+            #players-container > div { padding: 5px !important; }
+            #players-container button { min-height: 28px; }
+            #players-container .text-sm { font-size: 12px !important; }
+            #players-container .text-base { font-size: 13px !important; }
+            #card-large, #card-medium, #card-small { padding: 6px !important; }
+            #card-large h3, #card-medium h3, #card-small h3 { font-size: 11px !important; }
+            #card-large div, #card-medium div, #card-small div { font-size: 9px !important; }
+            #card-large p, #card-medium p, #card-small p { line-height: 1.2 !important; }
+            #bidding-form, #hiring-form {
+                font-size: 11px;
+            }
+            #start-turn-btn {
+                min-height: 48px;
+                font-size: 13px !important;
+                padding: 8px !important;
+            }
+            #bidding-form input, #hiring-form input {
+                min-height: 40px;
+            }
+            #submit-bid-btn, #submit-hire-btn, #skip-bid-btn {
+                min-height: 44px;
+            }
+            .modal-bg > div {
+                max-height: calc(100dvh - 16px);
+            }
+        }
+
+        /* 非常に横長なスマホではヘッダーの文字をさらに圧縮 */
+        @media screen and (max-height: 430px) and (orientation: landscape) {
+            header { height: 40px !important; min-height: 40px; }
+            main { height: calc(100dvh - 40px); }
+            #room-badge, #ai-status { display: none !important; }
+            main > section:first-child { width: 55% !important; }
+            main > section:last-child { width: 45% !important; }
+        }
+
+        /* PWAとして起動した場合はインストール案内を隠す */
+        @media (display-mode: standalone) {
+            #app-install-btn { display: none !important; }
         }
     </style>
 </head>
@@ -72,6 +208,9 @@
                 </button>
                 <button id="auto-sim-btn" class="bg-slate-700 hover:bg-slate-600 active:scale-95 text-white font-bold py-1 px-2.5 rounded-lg shadow text-xs transition flex items-center gap-1 border border-slate-600" onclick="document.getElementById('sim-config-modal').classList.remove('hidden')">
                     <span>⚙️</span> CPU設定
+                </button>
+                <button id="app-install-btn" class="bg-emerald-700 hover:bg-emerald-600 active:scale-95 text-white font-bold py-1 px-2.5 rounded-lg shadow text-xs transition flex items-center gap-1 border border-emerald-600" onclick="installPWA()">
+                    <span>📲</span> アプリ化
                 </button>
             </div>
         </div>
@@ -954,6 +1093,39 @@
                 document.getElementById('cpu-calculating-modal').classList.add('hidden');
                 processBids();
             }
+        }
+
+        // PWAインストール処理
+        let deferredInstallPrompt = null;
+        window.addEventListener('beforeinstallprompt', (event) => {
+            event.preventDefault();
+            deferredInstallPrompt = event;
+            const btn = document.getElementById('app-install-btn');
+            if (btn && !window.matchMedia('(display-mode: standalone)').matches) btn.style.display = 'flex';
+        });
+
+        window.installPWA = async function() {
+            if (!deferredInstallPrompt) {
+                alert('この端末ではブラウザのメニューから「ホーム画面に追加」を選択してください。');
+                return;
+            }
+            deferredInstallPrompt.prompt();
+            await deferredInstallPrompt.userChoice;
+            deferredInstallPrompt = null;
+            const btn = document.getElementById('app-install-btn');
+            if (btn) btn.style.display = 'none';
+        };
+
+        window.addEventListener('appinstalled', () => {
+            deferredInstallPrompt = null;
+            const btn = document.getElementById('app-install-btn');
+            if (btn) btn.style.display = 'none';
+        });
+
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js').catch(err => console.log('PWA service worker note:', err));
+            });
         }
 
         renderPlayers(); 
