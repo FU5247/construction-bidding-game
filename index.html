@@ -39,7 +39,7 @@
 
     <header class="bg-slate-800 text-white p-4 shadow-md flex justify-between items-center z-10 shrink-0">
         <div class="flex items-center gap-3">
-            <h1 class="text-xl font-bold">建設業入札サバイバル vol.40 <span class="text-sm font-normal ml-2">第 <span id="turn-display" class="text-yellow-400 font-bold text-2xl">1</span> / 20 ターン</span></h1>
+            <h1 class="text-xl font-bold">建設業入札サバイバル vol.41 <span class="text-sm font-normal ml-2">第 <span id="turn-display" class="text-yellow-400 font-bold text-2xl">1</span> / 20 ターン</span></h1>
             <div id="room-badge" class="hidden px-2 py-0.5 bg-indigo-600 rounded text-xs font-bold text-white shadow border border-indigo-500">🏠 ルーム: <span id="current-room-id-display">---</span></div>
             <div id="ai-status" class="hidden px-2 py-1 bg-emerald-500 rounded text-xs font-bold shadow animate-pulse">🤖 データ学習済</div>
             
@@ -457,11 +457,14 @@
 
         const players = [];
 
+        const CPU_LOOKAHEAD = 5, CPU_ROLLOUTS = 30, CPU_ACTION_LIMIT = 8, CPU_BR_ROUNDS = 2; 
+        const cpuActionMemo = new Map();
+
         const totalTurns = 20; 
         let currentTurn = 1; 
         let currentEconomy = ''; 
         let bidInputs = {}; 
-        let hiringInputs = {}; // ★ 雇用待機用
+        let hiringInputs = {}; 
         let winningResults = {}; 
         let isBiddingPhase = false; 
         let selectedBiddingProject = 'none';
@@ -489,7 +492,7 @@
             currentTurn = 1;
             currentEconomy = '';
             bidInputs = {};
-            hiringInputs = {}; // ★
+            hiringInputs = {};
             winningResults = {};
             isBiddingPhase = false;
             selectedBiddingProject = 'none';
@@ -563,9 +566,9 @@
                     <div class="flex items-center justify-between bg-slate-50 p-3 rounded-lg border border-slate-200">
                         <label class="font-bold text-slate-700 text-sm flex flex-col">
                             <span>${p.name}</span>
-                            ${p.isCPU ? '<span class="text-[10px] text-slate-400 font-normal">CPU</span>' : '<span class="text-[10px] text-emerald-500 font-bold">人間</span>'}
+                            ${p.isCPU ? '<span class="text-[10px] text-slate-400 font-normal">CPU</span>' : '<span class="text-[10px] text-emerald-500 font-bold">人間(代行AI設定)</span>'}
                         </label>
-                        <select id="strat-cpu-${i}" onchange="updateStrategies()" class="border border-slate-300 rounded p-1.5 text-sm font-bold text-slate-700 bg-white" ${!p.isCPU ? 'disabled' : ''}>
+                        <select id="strat-cpu-${i}" onchange="updateStrategies()" class="border border-slate-300 rounded p-1.5 text-sm font-bold text-slate-700 bg-white">
                             <option value="adaptive" ${aiStrategies[i]==='adaptive'?'selected':''}>自律適応型</option>
                             <option value="outsource" ${aiStrategies[i]==='outsource'?'selected':''}>完全外注特化</option>
                             <option value="fulltime" ${aiStrategies[i]==='fulltime'?'selected':''}>完全正社員特化</option>
@@ -577,7 +580,7 @@
         window.updateStrategies = function() {
             for(let i = 0; i < 4; i++) { 
                 const el = document.getElementById(`strat-cpu-${i}`);
-                if(el && !el.disabled) aiStrategies[i] = el.value; 
+                if(el) aiStrategies[i] = el.value; 
             }
             renderPlayers(); 
         };
@@ -855,7 +858,6 @@
             await processBids();
         }
 
-        const CPU_LOOKAHEAD = 5, CPU_ROLLOUTS = 30, CPU_ACTION_LIMIT = 8, CPU_BR_ROUNDS = 2; const cpuActionMemo = new Map();
         function cpuCloneState() { return { turn: currentTurn, economy: currentEconomy, isSim: false, players: players.map(p => ({ money: p.money, employees: p.employees, bankrupt: p.isDefaulter || p.money < 0 })) }; }
         function cpuStateKey(s) { return `${s.turn}|${s.economy}|${s.players.map(p => `${Math.round(p.money)}:${p.employees}:${p.bankrupt ? 1 : 0}`).join('|')}`; }
         function cpuReq(project, economy) { return economy === 'A' ? projects[project].laborA : projects[project].laborB; }
@@ -917,13 +919,14 @@
             const actions = cpuCandidateActions(state,playerId);
             if(forcedActions && forcedActions[0] && playerId === 0 && !state.isSim) return forcedActions[0] || {project:'none',amount:0};
             let best=null, bestScore=-Infinity;
+            const rollouts = state.isSim ? 10 : CPU_ROLLOUTS; // ★ 自動収集時は思考を軽量化(10回に減らす)
             for(const a of actions) {
                 const profile=state.players.map((_,i)=>{
                     if(i===playerId) return a; let ba={project:'none',amount:0}, bv=-Infinity;
                     for(const r of cpuCandidateActions(state,i)) { const c=cpuLabourCost(state,i,r.project==='none'?'small':r.project); const v=(r.project==='none'?0:r.amount-Math.min(c.full,c.temp)) + (state.players[i].money<100?-Math.abs(r.amount-c.temp)*0.15:0) + rng()*0.001; if(v>bv){bv=v;ba=r;} } return ba;
                 });
-                let score = 0; for(let r=0;r<CPU_ROLLOUTS;r++) score += cpuRollout(state,playerId,profile,CPU_LOOKAHEAD,rng);
-                if(score/CPU_ROLLOUTS > bestScore){bestScore=score/CPU_ROLLOUTS; best=a;}
+                let score = 0; for(let r=0;r<rollouts;r++) score += cpuRollout(state,playerId,profile,CPU_LOOKAHEAD,rng);
+                if(score/rollouts > bestScore){bestScore=score/rollouts; best=a;}
             } return best || {project:'none',amount:0};
         }
 
@@ -953,23 +956,28 @@
                 if(a.project!=='none') {
                     const k = a.project;
                     const c = cpuLabourCost(state,playerId,k);
-                    const additionalCost = Math.min(c.full, c.temp);
-                    const totalCost = fixedCost + additionalCost;
+                    
+                    let realAdditionalCost = Math.min(c.full, c.temp);
+                    if (strategy === 'outsource') realAdditionalCost = c.temp;
+                    else if (strategy === 'fulltime') realAdditionalCost = c.full;
+
+                    const totalCost = fixedCost + realAdditionalCost;
                     const profit = a.amount - totalCost;
+                    const marginalProfit = a.amount - realAdditionalCost; // 限界利益
 
                     let targetProfit = 0;
-                    if(k === 'large') targetProfit = 60;
-                    if(k === 'medium') targetProfit = 40;
-                    if(k === 'small') targetProfit = 20;
+                    if(k === 'large') targetProfit = 40;
+                    if(k === 'medium') targetProfit = 20;
+                    if(k === 'small') targetProfit = 10;
 
-                    if(a.amount <= additionalCost) {
+                    if(marginalProfit <= 0) {
                         value = -9999;
                     } else {
                         value = profit;
                         if (strategy === 'adaptive') {
-                            if(profit >= targetProfit) { value += profit * 2.5; } 
-                            else if(profit > 0) { value -= (targetProfit - profit) * 0.3; } 
-                            else { value -= 50; }
+                            if(profit >= targetProfit) { value += profit * 2.0; } 
+                            else if(marginalProfit > 0) { value += marginalProfit * 1.5; } 
+                            else { value -= 20; }
                             
                             let activeRivals = 0; let poorRivals = 0;
                             state.players.forEach((rp, j) => {
@@ -979,12 +987,12 @@
                                 }
                             });
                             if (activeRivals <= 1 || poorRivals >= activeRivals - 0.1) {
-                                value += a.amount * 0.8; 
+                                value += a.amount * 0.5; 
                             }
                         } else {
-                            if(profit >= targetProfit) { value += profit * 2.0; } 
-                            else if(profit > 0) { value -= (targetProfit - profit) * 0.5; } 
-                            else { value -= 30; }
+                            if(profit >= targetProfit) { value += profit * 1.5; } 
+                            else if(marginalProfit > 0) { value += marginalProfit * 1.0; } 
+                            else { value -= 20; }
                         }
 
                         const winPressure = state.players.reduce((x,rp,j)=>(j!==playerId&&!rp.bankrupt)?x+Math.max(0,Math.min(1,(a.amount-(cpuLabourCost(state,j,k).temp-10))/60)):x,0);
@@ -1066,6 +1074,10 @@
             window.simGamesHistory = []; 
 
             for (let g = 0; g < numGames; g++) {
+                // ★ UIの進捗表示を更新し、ブラウザの描画を許可する
+                if (btn) { btn.innerHTML = `<span>⏳</span> 自動収集 ${g + 1} / ${numGames} 実行中...`; }
+                await new Promise(r => setTimeout(r, 10));
+
                 let simState = { turn: 1, economy: '', isSim: true, players: Array.from({length: 4}, () => ({ money: 300, employees: 1, temps: 0, bankrupt: false })) };
                 let gameHistory = { 0: [{ turn: 0, money: 300, emp: 1 }], 1: [{ turn: 0, money: 300, emp: 1 }], 2: [{ turn: 0, money: 300, emp: 1 }], 3: [{ turn: 0, money: 300, emp: 1 }], economy: ['-'] };
                 let currentGameLogs = []; 
@@ -1126,7 +1138,6 @@
                     if (simState.players[i].money > moneyMaxes[i]) moneyMaxes[i] = simState.players[i].money;
                     if (simState.players[i].money >= 300) plusCounts[i]++;
                 }
-                if (g % 10 === 0) await new Promise(r => setTimeout(r, 0));
             }
             if (supabaseClient && allLogs.length > 0) {
                 if(btn) btn.innerHTML = `<span>📤</span> ${allLogs.length}件送信中...`;
@@ -1329,7 +1340,7 @@
 
         function processRewardsAndPayments() {
             bidInputs = {};
-            hiringInputs = {}; // 次ターン用にリセット
+            hiringInputs = {}; 
             
             let hasBankruptcy = false;
             for (let i = 0; i < 4; i++) {
