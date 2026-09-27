@@ -39,7 +39,7 @@
 
     <header class="bg-slate-800 text-white p-4 shadow-md flex justify-between items-center z-10 shrink-0">
         <div class="flex items-center gap-3">
-            <h1 class="text-xl font-bold">建設業入札サバイバル vol.45 <span class="text-sm font-normal ml-2">第 <span id="turn-display" class="text-yellow-400 font-bold text-2xl">1</span> / 20 ターン</span></h1>
+            <h1 class="text-xl font-bold">建設業入札サバイバル vol.49 <span class="text-sm font-normal ml-2">第 <span id="turn-display" class="text-yellow-400 font-bold text-2xl">1</span> / 20 ターン</span></h1>
             <div id="room-badge" class="hidden px-2 py-0.5 bg-indigo-600 rounded text-xs font-bold text-white shadow border border-indigo-500">🏠 ルーム: <span id="current-room-id-display">---</span></div>
             <div id="ai-status" class="hidden px-2 py-1 bg-emerald-500 rounded text-xs font-bold shadow animate-pulse">🤖 データ学習済</div>
             
@@ -73,25 +73,25 @@
                     <div id="card-large" class="border-2 border-red-500 rounded-lg p-3 bg-red-50 relative shadow-sm transition-all" onclick="selectProject('large')">
                         <h3 class="text-red-700 font-bold text-center mb-2 text-lg">大工事</h3>
                         <div class="text-sm space-y-1 bg-white p-2 rounded border border-red-100 pointer-events-none">
-                            <p>入札上限: <span id="ui-large-max" class="font-bold text-red-600">300Y</span></p>
-                            <p id="labor-large-A" class="text-gray-500 transition-colors">好景気(A): 140P</p>
-                            <p id="labor-large-B" class="text-gray-500 transition-colors">不景気(B): 200P</p>
+                            <p class="text-gray-600 font-bold mb-1 border-b border-red-100 pb-1">必要労働力: <span id="labor-large">200</span>P</p>
+                            <p id="maxbid-large-A" class="text-gray-500 transition-colors">好景気上限(A): 400Y</p>
+                            <p id="maxbid-large-B" class="text-gray-500 transition-colors">不景気上限(B): 300Y</p>
                         </div>
                     </div>
                     <div id="card-medium" class="border-2 border-blue-500 rounded-lg p-3 bg-blue-50 relative shadow-sm transition-all" onclick="selectProject('medium')">
                         <h3 class="text-blue-700 font-bold text-center mb-2 text-lg">中工事</h3>
                         <div class="text-sm space-y-1 bg-white p-2 rounded border border-blue-100 pointer-events-none">
-                            <p>入札上限: <span id="ui-medium-max" class="font-bold text-blue-600">210Y</span></p>
-                            <p id="labor-medium-A" class="text-gray-500 transition-colors">好景気(A): 100P</p>
-                            <p id="labor-medium-B" class="text-gray-500 transition-colors">不景気(B): 140P</p>
+                            <p class="text-gray-600 font-bold mb-1 border-b border-blue-100 pb-1">必要労働力: <span id="labor-medium">140</span>P</p>
+                            <p id="maxbid-medium-A" class="text-gray-500 transition-colors">好景気上限(A): 280Y</p>
+                            <p id="maxbid-medium-B" class="text-gray-500 transition-colors">不景気上限(B): 210Y</p>
                         </div>
                     </div>
                     <div id="card-small" class="border-2 border-green-500 rounded-lg p-3 bg-green-50 relative shadow-sm transition-all" onclick="selectProject('small')">
                         <h3 class="text-green-700 font-bold text-center mb-2 text-lg">小工事</h3>
                         <div class="text-sm space-y-1 bg-white p-2 rounded border border-green-100 pointer-events-none">
-                            <p>入札上限: <span id="ui-small-max" class="font-bold text-green-600">120Y</span></p>
-                            <p id="labor-small-A" class="text-gray-500 transition-colors">好景気(A): 60P</p>
-                            <p id="labor-small-B" class="text-gray-500 transition-colors">不景気(B): 80P</p>
+                            <p class="text-gray-600 font-bold mb-1 border-b border-green-100 pb-1">必要労働力: <span id="labor-small">80</span>P</p>
+                            <p id="maxbid-small-A" class="text-gray-500 transition-colors">好景気上限(A): 160Y</p>
+                            <p id="maxbid-small-B" class="text-gray-500 transition-colors">不景気上限(B): 120Y</p>
                         </div>
                     </div>
                 </div>
@@ -196,25 +196,25 @@
                         <div class="bg-red-50 p-3 rounded-lg border border-red-200">
                             <h4 class="font-bold text-red-700 mb-2">大工事</h4>
                             <div class="grid grid-cols-3 gap-2">
-                                <label class="flex flex-col text-xs font-bold text-red-800">入札上限 (Y) <input type="number" id="set-l-max" class="mt-1 border border-red-300 p-1.5 rounded font-mono font-bold" min="0"></label>
-                                <label class="flex flex-col text-xs font-bold text-red-800">好景気 必要P <input type="number" id="set-l-la" class="mt-1 border border-red-300 p-1.5 rounded font-mono font-bold" min="0"></label>
-                                <label class="flex flex-col text-xs font-bold text-red-800">不景気 必要P <input type="number" id="set-l-lb" class="mt-1 border border-red-300 p-1.5 rounded font-mono font-bold" min="0"></label>
+                                <label class="flex flex-col text-xs font-bold text-red-800">好景気上限 (Y) <input type="number" id="set-l-maxA" class="mt-1 border border-red-300 p-1.5 rounded font-mono font-bold" min="0"></label>
+                                <label class="flex flex-col text-xs font-bold text-red-800">不景気上限 (Y) <input type="number" id="set-l-maxB" class="mt-1 border border-red-300 p-1.5 rounded font-mono font-bold" min="0"></label>
+                                <label class="flex flex-col text-xs font-bold text-red-800">必要P <input type="number" id="set-l-labor" class="mt-1 border border-red-300 p-1.5 rounded font-mono font-bold" min="0"></label>
                             </div>
                         </div>
                         <div class="bg-blue-50 p-3 rounded-lg border border-blue-200">
                             <h4 class="font-bold text-blue-700 mb-2">中工事</h4>
                             <div class="grid grid-cols-3 gap-2">
-                                <label class="flex flex-col text-xs font-bold text-blue-800">入札上限 (Y) <input type="number" id="set-m-max" class="mt-1 border border-blue-300 p-1.5 rounded font-mono font-bold" min="0"></label>
-                                <label class="flex flex-col text-xs font-bold text-blue-800">好景気 必要P <input type="number" id="set-m-la" class="mt-1 border border-blue-300 p-1.5 rounded font-mono font-bold" min="0"></label>
-                                <label class="flex flex-col text-xs font-bold text-blue-800">不景気 必要P <input type="number" id="set-m-lb" class="mt-1 border border-blue-300 p-1.5 rounded font-mono font-bold" min="0"></label>
+                                <label class="flex flex-col text-xs font-bold text-blue-800">好景気上限 (Y) <input type="number" id="set-m-maxA" class="mt-1 border border-blue-300 p-1.5 rounded font-mono font-bold" min="0"></label>
+                                <label class="flex flex-col text-xs font-bold text-blue-800">不景気上限 (Y) <input type="number" id="set-m-maxB" class="mt-1 border border-blue-300 p-1.5 rounded font-mono font-bold" min="0"></label>
+                                <label class="flex flex-col text-xs font-bold text-blue-800">必要P <input type="number" id="set-m-labor" class="mt-1 border border-blue-300 p-1.5 rounded font-mono font-bold" min="0"></label>
                             </div>
                         </div>
                         <div class="bg-green-50 p-3 rounded-lg border border-green-200">
                             <h4 class="font-bold text-green-700 mb-2">小工事</h4>
                             <div class="grid grid-cols-3 gap-2">
-                                <label class="flex flex-col text-xs font-bold text-green-800">入札上限 (Y) <input type="number" id="set-s-max" class="mt-1 border border-green-300 p-1.5 rounded font-mono font-bold" min="0"></label>
-                                <label class="flex flex-col text-xs font-bold text-green-800">好景気 必要P <input type="number" id="set-s-la" class="mt-1 border border-green-300 p-1.5 rounded font-mono font-bold" min="0"></label>
-                                <label class="flex flex-col text-xs font-bold text-green-800">不景気 必要P <input type="number" id="set-s-lb" class="mt-1 border border-green-300 p-1.5 rounded font-mono font-bold" min="0"></label>
+                                <label class="flex flex-col text-xs font-bold text-green-800">好景気上限 (Y) <input type="number" id="set-s-maxA" class="mt-1 border border-green-300 p-1.5 rounded font-mono font-bold" min="0"></label>
+                                <label class="flex flex-col text-xs font-bold text-green-800">不景気上限 (Y) <input type="number" id="set-s-maxB" class="mt-1 border border-green-300 p-1.5 rounded font-mono font-bold" min="0"></label>
+                                <label class="flex flex-col text-xs font-bold text-green-800">必要P <input type="number" id="set-s-labor" class="mt-1 border border-green-300 p-1.5 rounded font-mono font-bold" min="0"></label>
                             </div>
                         </div>
                     </div>
@@ -268,7 +268,7 @@
                 <section>
                     <h3 class="text-lg font-bold text-teal-700 border-b-2 border-teal-200 pb-1 mb-2 flex items-center gap-2"><span>🔄</span> ターンの流れ</h3>
                     <ol class="list-decimal list-inside space-y-2 ml-1">
-                        <li><strong>景気決定：</strong> コイントスにより「好景気(A)」か「不景気(B)」が決まります。景気により工事に必要な労働力が変動します。</li>
+                        <li><strong>景気決定：</strong> コイントスにより「好景気(A)」か「不景気(B)」が決まります。景気により工事の入札上限価格が変動します。</li>
                         <li><strong>入札フェイズ：</strong> 大・中・小いずれかの工事を選び、10Y単位で入札します。一番<strong>安い金額（最安値）</strong>を提示した1社のみが落札（受注）できます。同額の場合は抽選になります。利益が出ない場合は「パス」も重要です。</li>
                         <li><strong>雇用フェイズ：</strong> 落札できた場合、工事に必要な労働力（P）を満たすように人を雇います。</li>
                         <li><strong>清算：</strong> 獲得した入札額から、人件費を引いた額が資金に反映されます。</li>
@@ -288,27 +288,30 @@
                     <h3 class="text-lg font-bold text-teal-700 border-b-2 border-teal-200 pb-1 mb-2 flex items-center gap-2"><span>🏗️</span> 各工事カードの詳細</h3>
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
                         <div class="bg-red-50 p-3 rounded border border-red-200">
-                            <h4 id="help-large-max" class="font-bold text-red-700 mb-1">大工事（上限: 300Y）</h4>
+                            <h4 class="font-bold text-red-700 mb-1">大工事</h4>
                             <p class="text-xs text-slate-600 mb-2">大きな利益を見込めますが、必要な労働力も膨大です。</p>
                             <ul class="text-xs space-y-0.5 font-bold">
-                                <li id="help-large-A" class="text-pink-600">好景気: 140P</li>
-                                <li id="help-large-B" class="text-blue-600">不景気: 200P</li>
+                                <li id="help-large-labor" class="text-gray-700">必要労働力: 200P</li>
+                                <li id="help-large-maxA" class="text-pink-600">好景気上限: 400Y</li>
+                                <li id="help-large-maxB" class="text-blue-600">不景気上限: 300Y</li>
                             </ul>
                         </div>
                         <div class="bg-blue-50 p-3 rounded border border-blue-200">
-                            <h4 id="help-medium-max" class="font-bold text-blue-700 mb-1">中工事（上限: 210Y）</h4>
+                            <h4 class="font-bold text-blue-700 mb-1">中工事</h4>
                             <p class="text-xs text-slate-600 mb-2">バランスの良い工事です。中堅企業向け。</p>
                             <ul class="text-xs space-y-0.5 font-bold">
-                                <li id="help-medium-A" class="text-pink-600">好景気: 100P</li>
-                                <li id="help-medium-B" class="text-blue-600">不景気: 140P</li>
+                                <li id="help-medium-labor" class="text-gray-700">必要労働力: 140P</li>
+                                <li id="help-medium-maxA" class="text-pink-600">好景気上限: 280Y</li>
+                                <li id="help-medium-maxB" class="text-blue-600">不景気上限: 210Y</li>
                             </ul>
                         </div>
                         <div class="bg-green-50 p-3 rounded border border-green-200">
-                            <h4 id="help-small-max" class="font-bold text-green-700 mb-1">小工事（上限: 120Y）</h4>
+                            <h4 class="font-bold text-green-700 mb-1">小工事</h4>
                             <p class="text-xs text-slate-600 mb-2">手軽に受注できますが、利益は少なめです。</p>
                             <ul class="text-xs space-y-0.5 font-bold">
-                                <li id="help-small-A" class="text-pink-600">好景気: 60P</li>
-                                <li id="help-small-B" class="text-blue-600">不景気: 80P</li>
+                                <li id="help-small-labor" class="text-gray-700">必要労働力: 80P</li>
+                                <li id="help-small-maxA" class="text-pink-600">好景気上限: 160Y</li>
+                                <li id="help-small-maxB" class="text-blue-600">不景気上限: 120Y</li>
                             </ul>
                         </div>
                     </div>
@@ -527,7 +530,6 @@
 
         let marketStats = { A: {}, B: {} };
         let playerStats = { A: {}, B: {} };
-        // ★未定義エラーを防ぐために追加
         let goldenStats = { 
             A: { large: {sum:0, count:0, avg:null}, medium: {sum:0, count:0, avg:null}, small: {sum:0, count:0, avg:null} }, 
             B: { large: {sum:0, count:0, avg:null}, medium: {sum:0, count:0, avg:null}, small: {sum:0, count:0, avg:null} } 
@@ -536,7 +538,7 @@
         const strategyLabels = { 'adaptive': '自律適応型', 'outsource': '完全外注(派遣)', 'fulltime': '完全正社員' };
 
         const players = [];
-        let charts = {}; // ★ここを追加（グラフ描画時のエラー修正）
+        let charts = {}; 
 
         const CPU_LOOKAHEAD = 5, CPU_ROLLOUTS = 30, CPU_ACTION_LIMIT = 8, CPU_BR_ROUNDS = 2; 
         const cpuActionMemo = new Map();
@@ -553,11 +555,11 @@
         window.simGamesHistory = [];
         let simGameChartInstance = null;
 
-        // ★ 動的数値設定用オブジェクト
+        // ★ 動的数値設定用オブジェクト (上限価格を景気ごとに分離、労働力を固定化)
         let projects = { 
-            large: { name: '大工事', maxBid: 300, laborA: 140, laborB: 200, color: 'rgb(239, 68, 68)' }, 
-            medium: { name: '中工事', maxBid: 210, laborA: 100, laborB: 140, color: 'rgb(59, 130, 246)' }, 
-            small: { name: '小工事', maxBid: 120, laborA: 60, laborB: 80, color: 'rgb(34, 197, 94)' } 
+            large: { name: '大工事', maxBidA: 400, maxBidB: 300, labor: 200, color: 'rgb(239, 68, 68)' }, 
+            medium: { name: '中工事', maxBidA: 280, maxBidB: 210, labor: 140, color: 'rgb(59, 130, 246)' }, 
+            small: { name: '小工事', maxBidA: 160, maxBidB: 120, labor: 80, color: 'rgb(34, 197, 94)' } 
         };
         let laborConfig = {
             fulltimeP: 20,
@@ -635,18 +637,15 @@
             }
         }
 
-        // =====================================
-        // ★ 数値設定関連ロジック
-        // =====================================
         function openSettingsModal() {
             if (isOnlineMode && myPlayerIndex !== 0) {
                 alert('数値の変更はホストのみ実行できます。');
                 return;
             }
             ['large', 'medium', 'small'].forEach(k => {
-                document.getElementById(`set-${k[0]}-max`).value = projects[k].maxBid;
-                document.getElementById(`set-${k[0]}-la`).value = projects[k].laborA;
-                document.getElementById(`set-${k[0]}-lb`).value = projects[k].laborB;
+                document.getElementById(`set-${k[0]}-maxA`).value = projects[k].maxBidA;
+                document.getElementById(`set-${k[0]}-maxB`).value = projects[k].maxBidB;
+                document.getElementById(`set-${k[0]}-labor`).value = projects[k].labor;
             });
             document.getElementById('set-full-p').value = laborConfig.fulltimeP;
             document.getElementById('set-full-c').value = laborConfig.fulltimeCost;
@@ -662,14 +661,13 @@
             btn.innerHTML = '<span>⏳</span> 反映中...';
             btn.disabled = true;
 
-            // UIを一度描画して「反映中」を見せる
             await new Promise(r => setTimeout(r, 500));
 
             try {
                 ['large', 'medium', 'small'].forEach(k => {
-                    projects[k].maxBid = parseInt(document.getElementById(`set-${k[0]}-max`).value) || 0;
-                    projects[k].laborA = parseInt(document.getElementById(`set-${k[0]}-la`).value) || 0;
-                    projects[k].laborB = parseInt(document.getElementById(`set-${k[0]}-lb`).value) || 0;
+                    projects[k].maxBidA = parseInt(document.getElementById(`set-${k[0]}-maxA`).value) || 0;
+                    projects[k].maxBidB = parseInt(document.getElementById(`set-${k[0]}-maxB`).value) || 0;
+                    projects[k].labor = parseInt(document.getElementById(`set-${k[0]}-labor`).value) || 0;
                 });
                 laborConfig.fulltimeP = parseInt(document.getElementById('set-full-p').value) || 0;
                 laborConfig.fulltimeCost = parseInt(document.getElementById('set-full-c').value) || 0;
@@ -679,10 +677,9 @@
                 updateProjectCardsUI();
                 renderPlayers();
                 
-                // チャートのY軸更新
                 ['large', 'medium', 'small'].forEach(key => {
                     if (charts[key]) {
-                        charts[key].options.scales.y.max = projects[key].maxBid;
+                        charts[key].options.scales.y.max = projects[key].maxBidA; // グラフの最大値は好景気上限に合わせる
                         charts[key].update();
                     }
                 });
@@ -704,26 +701,22 @@
 
         function updateProjectCardsUI() {
             ['large', 'medium', 'small'].forEach(key => {
-                document.getElementById(`ui-${key}-max`).textContent = projects[key].maxBid + 'Y';
-                document.getElementById(`labor-${key}-A`).textContent = `好景気(A): ${projects[key].laborA}P`;
-                document.getElementById(`labor-${key}-B`).textContent = `不景気(B): ${projects[key].laborB}P`;
+                document.getElementById(`labor-${key}`).textContent = `${projects[key].labor}`;
+                document.getElementById(`maxbid-${key}-A`).textContent = `好景気上限(A): ${projects[key].maxBidA}Y`;
+                document.getElementById(`maxbid-${key}-B`).textContent = `不景気上限(B): ${projects[key].maxBidB}Y`;
                 
-                // ヘルプモーダルの更新
-                document.getElementById(`help-${key}-max`).textContent = `${projects[key].name}（上限: ${projects[key].maxBid}Y）`;
-                document.getElementById(`help-${key}-A`).textContent = `好景気: ${projects[key].laborA}P`;
-                document.getElementById(`help-${key}-B`).textContent = `不景気: ${projects[key].laborB}P`;
+                document.getElementById(`help-${key}-maxA`).textContent = `好景気上限: ${projects[key].maxBidA}Y`;
+                document.getElementById(`help-${key}-maxB`).textContent = `不景気上限: ${projects[key].maxBidB}Y`;
+                document.getElementById(`help-${key}-labor`).textContent = `必要労働力: ${projects[key].labor}P`;
             });
             
-            // 雇用UIの更新
             document.getElementById('label-hire-full').textContent = `正社員追加(${laborConfig.fulltimeCost}Y/毎T)`;
             document.getElementById('label-hire-temp').textContent = `発注追加(${laborConfig.tempCost}Y/1回)`;
             
-            // ヘルプの雇用情報更新
             document.getElementById('help-labor-text').textContent = `労働力は1単位あたり 正社員:${laborConfig.fulltimeP}P / 発注・派遣:${laborConfig.tempP}P として計算されます。`;
             document.getElementById('help-fulltime-cost').textContent = `👨‍💼 正社員（${laborConfig.fulltimeCost}Y / 毎ターン）：`;
             document.getElementById('help-temp-cost').textContent = `👷 発注・派遣（${laborConfig.tempCost}Y / 1回のみ）：`;
             
-            // 現在の景気に合わせて色を再適用
             updateEconomyHighlight();
         }
 
@@ -787,8 +780,7 @@
                 ['A', 'B'].forEach(eco => { ['large', 'medium', 'small'].forEach(proj => { marketStats[eco][proj] = { sum: 0, count: 0, avg: null }; playerStats[eco][proj] = { sum: 0, count: 0, avg: null }; }); });
                 data.forEach(log => {
                     if (log.winner_id !== -1 && log.winning_bid > 0) {
-                        let reqLabor = log.economy === 'A' ? projects[log.project_type].laborA : projects[log.project_type].laborB;
-                        // 設定変更を加味した大まかな最小原価
+                        let reqLabor = projects[log.project_type].labor;
                         let minCost = Math.min(Math.ceil(reqLabor / laborConfig.fulltimeP) * laborConfig.fulltimeCost, Math.ceil(reqLabor / laborConfig.tempP) * laborConfig.tempCost);
                         if (log.winning_bid >= minCost) {
                             let mStat = marketStats[log.economy]?.[log.project_type];
@@ -811,7 +803,7 @@
             try {
                 if(!supabaseClient) return;
                 if (winnerId !== -1 && winningBid > 0) {
-                    let reqLabor = economy === 'A' ? projects[projectType].laborA : projects[projectType].laborB;
+                    let reqLabor = projects[projectType].labor;
                     let minCost = Math.min(Math.ceil(reqLabor / laborConfig.fulltimeP) * laborConfig.fulltimeCost, Math.ceil(reqLabor / laborConfig.tempP) * laborConfig.tempCost);
                     if (winningBid >= minCost) {
                         let mStat = marketStats[economy]?.[projectType];
@@ -827,12 +819,12 @@
         function initCharts() {
             ['large', 'medium', 'small'].forEach(key => {
                 if (charts[key]) {
-                    charts[key].options.scales.y.max = projects[key].maxBid;
+                    charts[key].options.scales.y.max = projects[key].maxBidA;
                     charts[key].update();
                     return;
                 }
                 const ctx = document.getElementById(`chart-${key}`).getContext('2d');
-                charts[key] = new Chart(ctx, { type: 'line', data: { labels: Array.from({length: 20}, (_, i) => i + 1), datasets: [{ label: projects[key].name + ' 落札価格', data: [], borderColor: projects[key].color, backgroundColor: projects[key].color, pointBackgroundColor: [], pointBorderColor: '#fff', pointRadius: 6, tension: 0.2, spanGaps: false }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, title: { display: false } }, scales: { y: { min: 0, max: projects[key].maxBid, ticks: { stepSize: 50 } }, x: { min: 1, max: 20, ticks: { stepSize: 1 } } } } });
+                charts[key] = new Chart(ctx, { type: 'line', data: { labels: Array.from({length: 20}, (_, i) => i + 1), datasets: [{ label: projects[key].name + ' 落札価格', data: [], borderColor: projects[key].color, backgroundColor: projects[key].color, pointBackgroundColor: [], pointBorderColor: '#fff', pointRadius: 6, tension: 0.2, spanGaps: false }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, title: { display: false } }, scales: { y: { min: 0, max: projects[key].maxBidA, ticks: { stepSize: 50 } }, x: { min: 1, max: 20, ticks: { stepSize: 1 } } } } });
             });
         }
 
@@ -893,14 +885,14 @@
 
         function updateEconomyHighlight() {
             ['large', 'medium', 'small'].forEach(key => { 
-                const elA = document.getElementById(`labor-${key}-A`);
-                const elB = document.getElementById(`labor-${key}-B`);
+                const elA = document.getElementById(`maxbid-${key}-A`);
+                const elB = document.getElementById(`maxbid-${key}-B`);
                 if(elA) elA.className = currentEconomy === 'A' ? 'font-black text-pink-600 text-base drop-shadow-sm' : 'text-gray-400 text-sm'; 
                 if(elB) elB.className = currentEconomy === 'B' ? 'font-black text-blue-600 text-base drop-shadow-sm' : 'text-gray-400 text-sm'; 
             });
             const ecoBar = document.getElementById('economy-status');
-            if (currentEconomy === 'A') { ecoBar.innerHTML = '🪙 景気：<span class="text-pink-200">好景気 (労働力A)</span>'; ecoBar.className = 'px-4 py-1.5 rounded-lg font-black text-lg bg-pink-600 text-white shadow-md border border-pink-700'; } 
-            else if(currentEconomy === 'B') { ecoBar.innerHTML = '🪙 景気：<span class="text-blue-200">不景気 (労働力B)</span>'; ecoBar.className = 'px-4 py-1.5 rounded-lg font-black text-lg bg-blue-600 text-white shadow-md border border-blue-700'; }
+            if (currentEconomy === 'A') { ecoBar.innerHTML = '🪙 景気：<span class="text-pink-200">好景気 (上限高)</span>'; ecoBar.className = 'px-4 py-1.5 rounded-lg font-black text-lg bg-pink-600 text-white shadow-md border border-pink-700'; } 
+            else if(currentEconomy === 'B') { ecoBar.innerHTML = '🪙 景気：<span class="text-blue-200">不景気 (上限低)</span>'; ecoBar.className = 'px-4 py-1.5 rounded-lg font-black text-lg bg-blue-600 text-white shadow-md border border-blue-700'; }
         }
 
         let historyChartInstance = null;
@@ -958,7 +950,7 @@
             
             coinVisual.textContent = currentEconomy; 
             coinVisual.className = `w-32 h-32 mx-auto rounded-full flex items-center justify-center shadow-2xl text-6xl font-black text-white mb-6 border-8 ${currentEconomy === 'A' ? 'bg-pink-400 border-pink-500 shadow-pink-500/40' : 'bg-blue-400 border-blue-500 shadow-blue-500/40'}`;
-            coinText.textContent = currentEconomy === 'A' ? '表：好景気 (必要労働力A)' : '裏：不景気 (必要労働力B)';
+            coinText.textContent = currentEconomy === 'A' ? '表：好景気 (上限高)' : '裏：不景気 (上限低)';
             
             await new Promise(r => setTimeout(r, 1500)); 
             coinModal.classList.add('hidden');
@@ -978,7 +970,8 @@
             if (!isBiddingPhase) return;
             selectedBiddingProject = projKey;
             ['large', 'medium', 'small'].forEach(key => { const card = document.getElementById(`card-${key}`); if (key === projKey) card.classList.add('ring-4', 'ring-blue-400', 'scale-105'); else card.classList.remove('ring-4', 'ring-blue-400', 'scale-105'); });
-            document.getElementById('bidding-inputs').classList.remove('hidden'); document.getElementById('selected-project-name').textContent = projects[projKey].name + ` (上限${projects[projKey].maxBid}Y)`; bidAmountInput.max = projects[projKey].maxBid; bidAmountInput.value = 0;
+            const currentMaxBid = currentEconomy === 'A' ? projects[projKey].maxBidA : projects[projKey].maxBidB;
+            document.getElementById('bidding-inputs').classList.remove('hidden'); document.getElementById('selected-project-name').textContent = projects[projKey].name + ` (上限${currentMaxBid}Y)`; bidAmountInput.max = currentMaxBid; bidAmountInput.value = 0;
         };
         
         document.getElementById('skip-bid-btn').addEventListener('click', async () => { isBiddingPhase = false; bidForm.classList.add('hidden'); await executeTurnAfterMyBid({ project: 'none', amount: 0 }); });
@@ -987,7 +980,7 @@
             if (selectedBiddingProject === 'none') { alert('先に左の場の工事カードから希望する工事を選択してください。'); return; }
             const amount = parseInt(bidAmountInput.value, 10) || 0;
             const proj = projects[selectedBiddingProject];
-            const reqLabor = currentEconomy === 'A' ? proj.laborA : proj.laborB;
+            const reqLabor = proj.labor;
             const currentLabor = players[myPlayerIndex].employees * laborConfig.fulltimeP;
             const shortageLabor = Math.max(0, reqLabor - currentLabor);
             
@@ -1019,8 +1012,9 @@
             try {
                 const proj = selectedBiddingProject; const amount = parseInt(bidAmountInput.value, 10) || 0;
                 if (proj !== 'none') {
+                    const currentMaxBid = currentEconomy === 'A' ? projects[proj].maxBidA : projects[proj].maxBidB;
                     if (amount % 10 !== 0) { alert('入札価格は10の倍数にしてください'); return; }
-                    if (amount > projects[proj].maxBid || amount < 0) { alert('入札価格が不正です'); return; }
+                    if (amount > currentMaxBid || amount < 0) { alert('入札価格が不正です'); return; }
                 }
                 submitBidBtn.disabled = true; submitBidBtn.textContent = '処理中...'; isBiddingPhase = false; bidForm.classList.add('hidden');
                 await executeTurnAfterMyBid({ project: proj === 'none' ? 'none' : proj, amount: proj === 'none' ? 0 : amount });
@@ -1050,10 +1044,10 @@
 
         function cpuCloneState() { return { turn: currentTurn, economy: currentEconomy, isSim: false, players: players.map(p => ({ money: p.money, employees: p.employees, bankrupt: p.isDefaulter || p.money < 0 })) }; }
         function cpuStateKey(s) { return `${s.turn}|${s.economy}|${s.players.map(p => `${Math.round(p.money)}:${p.employees}:${p.bankrupt ? 1 : 0}`).join('|')}`; }
-        function cpuReq(project, economy) { return economy === 'A' ? projects[project].laborA : projects[project].laborB; }
+        function cpuReq(project) { return projects[project].labor; }
         
         function cpuLabourCost(state, playerId, project) { 
-            const reqP = cpuReq(project, state.economy);
+            const reqP = cpuReq(project);
             const currentP = state.players[playerId].employees * laborConfig.fulltimeP;
             const shortageP = Math.max(0, reqP - currentP);
             const reqFull = Math.ceil(shortageP / laborConfig.fulltimeP);
@@ -1068,18 +1062,19 @@
         function cpuCandidateActions(state, playerId) {
             const key = `${cpuStateKey(state)}|${playerId}`; if (cpuActionMemo.has(key)) return cpuActionMemo.get(key);
             if (state.players[playerId].bankrupt) return [{project:'none', amount:0}];
-            const out = new Map(); const add = (project, amount) => { if (project === 'none') { out.set('none:0',{project:'none',amount:0}); return; } amount = Math.max(0, Math.min(projects[project].maxBid, Math.round(amount / 10) * 10)); out.set(`${project}:${amount}`, {project, amount}); };
+            const out = new Map(); const add = (project, amount) => { if (project === 'none') { out.set('none:0',{project:'none',amount:0}); return; } const maxB = state.economy === 'A' ? projects[project].maxBidA : projects[project].maxBidB; amount = Math.max(0, Math.min(maxB, Math.round(amount / 10) * 10)); out.set(`${project}:${amount}`, {project, amount}); };
             add('none',0);
             for (const k of ['large','medium','small']) {
-                const own = cpuLabourCost(state, playerId, k), max = projects[k].maxBid;
-                [0, max, Math.round(max*.4), Math.round(max*.6), own.full-10, own.full, own.full+10, own.temp-10, own.temp, own.temp+10].forEach(x => add(k,x));
+                const own = cpuLabourCost(state, playerId, k);
+                const maxB = state.economy === 'A' ? projects[k].maxBidA : projects[k].maxBidB;
+                [0, maxB, Math.round(maxB*.4), Math.round(maxB*.6), own.full-10, own.full, own.full+10, own.temp-10, own.temp, own.temp+10].forEach(x => add(k,x));
                 for (let j=0;j<state.players.length;j++) { if (j===playerId || state.players[j].bankrupt) continue; const rival = cpuLabourCost(state,j,k); [rival.full-10,rival.full,rival.full+10, rival.temp-10,rival.temp,rival.temp+10].forEach(x => add(k,x)); }
                 const mAvg = marketStats[state.economy]?.[k]?.avg; if (mAvg) { add(k, Math.round(mAvg / 10) * 10); add(k, Math.round((mAvg - 10) / 10) * 10); }
                 const pAvg = playerStats[state.economy]?.[k]?.avg; if (pAvg) add(k, Math.round((pAvg - 10) / 10) * 10);
             }
             let actions = [...out.values()];
             if (actions.length > CPU_ACTION_LIMIT) {
-                const scored = actions.filter(a => a.project !== 'none').map(a => { const c = cpuLabourCost(state,playerId,a.project); return {a, score: (a.amount-Math.min(c.full,c.temp)) - 0.12*Math.abs(a.amount-projects[a.project].maxBid*.55)}; }).sort((a,b)=>b.score-a.score);
+                const scored = actions.filter(a => a.project !== 'none').map(a => { const c = cpuLabourCost(state,playerId,a.project); const maxB = state.economy === 'A' ? projects[a.project].maxBidA : projects[a.project].maxBidB; return {a, score: (a.amount-Math.min(c.full,c.temp)) - 0.12*Math.abs(a.amount-maxB*.55)}; }).sort((a,b)=>b.score-a.score);
                 actions = [{project:'none',amount:0}, ...scored.slice(0,CPU_ACTION_LIMIT-1).map(x=>x.a)];
             }
             cpuActionMemo.set(key, actions); return actions;
@@ -1092,7 +1087,7 @@
         
         function cpuHiring(state, winnerId, project, remainingTurns, rng) {
             const p = state.players[winnerId];
-            const reqP = cpuReq(project, state.economy);
+            const reqP = cpuReq(project);
             const currentP = p.employees * laborConfig.fulltimeP;
             const shortageP = Math.max(0, reqP - currentP);
             if(shortageP === 0) return {f:0, t:0};
@@ -1164,6 +1159,7 @@
                 if(a.project!=='none') {
                     const k = a.project;
                     const c = cpuLabourCost(state,playerId,k);
+                    const currentMaxBid = state.economy === 'A' ? projects[k].maxBidA : projects[k].maxBidB;
                     
                     let realAdditionalCost = Math.min(c.full, c.temp);
                     if (strategy === 'outsource') realAdditionalCost = c.temp;
@@ -1173,7 +1169,7 @@
                     const profit = a.amount - totalCost;
                     const marginalProfit = a.amount - realAdditionalCost;
 
-                    let targetProfit = Math.round(projects[k].maxBid * 0.15);
+                    let targetProfit = Math.round(currentMaxBid * 0.15);
 
                     if(marginalProfit <= 0) {
                         value = -9999;
@@ -1200,7 +1196,7 @@
                             else { value -= 20; }
                         }
 
-                        const winPressure = state.players.reduce((x,rp,j)=>(j!==playerId&&!rp.bankrupt)?x+Math.max(0,Math.min(1,(a.amount-(cpuLabourCost(state,j,k).temp-10))/(projects[k].maxBid*0.2))):x,0);
+                        const winPressure = state.players.reduce((x,rp,j)=>(j!==playerId&&!rp.bankrupt)?x+Math.max(0,Math.min(1,(a.amount-(cpuLabourCost(state,j,k).temp-10))/(currentMaxBid*0.2))):x,0);
                         let dataBias = 0; 
                         
                         const gAvg = goldenStats[state.economy]?.[k]?.avg;
@@ -1252,7 +1248,10 @@
                         try { action = cpuTurnActionFast(state, i, rng) || action; } catch (fastError) { console.error(`CPU${i} 高速入札計算エラー:`, fastError); }
                         try { const advanced = cpuTurnAction(state, i, rng, [bidInputs[0], action]); if (advanced && advanced.project !== undefined && Number.isFinite(Number(advanced.amount))) { action = advanced; } } catch (advancedError) { console.warn(`CPU${i} 高度計算をスキップ:`, advancedError); }
                         if (!action || !['none', 'large', 'medium', 'small'].includes(action.project)) { action = { project: 'none', amount: 0 }; }
-                        if (action.project !== 'none') { action.amount = Math.max(0, Math.min(projects[action.project].maxBid, Math.round(Number(action.amount) / 10) * 10)); } else { action.amount = 0; }
+                        if (action.project !== 'none') {
+                            const currentMaxBid = currentEconomy === 'A' ? projects[action.project].maxBidA : projects[action.project].maxBidB;
+                            action.amount = Math.max(0, Math.min(currentMaxBid, Math.round(Number(action.amount) / 10) * 10));
+                        } else { action.amount = 0; }
                         bidInputs[i] = action;
                         await new Promise(resolve => setTimeout(resolve, 20));
                     }
@@ -1493,7 +1492,7 @@
             let myHire = { f: 0, t: 0 };
             
             if (winningResults[myPlayerIndex]) {
-                const p = winningResults[myPlayerIndex]; const proj = projects[p.project]; const reqLabor = currentEconomy === 'A' ? proj.laborA : proj.laborB; 
+                const p = winningResults[myPlayerIndex]; const proj = projects[p.project]; const reqLabor = proj.labor; 
                 const currentLabor = players[myPlayerIndex].employees * laborConfig.fulltimeP;
                 const shortageLabor = Math.max(0, reqLabor - currentLabor);
                 
@@ -1907,7 +1906,10 @@
                         try { action = cpuTurnActionFast(state, i, Math.random) || action; } catch (e) { }
                         try { const advanced = cpuTurnAction(state, i, Math.random, [bidInputs[0], action]); if (advanced && advanced.project !== undefined && Number.isFinite(Number(advanced.amount))) { action = advanced; } } catch (e) { }
                         if (!action || !['none', 'large', 'medium', 'small'].includes(action.project)) { action = { project: 'none', amount: 0 }; }
-                        if (action.project !== 'none') { action.amount = Math.max(0, Math.min(projects[action.project].maxBid, Math.round(Number(action.amount) / 10) * 10)); } else { action.amount = 0; }
+                        if (action.project !== 'none') {
+                            const currentMaxBid = currentEconomy === 'A' ? projects[action.project].maxBidA : projects[action.project].maxBidB;
+                            action.amount = Math.max(0, Math.min(currentMaxBid, Math.round(Number(action.amount) / 10) * 10));
+                        } else { action.amount = 0; }
                         bidInputs[i] = action;
                     }
                 }
