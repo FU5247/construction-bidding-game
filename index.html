@@ -47,6 +47,9 @@
                  <button id="multiplayer-btn" class="bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold py-1.5 px-3 rounded-lg shadow transition-colors flex items-center gap-1 text-sm border border-indigo-500" onclick="openLobbyModal()">
                     <span>🌐</span> オンライン対戦
                 </button>
+                 <button id="leave-room-btn" class="hidden bg-rose-600 hover:bg-rose-700 active:scale-95 text-white font-bold py-1.5 px-3 rounded-lg shadow transition-colors flex items-center gap-1 text-sm border border-rose-500" onclick="leaveRoom()">
+                    <span>🚪</span> 退出
+                </button>
                 <button id="help-btn" class="bg-teal-600 hover:bg-teal-700 active:scale-95 text-white font-bold py-1.5 px-3 rounded-lg shadow transition-colors flex items-center gap-1 text-sm border border-teal-500" onclick="document.getElementById('help-modal').classList.remove('hidden')">
                     <span>❓</span> ヘルプ
                 </button>
@@ -480,8 +483,6 @@
             selectedBiddingProject = 'none';
             activeRoomMembers = 1;
             isOnlineMode = false;
-            
-            // ★追加修正：プレイヤーインデックスをリセット時に必ず0に戻す
             myPlayerIndex = 0;
             
             const turnDisplay = document.getElementById('turn-display');
@@ -501,10 +502,15 @@
 
             const startBtn = document.getElementById('start-turn-btn');
             if(startBtn) {
-                startBtn.classList.remove('hidden');
+                startBtn.classList.remove('hidden', 'opacity-70', 'cursor-not-allowed');
                 startBtn.disabled = false;
                 startBtn.innerHTML = '<span>🪙</span> ターン開始（コイントス）';
             }
+            
+            const leaveBtn = document.getElementById('leave-room-btn');
+            if(leaveBtn) leaveBtn.classList.add('hidden');
+            const multiBtn = document.getElementById('multiplayer-btn');
+            if(multiBtn) multiBtn.classList.remove('hidden');
 
             renderPlayers();
             
@@ -518,6 +524,21 @@
                 });
             }
         }
+
+        window.leaveRoom = function() {
+            if (!isOnlineMode || !onlineChannel) return;
+            if (confirm('現在のルームから退出しますか？')) {
+                if (myPlayerIndex === 0) {
+                    onlineChannel.send({ type: 'broadcast', event: 'room_closed', payload: {} });
+                } else {
+                    onlineChannel.send({ type: 'broadcast', event: 'player_left', payload: { playerIndex: myPlayerIndex } });
+                }
+                supabaseClient.removeChannel(onlineChannel);
+                onlineChannel = null;
+                resetGameState();
+                alert('ルームから退出しました。');
+            }
+        };
 
         function renderCpuStratSettings() {
             const container = document.getElementById('cpu-strat-settings-container');
@@ -706,27 +727,49 @@
             }
 
             startBtn.classList.add('hidden'); 
-            const coinModal = document.getElementById('coin-modal'), coinVisual = document.getElementById('coin-visual'), coinText = document.getElementById('coin-result-text');
-            coinModal.classList.remove('hidden'); coinVisual.classList.add('coin-flip'); coinVisual.textContent = ''; coinText.textContent = 'コイントス中...';
-            await new Promise(r => setTimeout(r, 1500));
-            coinVisual.classList.remove('coin-flip');
             
-            currentEconomy = Math.random() < 0.5 ? 'A' : 'B';
-            coinVisual.textContent = currentEconomy; coinVisual.className = `w-32 h-32 mx-auto rounded-full flex items-center justify-center shadow-2xl text-6xl font-black text-white mb-6 border-8 ${currentEconomy === 'A' ? 'bg-pink-400 border-pink-500 shadow-pink-500/40' : 'bg-blue-400 border-blue-500 shadow-blue-500/40'}`;
-            coinText.textContent = currentEconomy === 'A' ? '表：好景気 (必要労働力A)' : '裏：不景気 (必要労働力B)';
-            await new Promise(r => setTimeout(r, 1500)); coinModal.classList.add('hidden');
-            updateEconomyHighlight();
+            const nextEconomy = Math.random() < 0.5 ? 'A' : 'B';
 
             if (isOnlineMode && onlineChannel) {
-                onlineChannel.send({ type: 'broadcast', event: 'economy_decided', payload: { economy: currentEconomy, turn: currentTurn } });
+                onlineChannel.send({ type: 'broadcast', event: 'start_coin_toss', payload: { economy: nextEconomy, turn: currentTurn } });
             }
+
+            await playCoinTossAnimation(nextEconomy);
+        });
+
+        async function playCoinTossAnimation(economy) {
+            const coinModal = document.getElementById('coin-modal'), coinVisual = document.getElementById('coin-visual'), coinText = document.getElementById('coin-result-text');
+            
+            document.getElementById('start-turn-btn').classList.add('hidden');
+            document.getElementById('bidding-form').classList.add('hidden');
+            isBiddingPhase = false;
+
+            coinModal.classList.remove('hidden'); 
+            coinVisual.classList.add('coin-flip'); 
+            coinVisual.textContent = ''; 
+            coinVisual.className = 'w-32 h-32 mx-auto rounded-full bg-yellow-400 border-8 border-yellow-500 flex items-center justify-center shadow-lg text-4xl font-bold text-yellow-800 mb-8 coin-flip';
+            coinText.textContent = 'コイントス中...';
+            
+            await new Promise(r => setTimeout(r, 1500));
+            
+            coinVisual.classList.remove('coin-flip');
+            currentEconomy = economy;
+            
+            coinVisual.textContent = currentEconomy; 
+            coinVisual.className = `w-32 h-32 mx-auto rounded-full flex items-center justify-center shadow-2xl text-6xl font-black text-white mb-6 border-8 ${currentEconomy === 'A' ? 'bg-pink-400 border-pink-500 shadow-pink-500/40' : 'bg-blue-400 border-blue-500 shadow-blue-500/40'}`;
+            coinText.textContent = currentEconomy === 'A' ? '表：好景気 (必要労働力A)' : '裏：不景気 (必要労働力B)';
+            
+            await new Promise(r => setTimeout(r, 1500)); 
+            coinModal.classList.add('hidden');
+            
+            updateEconomyHighlight();
 
             if (players[myPlayerIndex].isDefaulter) { 
                 await executeTurnAfterMyBid({ project: 'none', amount: 0 }); 
             } else { 
                 prepareBidding(); 
             }
-        });
+        }
 
         function prepareBidding() { isBiddingPhase = true; bidForm.classList.remove('hidden'); document.getElementById('bidding-inputs').classList.add('hidden'); selectedBiddingProject = 'none'; }
         
@@ -1188,7 +1231,6 @@
             
             for (let i = 0; i < 4; i++) {
                 if (i !== myPlayerIndex && winningResults[i]) {
-                    // ★追加修正：オンライン対戦時、人間プレイヤー(isCPU: false)の雇用は勝手に計算しない
                     if (isOnlineMode && !players[i].isCPU) {
                         continue;
                     }
@@ -1213,7 +1255,22 @@
             renderPlayers();
             const allBankrupt = players.every(p => p.isDefaulter);
             if (allBankrupt || currentTurn >= totalTurns) endGame();
-            else { currentTurn++; document.getElementById('turn-display').textContent = currentTurn; document.getElementById('start-turn-btn').classList.remove('hidden'); }
+            else { 
+                currentTurn++; 
+                document.getElementById('turn-display').textContent = currentTurn; 
+                
+                const startBtn = document.getElementById('start-turn-btn');
+                startBtn.classList.remove('hidden'); 
+                if (isOnlineMode && myPlayerIndex !== 0) {
+                    startBtn.innerHTML = '<span>⏳</span> ホストのコイントス待機中...';
+                    startBtn.disabled = true;
+                    startBtn.classList.add('opacity-70', 'cursor-not-allowed');
+                } else {
+                    startBtn.innerHTML = '<span>🪙</span> ターン開始（コイントス）';
+                    startBtn.disabled = false;
+                    startBtn.classList.remove('opacity-70', 'cursor-not-allowed');
+                }
+            }
         }
 
         function endGame() {
@@ -1239,17 +1296,12 @@
 
         window.createRoom = function() {
             if (!supabaseClient) return;
+            if (isOnlineMode) {
+                alert('すでにルームに参加しています。別のルームに参加・作成する場合は、まず「退出」ボタンから退出してください。');
+                return;
+            }
             const nameInput = document.getElementById('online-player-name').value.trim() || 'ホストプレイヤー';
             
-            if (isOnlineMode && onlineChannel && myPlayerIndex === 0) {
-                onlineChannel.send({ type: 'broadcast', event: 'room_closed', payload: {} });
-            }
-            
-            if (onlineChannel) {
-                supabaseClient.removeChannel(onlineChannel);
-                onlineChannel = null;
-            }
-
             resetGameState();
             
             myPlayerIndex = 0;
@@ -1267,24 +1319,21 @@
             isOnlineMode = true;
             document.getElementById('room-badge').classList.remove('hidden');
             document.getElementById('current-room-id-display').textContent = onlineRoomId;
+            document.getElementById('leave-room-btn').classList.remove('hidden');
+            document.getElementById('multiplayer-btn').classList.add('hidden');
             renderPlayers();
             startPeriodicSync();
         };
 
         window.joinRoom = function() {
+            if (isOnlineMode) {
+                alert('すでにルームに参加しています。別のルームに参加・作成する場合は、まず「退出」ボタンから退出してください。');
+                return;
+            }
             const codeInput = document.getElementById('room-code-input').value.trim().toUpperCase();
             if (!codeInput) { alert('ルームコードを入力してください'); return; }
             guestNameInput = document.getElementById('online-player-name').value.trim() || 'ゲストプレイヤー';
             
-            if (isOnlineMode && onlineChannel && myPlayerIndex === 0) {
-                onlineChannel.send({ type: 'broadcast', event: 'room_closed', payload: {} });
-            }
-            
-            if (onlineChannel) {
-                supabaseClient.removeChannel(onlineChannel);
-                onlineChannel = null;
-            }
-
             resetGameState();
             
             onlineRoomId = codeInput;
@@ -1339,6 +1388,17 @@
                     const btn = document.getElementById('join-btn-text');
                     if (btn) btn.textContent = 'ルームに参加';
                 })
+                .on('broadcast', { event: 'player_left' }, payload => {
+                    if (myPlayerIndex === 0) {
+                        const { playerIndex } = payload.payload;
+                        players[playerIndex].name = `競合CPU (代行)`;
+                        players[playerIndex].isCPU = true;
+                        activeRoomMembers = players.filter(p => !p.isCPU).length;
+                        updateMemberCountDisplay(activeRoomMembers);
+                        renderPlayers();
+                        onlineChannel.send({ type: 'broadcast', event: 'state_sync', payload: { snapshot: players } });
+                    }
+                })
                 .on('broadcast', { event: 'request_join' }, payload => {
                     if (isOnlineMode && myPlayerIndex === 0) {
                         const { tempId, name } = payload.payload;
@@ -1387,6 +1447,8 @@
                         isOnlineMode = true;
                         document.getElementById('room-badge').classList.remove('hidden');
                         document.getElementById('current-room-id-display').textContent = onlineRoomId;
+                        document.getElementById('leave-room-btn').classList.remove('hidden');
+                        document.getElementById('multiplayer-btn').classList.add('hidden');
                         document.getElementById('lobby-modal').classList.add('hidden');
                         
                         const btn = document.getElementById('join-btn-text');
@@ -1396,6 +1458,13 @@
                         activeRoomMembers = players.filter(p => !p.isCPU).length;
                         updateMemberCountDisplay(activeRoomMembers);
                         renderPlayers();
+                        
+                        const startBtn = document.getElementById('start-turn-btn');
+                        if (startBtn && currentTurn === 1) { 
+                            startBtn.innerHTML = '<span>⏳</span> ホストのコイントス待機中...';
+                            startBtn.disabled = true;
+                            startBtn.classList.add('opacity-70', 'cursor-not-allowed');
+                        }
                     }
                 })
                 .on('broadcast', { event: 'join_rejected' }, payload => {
@@ -1433,10 +1502,11 @@
                         processBids();
                     }
                 })
-                .on('broadcast', { event: 'economy_decided' }, payload => {
-                    currentEconomy = payload.payload.economy;
-                    currentTurn = payload.payload.turn;
-                    updateEconomyHighlight();
+                .on('broadcast', { event: 'start_coin_toss' }, payload => {
+                    if (myPlayerIndex !== 0) {
+                        currentTurn = payload.payload.turn;
+                        playCoinTossAnimation(payload.payload.economy);
+                    }
                 })
                 .on('broadcast', { event: 'start_game' }, payload => {
                     document.getElementById('lobby-modal').classList.add('hidden');
