@@ -1,0 +1,1429 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>建設業入札サバイバルゲーム</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&display=swap');
+        body { font-family: 'Noto Sans JP', sans-serif; background-color: #f3f4f6; }
+        
+        .coin-flip { animation: flipCoin 1.5s ease-out forwards; }
+        @keyframes flipCoin {
+            0% { transform: rotateY(0deg) scale(1); }
+            50% { transform: rotateY(1080deg) scale(1.5); }
+            100% { transform: rotateY(2160deg) scale(1); }
+        }
+        .roulette { animation: spinRoulette 2s cubic-bezier(0.25, 1, 0.5, 1) forwards; }
+        @keyframes spinRoulette {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(1440deg); } 
+        }
+        .modal-bg { background-color: rgba(0, 0, 0, 0.6); }
+        .slide-in { animation: slideIn 0.3s ease-out forwards; }
+        @keyframes slideIn {
+            from { transform: translateY(-20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        
+        .custom-scroll::-webkit-scrollbar { width: 6px; }
+        .custom-scroll::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 4px; }
+        .custom-scroll::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
+    </style>
+</head>
+<body class="text-gray-800 h-screen flex flex-col overflow-hidden">
+
+    <header class="bg-slate-800 text-white p-4 shadow-md flex justify-between items-center z-10 shrink-0">
+        <div class="flex items-center gap-3">
+            <h1 class="text-xl font-bold">建設業入札サバイバル vol.33 <span class="text-sm font-normal ml-2">第 <span id="turn-display" class="text-yellow-400 font-bold text-2xl">1</span> / 20 ターン</span></h1>
+            <div id="room-badge" class="hidden px-2 py-0.5 bg-indigo-600 rounded text-xs font-bold text-white shadow border border-indigo-500">🏠 ルーム: <span id="current-room-id-display">---</span></div>
+            <div id="ai-status" class="hidden px-2 py-1 bg-emerald-500 rounded text-xs font-bold shadow animate-pulse">🤖 データ学習済</div>
+            
+            <div class="flex gap-2 ml-2">
+                 <button id="multiplayer-btn" class="bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold py-1.5 px-3 rounded-lg shadow transition-colors flex items-center gap-1 text-sm border border-indigo-500" onclick="openLobbyModal()">
+                    <span>🌐</span> オンライン対戦
+                </button>
+                <button id="help-btn" class="bg-teal-600 hover:bg-teal-700 active:scale-95 text-white font-bold py-1.5 px-3 rounded-lg shadow transition-colors flex items-center gap-1 text-sm border border-teal-500" onclick="document.getElementById('help-modal').classList.remove('hidden')">
+                    <span>❓</span> ヘルプ
+                </button>
+                <button id="auto-sim-btn" class="bg-slate-600 hover:bg-slate-700 active:scale-95 text-white font-bold py-1.5 px-3 rounded-lg shadow transition-colors flex items-center gap-1 text-sm border border-slate-500" onclick="document.getElementById('sim-config-modal').classList.remove('hidden')">
+                    <span>⚙️</span> CPU設定 / 自動収集
+                </button>
+            </div>
+        </div>
+        <div id="economy-status" class="px-4 py-1 rounded font-bold text-lg bg-gray-500 shadow-inner">景気：未定</div>
+    </header>
+
+    <main class="flex-1 flex overflow-hidden">
+        
+        <section class="w-2/3 p-4 flex flex-col gap-4 overflow-y-auto bg-gray-100 custom-scroll">
+            <div class="bg-white p-4 rounded-xl shadow border border-gray-200">
+                <h2 class="text-lg font-bold border-b border-gray-300 mb-4 pb-2 flex items-center gap-2"><span>🏗️</span> 場の工事カード</h2>
+                <div class="grid grid-cols-3 gap-4">
+                    <div id="card-large" class="border-2 border-red-500 rounded-lg p-3 bg-red-50 relative shadow-sm transition-all" onclick="selectProject('large')">
+                        <h3 class="text-red-700 font-bold text-center mb-2 text-lg">大工事</h3>
+                        <div class="text-sm space-y-1 bg-white p-2 rounded border border-red-100 pointer-events-none">
+                            <p>入札上限: <span class="font-bold text-red-600">300Y</span></p>
+                            <p id="labor-large-A" class="text-gray-500 transition-colors">好景気(A): 140P</p>
+                            <p id="labor-large-B" class="text-gray-500 transition-colors">不景気(B): 200P</p>
+                        </div>
+                    </div>
+                    <div id="card-medium" class="border-2 border-blue-500 rounded-lg p-3 bg-blue-50 relative shadow-sm transition-all" onclick="selectProject('medium')">
+                        <h3 class="text-blue-700 font-bold text-center mb-2 text-lg">中工事</h3>
+                        <div class="text-sm space-y-1 bg-white p-2 rounded border border-blue-100 pointer-events-none">
+                            <p>入札上限: <span class="font-bold text-blue-600">210Y</span></p>
+                            <p id="labor-medium-A" class="text-gray-500 transition-colors">好景気(A): 100P</p>
+                            <p id="labor-medium-B" class="text-gray-500 transition-colors">不景気(B): 140P</p>
+                        </div>
+                    </div>
+                    <div id="card-small" class="border-2 border-green-500 rounded-lg p-3 bg-green-50 relative shadow-sm transition-all" onclick="selectProject('small')">
+                        <h3 class="text-green-700 font-bold text-center mb-2 text-lg">小工事</h3>
+                        <div class="text-sm space-y-1 bg-white p-2 rounded border border-green-100 pointer-events-none">
+                            <p>入札上限: <span class="font-bold text-green-600">120Y</span></p>
+                            <p id="labor-small-A" class="text-gray-500 transition-colors">好景気(A): 60P</p>
+                            <p id="labor-small-B" class="text-gray-500 transition-colors">不景気(B): 80P</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white p-4 rounded-xl shadow border border-gray-200 flex-1 flex flex-col">
+                <h2 class="text-lg font-bold border-b border-gray-300 mb-4 pb-2 flex items-center gap-2"><span>🏢</span> 各社の状況</h2>
+                <div class="grid grid-cols-2 gap-4" id="players-container"></div>
+            </div>
+        </section>
+
+        <section class="w-1/3 flex flex-col border-l border-gray-300 bg-slate-50 shadow-xl z-10">
+            <div class="shrink-0 p-4 border-b border-slate-200 bg-slate-50" id="charts-buttons-area">
+                <div class="bg-white p-3 rounded-xl shadow-sm border border-slate-200">
+                    <h3 class="font-bold text-slate-700 text-center mb-2 flex items-center justify-center gap-2 text-sm"><span>📈</span> 落札価格推移グラフ</h3>
+                    <div class="space-y-2">
+                        <button onclick="openChartModal('large')" class="w-full bg-red-50 hover:bg-red-100 active:scale-95 text-red-700 font-bold py-2 px-3 rounded-lg border border-red-200 shadow-sm transition-all flex justify-between items-center text-sm">
+                            <span class="flex items-center gap-1"><span>🏢</span> 大工事グラフ</span>
+                            <span>📊</span>
+                        </button>
+                        <button onclick="openChartModal('medium')" class="w-full bg-blue-50 hover:bg-blue-100 active:scale-95 text-blue-700 font-bold py-2 px-3 rounded-lg border border-blue-200 shadow-sm transition-all flex justify-between items-center text-sm">
+                            <span class="flex items-center gap-1"><span>🏬</span> 中工事グラフ</span>
+                            <span>📊</span>
+                        </button>
+                        <button onclick="openChartModal('small')" class="w-full bg-green-50 hover:bg-green-100 active:scale-95 text-green-700 font-bold py-2 px-3 rounded-lg border border-green-200 shadow-sm transition-all flex justify-between items-center text-sm">
+                            <span class="flex items-center gap-1"><span>🏠</span> 小工事グラフ</span>
+                            <span>📊</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex-1 p-5 bg-white overflow-y-auto custom-scroll" id="action-area">
+                <button id="start-turn-btn" class="w-full bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold py-4 px-4 rounded-xl shadow-lg transition-all border-b-4 border-indigo-800 flex justify-center items-center gap-2 text-lg">
+                    <span>🪙</span> ターン開始（コイントス）
+                </button>
+                
+                <div id="bidding-form" class="hidden space-y-4 slide-in">
+                    <h3 class="font-bold text-gray-800 text-center text-lg flex justify-center items-center gap-2"><span>📝</span> 入札フェイズ</h3>
+                    
+                    <div id="bidding-instructions" class="text-center">
+                        <button id="skip-bid-btn" class="w-full bg-slate-400 hover:bg-slate-500 active:scale-95 text-white font-bold py-3 rounded-xl shadow border-b-4 border-slate-500 transition-all">入札しない（パス）</button>
+                    </div>
+                    
+                    <div id="bidding-inputs" class="hidden space-y-4">
+                        <div class="bg-blue-50 p-3 rounded-lg border border-blue-200 shadow-inner text-center">
+                            <span class="text-sm font-bold text-blue-700">選択中:</span>
+                            <div id="selected-project-name" class="font-black text-xl text-blue-900 mt-1">---</div>
+                        </div>
+                        <div class="bg-slate-50 p-3 rounded-lg border border-slate-200 shadow-inner">
+                            <label class="block text-sm font-bold mb-2 text-slate-700">入札価格（10Y単位）</label>
+                            <div class="flex gap-2 relative">
+                                <div class="relative flex-1">
+                                    <input type="number" id="bid-amount" class="w-full border-2 border-slate-300 p-2 rounded-lg font-bold text-xl text-slate-800 focus:border-blue-500 outline-none transition" step="10" min="0" value="0">
+                                    <span class="absolute right-3 top-2 text-gray-400 font-bold">Y</span>
+                                </div>
+                                <button type="button" id="calc-profit-btn" class="bg-slate-700 hover:bg-slate-800 active:scale-95 text-white font-bold px-4 rounded-lg shadow transition flex items-center justify-center min-w-[70px]">計算</button>
+                            </div>
+                        </div>
+                        <button id="submit-bid-btn" class="w-full bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold py-3 rounded-xl shadow-lg transition-all border-b-4 border-blue-800 flex justify-center items-center gap-2">入札を確定する</button>
+                    </div>
+                </div>
+
+                <div id="hiring-form" class="hidden space-y-3 slide-in">
+                    <h3 class="font-bold text-emerald-800 text-center bg-emerald-100 py-2 rounded-lg border border-emerald-200">👷 雇用フェイズ</h3>
+                    <div id="hiring-info" class="text-sm space-y-1 p-3 bg-gray-50 border rounded-lg shadow-inner"></div>
+                    <div class="flex gap-2">
+                        <div class="flex-1 bg-blue-50 p-2 rounded-lg border border-blue-100">
+                            <label class="block text-[11px] font-bold mb-1 text-blue-800">正社員追加(20Y/毎T)</label>
+                            <input type="number" id="hire-fulltime" class="w-full border p-2 rounded font-bold text-center" min="0" value="0">
+                        </div>
+                        <div class="flex-1 bg-orange-50 p-2 rounded-lg border border-orange-100">
+                            <label class="block text-[11px] font-bold mb-1 text-orange-800">発注追加(30Y/1回)</label>
+                            <input type="number" id="hire-temp" class="w-full border p-2 rounded font-bold text-center" min="0" value="0">
+                        </div>
+                    </div>
+                    <div class="text-sm text-center font-bold text-gray-600 bg-slate-100 py-2 rounded-lg" id="hiring-preview">追加労働力: 0P</div>
+                    <div class="relative group">
+                        <div id="hiring-profit-tooltip" class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-800 text-white text-sm font-bold rounded-lg py-1.5 px-3 pointer-events-none shadow-lg whitespace-nowrap z-20">最終純利益予想: --Y</div>
+                        <button id="submit-hire-btn" class="w-full bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold py-3 rounded-xl shadow-lg transition-all border-b-4 border-emerald-800 disabled:opacity-50" disabled>雇用を確定する</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- ★ ヘルプモーダル -->
+    <div id="help-modal" class="fixed inset-0 modal-bg hidden flex justify-center items-center z-50 p-4">
+        <div class="bg-white p-6 md:p-8 rounded-2xl shadow-2xl w-full max-w-3xl slide-in relative border-t-8 border-teal-500 flex flex-col max-h-[90vh]">
+            <button onclick="document.getElementById('help-modal').classList.add('hidden')" class="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 font-bold transition-colors z-10">✕</button>
+            <div class="text-center mb-6 shrink-0">
+                <span class="text-4xl mb-2 block">📖</span>
+                <h2 class="text-2xl font-black text-slate-800">ゲームの遊び方・ルール</h2>
+            </div>
+            
+            <div class="flex-1 overflow-y-auto custom-scroll pr-2 space-y-6 text-slate-700 text-sm">
+                <section>
+                    <h3 class="text-lg font-bold text-teal-700 border-b-2 border-teal-200 pb-1 mb-2 flex items-center gap-2"><span>🎯</span> ゲームの目的</h3>
+                    <p>全20ターンを生き残り、最も多くの資金（Y）を持っていた企業が勝利となります。資金がマイナスになると「破産」となり、実質脱落となります（他の企業の市場競争は最後まで進行します）。</p>
+                </section>
+                
+                <section>
+                    <h3 class="text-lg font-bold text-teal-700 border-b-2 border-teal-200 pb-1 mb-2 flex items-center gap-2"><span>🔄</span> ターンの流れ</h3>
+                    <ol class="list-decimal list-inside space-y-2 ml-1">
+                        <li><strong>景気決定：</strong> コイントスにより「好景気(A)」か「不景気(B)」が決まります。景気により工事に必要な労働力が変動します。</li>
+                        <li><strong>入札フェイズ：</strong> 大・中・小いずれかの工事を選び、10Y単位で入札します。一番<strong>安い金額（最安値）</strong>を提示した1社のみが落札（受注）できます。同額の場合は抽選になります。利益が出ない場合は「パス」も重要です。</li>
+                        <li><strong>雇用フェイズ：</strong> 落札できた場合、工事に必要な労働力（P）を満たすように人を雇います。</li>
+                        <li><strong>清算：</strong> 獲得した入札額から、人件費を引いた額が資金に反映されます。</li>
+                    </ol>
+                </section>
+
+                <section>
+                    <h3 class="text-lg font-bold text-teal-700 border-b-2 border-teal-200 pb-1 mb-2 flex items-center gap-2"><span>👷</span> 雇用とコストについて</h3>
+                    <p class="mb-2">労働力は1人あたり<strong>20P</strong>として計算されます。</p>
+                    <ul class="list-disc list-inside space-y-2 ml-1 bg-slate-50 p-3 rounded-lg border border-slate-200">
+                        <li><strong>👨‍💼 正社員（20Y / 毎ターン）：</strong> 一度雇うと解雇できません。毎ターン固定費として20Yかかりますが、長期的に見るとコストパフォーマンスに優れます。</li>
+                        <li><strong>👷 発注・派遣（30Y / 1回のみ）：</strong> そのターン限りの労働力です。正社員より割高ですが、次ターン以降の固定費にはなりません。</li>
+                    </ul>
+                </section>
+
+                <section>
+                    <h3 class="text-lg font-bold text-teal-700 border-b-2 border-teal-200 pb-1 mb-2 flex items-center gap-2"><span>🏗️</span> 各工事カードの詳細</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div class="bg-red-50 p-3 rounded border border-red-200">
+                            <h4 class="font-bold text-red-700 mb-1">大工事（上限: 300Y）</h4>
+                            <p class="text-xs text-slate-600 mb-2">大きな利益を見込めますが、必要な労働力も膨大です。</p>
+                            <ul class="text-xs space-y-0.5 font-bold">
+                                <li class="text-pink-600">好景気: 140P (7人分)</li>
+                                <li class="text-blue-600">不景気: 200P (10人分)</li>
+                            </ul>
+                        </div>
+                        <div class="bg-blue-50 p-3 rounded border border-blue-200">
+                            <h4 class="font-bold text-blue-700 mb-1">中工事（上限: 210Y）</h4>
+                            <p class="text-xs text-slate-600 mb-2">バランスの良い工事です。中堅企業向け。</p>
+                            <ul class="text-xs space-y-0.5 font-bold">
+                                <li class="text-pink-600">好景気: 100P (5人分)</li>
+                                <li class="text-blue-600">不景気: 140P (7人分)</li>
+                            </ul>
+                        </div>
+                        <div class="bg-green-50 p-3 rounded border border-green-200">
+                            <h4 class="font-bold text-green-700 mb-1">小工事（上限: 120Y）</h4>
+                            <p class="text-xs text-slate-600 mb-2">手軽に受注できますが、利益は少なめです。</p>
+                            <ul class="text-xs space-y-0.5 font-bold">
+                                <li class="text-pink-600">好景気: 60P (3人分)</li>
+                                <li class="text-blue-600">不景気: 80P (4人分)</li>
+                            </ul>
+                        </div>
+                    </div>
+                </section>
+                
+                <section>
+                    <h3 class="text-lg font-bold text-teal-700 border-b-2 border-teal-200 pb-1 mb-2 flex items-center gap-2"><span>🤖</span> CPUの戦略について</h3>
+                    <p class="mb-2">設定から各CPUの性格を変更できます。</p>
+                    <ul class="list-disc list-inside space-y-1 ml-1 text-sm">
+                        <li><strong>自律適応型：</strong> 過去の「1位かつ利益を出した勝者」のデータを学習し、適正価格で利益を狙う最も賢いAI。</li>
+                        <li><strong>完全外注特化：</strong> 正社員を雇わず、すべて派遣で賄う身軽な戦略。</li>
+                        <li><strong>完全正社員特化：</strong> 積極的に正社員を雇い、固定費をかけても受注を狙う戦略。</li>
+                    </ul>
+                </section>
+            </div>
+            
+            <div class="mt-6 pt-4 border-t border-slate-200 shrink-0">
+                <button onclick="document.getElementById('help-modal').classList.add('hidden')" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 rounded-xl shadow transition-colors">
+                    確認して閉じる
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- モーダル群 -->
+    
+    <!-- オンラインロビー モーダル -->
+    <div id="lobby-modal" class="fixed inset-0 modal-bg hidden flex justify-center items-center z-50 p-4">
+        <div class="bg-white p-6 md:p-8 rounded-2xl shadow-2xl w-full max-w-md slide-in relative border-t-8 border-indigo-600">
+            <button onclick="document.getElementById('lobby-modal').classList.add('hidden')" class="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 font-bold transition-colors">✕</button>
+            <div class="text-center mb-6">
+                <span class="text-4xl mb-2 block">🌐</span>
+                <h2 class="text-2xl font-black text-slate-800">オンライン対戦ロビー</h2>
+                <p class="text-sm text-slate-500 mt-1">Supabase Realtimeによるルーム対戦</p>
+            </div>
+            <div class="space-y-4">
+                <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2">
+                    <label class="block text-sm font-bold text-slate-700">あなたのプレイヤー名</label>
+                    <input type="text" id="online-player-name" class="w-full bg-white border border-slate-300 p-2 rounded-lg font-bold text-slate-800 text-sm" value="プレイヤー1">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <button onclick="createRoom()" class="bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold py-3 px-3 rounded-xl shadow-lg border-b-4 border-indigo-800 transition text-sm flex flex-col items-center gap-1">
+                        <span>🏠</span> ルームを作成 (ホスト)
+                    </button>
+                    <div class="flex flex-col gap-1.5">
+                        <input type="text" id="room-code-input" class="w-full bg-white border border-slate-300 p-1.5 rounded-lg text-center font-mono font-bold text-slate-800 text-xs uppercase" placeholder="コード入力">
+                        <button onclick="joinRoom()" id="join-btn-text" class="w-full bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold py-2 px-2 rounded-lg shadow border-b-4 border-emerald-800 transition text-xs">ルームに参加</button>
+                    </div>
+                </div>
+                <div id="room-status-box" class="hidden bg-indigo-50 p-3 rounded-xl border border-indigo-200 text-center space-y-2">
+                    <p class="text-sm text-indigo-700 font-bold">ルームコード: <span id="display-room-code" class="text-indigo-900 font-mono text-lg tracking-wider bg-indigo-100 px-2 py-0.5 rounded">----</span></p>
+                    <p class="text-sm text-slate-600" id="room-member-count">参加メンバー: 1 / 4人</p>
+                    <button id="start-online-game-btn" onclick="startOnlineGameHost()" class="hidden w-full bg-yellow-400 hover:bg-yellow-500 text-slate-900 font-black py-2 rounded-lg shadow text-sm transition">オンライン対戦を開始する</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="cpu-calculating-modal" class="fixed inset-0 modal-bg hidden flex justify-center items-center z-50">
+        <div class="bg-white p-8 rounded-2xl shadow-2xl text-center max-w-sm w-full flex flex-col items-center gap-4 slide-in border-t-8 border-indigo-600">
+            <div class="text-5xl animate-bounce">🤖</div>
+            <h2 class="text-xl font-black text-slate-800">処理中...</h2>
+            <p class="text-sm text-slate-500 font-bold">競合AIの思考、または他プレイヤーの入力を待機しています。</p>
+        </div>
+    </div>
+
+    <div id="sim-config-modal" class="fixed inset-0 modal-bg hidden flex justify-center items-center z-50 p-4">
+        <div class="bg-white p-6 md:p-8 rounded-2xl shadow-2xl w-full max-w-md slide-in relative border-t-8 border-slate-600">
+            <button onclick="closeConfigModal()" class="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 font-bold transition-colors">✕</button>
+            <div class="text-center mb-6">
+                <span class="text-4xl mb-2 block">⚙️</span>
+                <h2 class="text-2xl font-black text-slate-800">CPU戦略設定</h2>
+                <p class="text-sm font-bold text-slate-500 mt-1">手動プレイ・自動収集でAIが使用する戦略</p>
+            </div>
+            <div class="space-y-3 mb-6" id="cpu-strat-settings-container">
+            </div>
+            <div class="flex flex-col gap-3">
+                <button onclick="closeConfigModal()" class="w-full bg-slate-200 hover:bg-slate-300 active:scale-95 text-slate-800 font-bold py-3 rounded-xl shadow-sm transition-all flex justify-center items-center gap-2"><span>🎮</span> 設定を保存して手動プレイに戻る</button>
+                <button onclick="executeSimulationWithPassword()" class="w-full bg-slate-700 hover:bg-slate-800 active:scale-[0.98] text-white font-bold py-3 rounded-xl shadow-lg transition-all border-b-4 border-slate-900 flex justify-center items-center gap-2"><span>▶️</span> 50ゲーム自動収集を実行</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="chart-modal" class="fixed inset-0 modal-bg hidden flex justify-center items-center z-50 p-4">
+        <div id="chart-modal-content" class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-4xl slide-in relative border-t-8 flex flex-col h-[70vh]">
+            <button onclick="closeChartModal()" class="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-800 font-bold transition-colors z-20">✕</button>
+            <div class="text-center mb-4 shrink-0"><h2 id="chart-modal-title" class="text-2xl font-black text-slate-800">落札価格推移</h2></div>
+            <div class="flex-1 relative w-full h-full min-h-[300px] bg-slate-50 rounded-xl border border-slate-200 p-4">
+                <div id="modal-chart-large" class="absolute inset-4 hidden"><canvas id="chart-large"></canvas></div>
+                <div id="modal-chart-medium" class="absolute inset-4 hidden"><canvas id="chart-medium"></canvas></div>
+                <div id="modal-chart-small" class="absolute inset-4 hidden"><canvas id="chart-small"></canvas></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="coin-modal" class="fixed inset-0 modal-bg hidden flex justify-center items-center z-50">
+        <div class="bg-white p-8 rounded-2xl shadow-2xl text-center max-w-sm w-full">
+            <h2 class="text-2xl font-black text-slate-800 mb-8">景気決定コイントス</h2>
+            <div id="coin-visual" class="w-32 h-32 mx-auto rounded-full bg-yellow-400 border-8 border-yellow-500 flex items-center justify-center shadow-lg text-4xl font-bold text-yellow-800 mb-8">?</div>
+            <p id="coin-result-text" class="text-xl font-bold h-8 text-slate-600"></p>
+        </div>
+    </div>
+    <div id="roulette-modal" class="fixed inset-0 modal-bg hidden flex justify-center items-center z-50">
+        <div class="bg-white p-8 rounded-2xl shadow-2xl text-center max-w-sm w-full border-4 border-yellow-400">
+            <h2 class="text-2xl font-black mb-2 text-slate-800" id="roulette-title">同額入札！落札者抽選</h2>
+            <p class="text-sm font-bold text-gray-500 mb-6" id="roulette-desc"></p>
+            <div class="relative w-48 h-48 mx-auto mb-6">
+                <div id="roulette-wheel" class="w-full h-full rounded-full border-4 border-slate-200 shadow-inner relative overflow-hidden" style="background: conic-gradient(#fecaca 0 90deg, #bfdbfe 90deg 180deg, #bbf7d0 180deg 270deg, #fef08a 270deg 360deg);"></div>
+                <div class="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-2 w-0 h-0 border-l-[10px] border-l-transparent border-r-[10px] border-r-transparent border-t-[20px] border-t-red-600 z-10 filter drop-shadow-md"></div>
+            </div>
+            <div class="bg-slate-100 py-3 rounded-xl border border-slate-200"><p id="roulette-result-text" class="text-2xl font-black text-red-600 h-8 flex items-center justify-center"></p></div>
+        </div>
+    </div>
+    <div id="result-modal" class="fixed inset-0 modal-bg hidden flex justify-center items-center z-50 p-4">
+        <div class="bg-white p-6 md:p-8 rounded-2xl shadow-2xl w-full max-w-2xl slide-in relative border-t-8 border-blue-600">
+            <button id="close-result-top-btn" class="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-800 font-bold transition-colors">✕</button>
+            <div class="text-center mb-6"><span class="text-4xl mb-2 block">📢</span><h2 class="text-2xl font-black text-slate-800">入札結果発表</h2></div>
+            <div class="space-y-4 mb-8">
+                <div class="flex flex-col sm:flex-row items-center p-4 bg-red-50 border-2 border-red-200 rounded-xl gap-4"><div class="w-full sm:w-1/4 font-black text-red-700 text-center sm:text-left text-lg">🏢 大工事</div><div class="w-full sm:w-3/4 flex justify-between items-center bg-white p-3 rounded-lg border border-red-100 shadow-sm" id="res-large-content"></div></div>
+                <div class="flex flex-col sm:flex-row items-center p-4 bg-blue-50 border-2 border-blue-200 rounded-xl gap-4"><div class="w-full sm:w-1/4 font-black text-blue-700 text-center sm:text-left text-lg">🏬 中工事</div><div class="w-full sm:w-3/4 flex justify-between items-center bg-white p-3 rounded-lg border border-blue-100 shadow-sm" id="res-medium-content"></div></div>
+                <div class="flex flex-col sm:flex-row items-center p-4 bg-green-50 border-2 border-green-200 rounded-xl gap-4"><div class="w-full sm:w-1/4 font-black text-green-700 text-center sm:text-left text-lg">🏠 小工事</div><div class="w-full sm:w-3/4 flex justify-between items-center bg-white p-3 rounded-lg border border-green-100 shadow-sm" id="res-small-content"></div></div>
+            </div>
+            <button id="close-result-btn" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-4 rounded-xl shadow-lg transition-all border-b-4 border-slate-950 flex justify-center items-center gap-2 text-lg">確認して次へ進む <span>➔</span></button>
+        </div>
+    </div>
+    
+    <div id="sim-result-modal" class="fixed inset-0 modal-bg hidden flex justify-center items-center z-50 p-4">
+        <div class="bg-white p-6 md:p-8 rounded-2xl shadow-2xl w-full max-w-5xl slide-in relative border-t-8 border-indigo-600">
+            <button onclick="document.getElementById('sim-result-modal').classList.add('hidden')" class="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 font-bold transition-colors">✕</button>
+            <div class="text-center mb-6">
+                <span class="text-4xl mb-2 block">📊</span>
+                <h2 class="text-2xl font-black text-slate-800">シミュレーション結果</h2>
+                <p class="text-sm font-bold text-slate-500 mt-1">50ゲーム自動対戦結果</p>
+            </div>
+            <div class="overflow-x-auto rounded-lg border border-slate-200 shadow-sm mb-6 custom-scroll">
+                <table class="w-full text-left text-sm min-w-[750px]">
+                    <thead class="bg-slate-100 text-slate-700">
+                        <tr>
+                            <th class="p-3 font-black border-b border-slate-200">AIプレイヤー＆戦略</th>
+                            <th class="p-3 font-black border-b border-slate-200 text-right">破産率 (回数)</th>
+                            <th class="p-3 font-black border-b border-slate-200 text-right">1位終了</th>
+                            <th class="p-3 font-black border-b border-slate-200 text-right">＋収益 (≧300Y)</th>
+                            <th class="p-3 font-black border-b border-slate-200 text-right">最終平均Y</th>
+                            <th class="p-3 font-black border-b border-slate-200 text-right">最高Y</th>
+                        </tr>
+                    </thead>
+                    <tbody id="sim-result-tbody" class="divide-y divide-slate-100"></tbody>
+                </table>
+            </div>
+            <div class="flex gap-4">
+                <button onclick="openSimDetailsList()" class="w-1/2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold py-4 rounded-xl shadow-lg transition-all border-b-4 border-blue-800 flex justify-center items-center gap-2"><span>📋</span> 詳細データを見る</button>
+                <button onclick="document.getElementById('sim-result-modal').classList.add('hidden')" class="w-1/2 bg-slate-600 hover:bg-slate-700 active:scale-95 text-white font-bold py-4 rounded-xl shadow-lg transition-all border-b-4 border-slate-800 flex justify-center items-center gap-2">確認して閉じる</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="sim-details-list-modal" class="fixed inset-0 modal-bg hidden flex justify-center items-center z-50 p-4">
+        <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-4xl slide-in relative border-t-8 border-blue-600 flex flex-col max-h-[90vh]">
+            <button onclick="document.getElementById('sim-details-list-modal').classList.add('hidden')" class="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 font-bold transition-colors">✕</button>
+            <div class="text-center mb-4 shrink-0"><h2 class="text-2xl font-black text-slate-800">シミュレーション詳細データ</h2><p class="text-sm font-bold text-slate-500 mt-1">グラフを確認したいゲームを選択してください</p></div>
+            <div class="flex-1 overflow-y-auto custom-scroll p-2 grid grid-cols-5 sm:grid-cols-10 gap-2" id="sim-details-grid"></div>
+        </div>
+    </div>
+
+    <div id="sim-game-chart-modal" class="fixed inset-0 modal-bg hidden flex justify-center items-center z-50 p-4">
+        <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-4xl slide-in relative border-t-8 border-indigo-600 flex flex-col h-[75vh]">
+            <button onclick="document.getElementById('sim-game-chart-modal').classList.add('hidden')" class="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 font-bold transition-colors z-10">✕</button>
+            <div class="text-center mb-4 shrink-0"><h2 id="sim-game-chart-title" class="text-2xl font-black text-slate-800">Game X の推移</h2></div>
+            <div class="flex-1 relative w-full h-full min-h-[300px] bg-slate-50 border border-slate-200 rounded-xl p-4"><canvas id="sim-game-chart"></canvas></div>
+        </div>
+    </div>
+
+    <div id="history-modal" class="fixed inset-0 modal-bg hidden flex justify-center items-center z-50 p-4">
+        <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-5xl slide-in relative flex flex-col max-h-[90vh]">
+            <button onclick="closeHistoryModal()" class="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 font-bold z-10">✕</button>
+            <div class="mb-4 border-b border-slate-200 pb-3 flex items-center gap-2"><span class="text-2xl">📊</span><h2 class="text-xl font-black text-slate-800" id="history-title">プレイヤー履歴</h2></div>
+            <div class="flex-1 overflow-hidden flex flex-col md:flex-row gap-4 min-h-[400px]">
+                <div class="w-full md:w-1/2 overflow-y-auto custom-scroll pr-2" id="history-content"></div>
+                <div class="w-full md:w-1/2 bg-slate-50 rounded-xl border border-slate-200 p-4 relative flex flex-col"><h3 class="text-center font-bold text-slate-600 mb-2">所持チップ推移</h3><div class="flex-1 relative w-full h-full"><canvas id="history-chart"></canvas></div></div>
+            </div>
+            <div class="mt-4 pt-4 border-t border-slate-200"><button onclick="closeHistoryModal()" class="w-full bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold py-3 rounded-xl">閉じる</button></div>
+        </div>
+    </div>
+    <div id="calc-modal" class="fixed inset-0 modal-bg hidden flex justify-center items-center z-50 p-4">
+        <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-sm slide-in relative border-t-4 border-indigo-500">
+            <button onclick="document.getElementById('calc-modal').classList.add('hidden')" class="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 font-bold z-10">✕</button>
+            <h3 class="text-xl font-black text-slate-800 mb-4 flex items-center gap-2"><span>🧮</span> 収益シミュレーション</h3><div id="calc-content" class="space-y-3 text-slate-700"></div><div class="mt-6 pt-4 border-t border-slate-200"><button onclick="document.getElementById('calc-modal').classList.add('hidden')" class="w-full bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold py-3 rounded-xl">閉じる</button></div>
+        </div>
+    </div>
+    <div id="ranking-modal" class="fixed inset-0 modal-bg hidden flex justify-center items-center z-50 p-4">
+        <div class="bg-white p-8 rounded-3xl shadow-2xl w-full max-w-lg slide-in text-center border-4 border-yellow-400 overflow-hidden relative">
+            <div class="absolute inset-0 bg-gradient-to-br from-yellow-50 to-white -z-10"></div>
+            <h2 class="text-4xl font-black mb-2 text-yellow-600 drop-shadow-sm">🏁 ゲーム終了！</h2><p class="text-gray-500 font-bold mb-8">最終清算結果ランキング</p><div id="ranking-container" class="space-y-3 mb-8 text-left"></div>
+            <button onclick="location.reload()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black text-lg py-4 px-6 rounded-xl shadow-lg border-b-4 border-indigo-900">🔄 もう一度プレイする</button>
+        </div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://qurypyztchaatyvmmigs.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF1cnlweXp0Y2hhYXR5dm1taWdzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA0MDgzMzcsImV4cCI6MjEwNTk4NDMzN30.eCsv82GKCULbgvc1dyUyfcG423YHIQ--zQlTDUpqM9g';
+        const supabaseClient = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+
+        let isOnlineMode = false;
+        let onlineRoomId = null;
+        let onlineChannel = null;
+        let myPlayerIndex = 0; 
+        let activeRoomMembers = 1; 
+        let periodicSyncTimer = null;
+        
+        let isWaitingToJoin = false;
+        let guestNameInput = '';
+        let joinTempId = null;
+        let currentTieBreaker = Math.random();
+
+        let marketStats = { A: {}, B: {} };
+        let playerStats = { A: {}, B: {} };
+        let aiStrategies = ['adaptive', 'adaptive', 'adaptive', 'adaptive'];
+        const strategyLabels = { 'adaptive': '自律適応型', 'outsource': '完全外注(派遣)', 'fulltime': '完全正社員' };
+
+        function renderCpuStratSettings() {
+            const container = document.getElementById('cpu-strat-settings-container');
+            if(!container) return;
+            container.innerHTML = '';
+            for(let i=0; i<4; i++) {
+                const p = players[i];
+                container.innerHTML += `
+                    <div class="flex items-center justify-between bg-slate-50 p-3 rounded-lg border border-slate-200">
+                        <label class="font-bold text-slate-700 text-sm flex flex-col">
+                            <span>${p.name}</span>
+                            ${p.isCPU ? '<span class="text-[10px] text-slate-400 font-normal">CPU</span>' : '<span class="text-[10px] text-emerald-500 font-bold">人間</span>'}
+                        </label>
+                        <select id="strat-cpu-${i}" onchange="updateStrategies()" class="border border-slate-300 rounded p-1.5 text-sm font-bold text-slate-700 bg-white" ${!p.isCPU ? 'disabled' : ''}>
+                            <option value="adaptive" ${aiStrategies[i]==='adaptive'?'selected':''}>自律適応型</option>
+                            <option value="outsource" ${aiStrategies[i]==='outsource'?'selected':''}>完全外注特化</option>
+                            <option value="fulltime" ${aiStrategies[i]==='fulltime'?'selected':''}>完全正社員特化</option>
+                        </select>
+                    </div>`;
+            }
+        }
+
+        window.updateStrategies = function() {
+            for(let i = 0; i < 4; i++) { 
+                const el = document.getElementById(`strat-cpu-${i}`);
+                if(el && !el.disabled) aiStrategies[i] = el.value; 
+            }
+            renderPlayers(); 
+        };
+
+        window.closeConfigModal = function() {
+            updateStrategies(); document.getElementById('sim-config-modal').classList.add('hidden');
+        };
+
+        const totalTurns = 20; let currentTurn = 1; let currentEconomy = ''; 
+        const projects = { 
+            large: { name: '大工事', maxBid: 300, laborA: 140, laborB: 200, color: 'rgb(239, 68, 68)' }, 
+            medium: { name: '中工事', maxBid: 210, laborA: 100, laborB: 140, color: 'rgb(59, 130, 246)' }, 
+            small: { name: '小工事', maxBid: 120, laborA: 60, laborB: 80, color: 'rgb(34, 197, 94)' } 
+        };
+
+        let goldenStats = {
+            A: { large: { sum: 0, count: 0, avg: null }, medium: { sum: 0, count: 0, avg: null }, small: { sum: 0, count: 0, avg: null } },
+            B: { large: { sum: 0, count: 0, avg: null }, medium: { sum: 0, count: 0, avg: null }, small: { sum: 0, count: 0, avg: null } }
+        };
+
+        async function loadHistoricalData() {
+            const startBtn = document.getElementById('start-turn-btn');
+            const simBtn = document.getElementById('auto-sim-btn');
+            if(startBtn) { startBtn.disabled = true; startBtn.innerHTML = '<span>🤖</span> 過去データを学習中...'; startBtn.classList.add('opacity-75', 'cursor-not-allowed'); }
+            if(simBtn) simBtn.disabled = true;
+            try {
+                if(!supabaseClient) throw new Error("Supabase is not initialized");
+                const { data, error } = await supabaseClient.from('game_logs').select('*');
+                if (error) throw error;
+                ['A', 'B'].forEach(eco => { ['large', 'medium', 'small'].forEach(proj => { marketStats[eco][proj] = { sum: 0, count: 0, avg: null }; playerStats[eco][proj] = { sum: 0, count: 0, avg: null }; }); });
+                data.forEach(log => {
+                    if (log.winner_id !== -1 && log.winning_bid > 0) {
+                        let reqLabor = log.economy === 'A' ? projects[log.project_type].laborA : projects[log.project_type].laborB;
+                        let minCost = Math.ceil(reqLabor / 20) * 20; 
+                        if (log.winning_bid >= minCost) {
+                            let mStat = marketStats[log.economy]?.[log.project_type];
+                            if (mStat) { mStat.sum += log.winning_bid; mStat.count++; mStat.avg = Math.round(mStat.sum / mStat.count); }
+                            if (log.winner_id === 0) { let pStat = playerStats[log.economy]?.[log.project_type]; if (pStat) { pStat.sum += log.winning_bid; pStat.count++; pStat.avg = Math.round(pStat.sum / pStat.count); } }
+                        }
+                    }
+                });
+                document.getElementById('ai-status').classList.remove('hidden');
+            } catch (error) {
+                console.error("ログ読み込みエラー:", error);
+                const aiStatus = document.getElementById('ai-status'); aiStatus.textContent = '⚠️ 学習データなし'; aiStatus.classList.remove('hidden', 'bg-emerald-500'); aiStatus.classList.add('bg-amber-500');
+            } finally {
+                if(startBtn) { startBtn.disabled = false; startBtn.innerHTML = '<span>🪙</span> ターン開始（コイントス）'; startBtn.classList.remove('opacity-75', 'cursor-not-allowed'); }
+                if(simBtn) simBtn.disabled = false;
+            }
+        }
+        loadHistoricalData();
+
+        async function saveLogToSupabase(turn, economy, projectType, winnerId, winningBid) {
+            try {
+                if(!supabaseClient) return;
+                if (winnerId !== -1 && winningBid > 0) {
+                    let reqLabor = economy === 'A' ? projects[projectType].laborA : projects[projectType].laborB;
+                    let minCost = Math.ceil(reqLabor / 20) * 20; 
+                    if (winningBid >= minCost) {
+                        let mStat = marketStats[economy]?.[projectType];
+                        if (mStat) { mStat.sum += winningBid; mStat.count++; mStat.avg = Math.round(mStat.sum / mStat.count); }
+                        if (winnerId === 0) { let pStat = playerStats[economy]?.[projectType]; if (pStat) { pStat.sum += winningBid; pStat.count++; pStat.avg = Math.round(pStat.sum / pStat.count); } }
+                    }
+                }
+                const { error } = await supabaseClient.from('game_logs').insert([{ turn, economy, project_type: projectType, winner_id: winnerId, winning_bid: winningBid }]);
+                if (error) throw error;
+            } catch (error) { console.error('Supabase保存エラー:', error.message); }
+        }
+
+        const players = [ 
+            { id: 0, name: 'あなた (Player)', money: 300, employees: 1, temps: 0, isDefaulter: false, isCPU: false, history: [], moneyHistory: [300] }, 
+            { id: 1, name: '競合A (CPU)', money: 300, employees: 1, temps: 0, isDefaulter: false, isCPU: true, history: [], moneyHistory: [300] }, 
+            { id: 2, name: '競合B (CPU)', money: 300, employees: 1, temps: 0, isDefaulter: false, isCPU: true, history: [], moneyHistory: [300] }, 
+            { id: 3, name: '競合C (CPU)', money: 300, employees: 1, temps: 0, isDefaulter: false, isCPU: true, history: [], moneyHistory: [300] } 
+        ];
+
+        let bidInputs = {}; let winningResults = {}; let isBiddingPhase = false; let selectedBiddingProject = 'none';
+
+        let charts = {};
+        function initCharts() {
+            ['large', 'medium', 'small'].forEach(key => {
+                const ctx = document.getElementById(`chart-${key}`).getContext('2d');
+                charts[key] = new Chart(ctx, { type: 'line', data: { labels: Array.from({length: 20}, (_, i) => i + 1), datasets: [{ label: projects[key].name + ' 落札価格', data: [], borderColor: projects[key].color, backgroundColor: projects[key].color, pointBackgroundColor: [], pointBorderColor: '#fff', pointRadius: 6, tension: 0.2, spanGaps: false }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, title: { display: false } }, scales: { y: { min: 0, max: projects[key].maxBid, ticks: { stepSize: 50 } }, x: { min: 1, max: 20, ticks: { stepSize: 1 } } } } });
+            });
+        }
+        initCharts();
+
+        window.openChartModal = function(projKey) {
+            const modal = document.getElementById('chart-modal');
+            const title = document.getElementById('chart-modal-title');
+            const content = document.getElementById('chart-modal-content');
+            ['large', 'medium', 'small'].forEach(key => { document.getElementById(`modal-chart-${key}`).classList.add('hidden'); });
+            document.getElementById(`modal-chart-${projKey}`).classList.remove('hidden');
+            title.textContent = `${projects[projKey].name} 落札価格推移`;
+            content.classList.remove('border-red-500', 'border-blue-500', 'border-green-500');
+            if (projKey === 'large') content.classList.add('border-red-500');
+            if (projKey === 'medium') content.classList.add('border-blue-500');
+            if (projKey === 'small') content.classList.add('border-green-500');
+            modal.classList.remove('hidden');
+            setTimeout(() => { if (charts[projKey]) { charts[projKey].resize(); charts[projKey].update(); } }, 50);
+        };
+        window.closeChartModal = function() { document.getElementById('chart-modal').classList.add('hidden'); };
+
+        function updateProjectChart(projKey, amount, eco) {
+            const dataArr = charts[projKey].data.datasets[0].data, colorArr = charts[projKey].data.datasets[0].pointBackgroundColor;
+            let len = dataArr.length; while(len < currentTurn - 1) { dataArr.push({x: len + 1, y: null, eco: null}); colorArr.push('transparent'); len++; }
+            if (amount !== null) { dataArr.push({x: currentTurn, y: amount, eco: eco}); colorArr.push(eco === 'A' ? 'rgb(236, 72, 153)' : 'rgb(59, 130, 246)'); } else { dataArr.push({x: currentTurn, y: null, eco: null}); colorArr.push('transparent'); }
+            charts[projKey].update();
+        }
+
+        const playersContainer = document.getElementById('players-container');
+        const startBtn = document.getElementById('start-turn-btn');
+        const bidForm = document.getElementById('bidding-form'), hireForm = document.getElementById('hiring-form'), bidAmountInput = document.getElementById('bid-amount'), submitBidBtn = document.getElementById('submit-bid-btn'), calcProfitBtn = document.getElementById('calc-profit-btn');
+
+        function renderPlayers() {
+            playersContainer.innerHTML = '';
+            players.forEach((p, idx) => {
+                const isMe = idx === myPlayerIndex;
+                const bg = isMe ? 'bg-blue-50 border-blue-300 shadow-sm' : 'bg-slate-50 border-slate-200'; 
+                const opacity = p.isDefaulter ? 'opacity-60 grayscale' : '';
+                const defaultLabel = p.isDefaulter ? '<span class="text-[10px] bg-red-600 text-white px-2 py-0.5 rounded-full font-bold ml-2 shadow-sm">破産</span>' : '';
+                const roleBadge = isMe ? '<span class="text-[10px] bg-indigo-600 text-white px-1.5 py-0.5 rounded font-bold ml-1">あなた</span>' : '';
+                const typeLabel = p.isCPU ? '<span class="text-[10px] font-bold text-slate-500 ml-1 border border-slate-300 px-1 rounded bg-white">' + strategyLabels[aiStrategies[p.id]] + '</span>' : '<span class="text-[10px] font-bold text-emerald-600 ml-1 border border-emerald-300 px-1 rounded bg-emerald-50">人間</span>';
+                
+                playersContainer.innerHTML += `
+                    <div class="border-2 rounded-xl p-3 ${bg} ${opacity} transition-all relative">
+                        <div class="font-bold border-b border-slate-200 pb-2 mb-2 flex justify-between items-center">
+                            <div class="flex items-center text-slate-800">
+                                ${isMe ? '👤' : (p.isCPU ? '🤖' : '🧑‍💻')} ${p.name} ${typeLabel} ${roleBadge} ${defaultLabel}
+                            </div>
+                            <button onclick="showPlayerHistory(${p.id})" class="text-[10px] bg-white border border-slate-300 text-slate-600 hover:bg-slate-100 px-2 py-1 rounded shadow-sm font-bold">📊 データ</button>
+                        </div>
+                        <div class="text-sm grid grid-cols-2 gap-y-2 gap-x-1 font-medium">
+                            <div class="text-slate-500">資金:<br><span class="font-black text-lg ${p.money < 0 ? 'text-red-600' : 'text-slate-800'}">${p.money} <span class="text-xs">Y</span></span></div>
+                            <div class="text-slate-500 text-right">労働力:<br><span class="font-black text-lg text-slate-800">${(p.employees + p.temps)*20} <span class="text-xs">P</span></span></div>
+                            <div class="col-span-2 text-xs font-bold text-blue-700 bg-blue-100/50 p-1 rounded text-center">👨‍💼 正社員: ${p.employees} 人</div>
+                        </div>
+                    </div>`;
+            });
+            renderCpuStratSettings();
+        }
+
+        function updateEconomyHighlight() {
+            ['large', 'medium', 'small'].forEach(key => { document.getElementById(`labor-${key}-A`).className = currentEconomy === 'A' ? 'font-black text-pink-600 text-base drop-shadow-sm' : 'text-gray-400 text-sm'; document.getElementById(`labor-${key}-B`).className = currentEconomy === 'B' ? 'font-black text-blue-600 text-base drop-shadow-sm' : 'text-gray-400 text-sm'; });
+            const ecoBar = document.getElementById('economy-status');
+            if (currentEconomy === 'A') { ecoBar.innerHTML = '🪙 景気：<span class="text-pink-200">好景気 (労働力A)</span>'; ecoBar.className = 'px-4 py-1.5 rounded-lg font-black text-lg bg-pink-600 text-white shadow-md border border-pink-700'; } 
+            else if(currentEconomy === 'B') { ecoBar.innerHTML = '🪙 景気：<span class="text-blue-200">不景気 (労働力B)</span>'; ecoBar.className = 'px-4 py-1.5 rounded-lg font-black text-lg bg-blue-600 text-white shadow-md border border-blue-700'; }
+        }
+
+        let historyChartInstance = null;
+        window.showPlayerHistory = function(playerId) {
+            const player = players.find(p => p.id === playerId) || players[0];
+            const modal = document.getElementById('history-modal'), title = document.getElementById('history-title'), content = document.getElementById('history-content');
+            title.textContent = `${player.name} の履歴`; content.innerHTML = '';
+            for (let t = 1; t <= totalTurns; t++) {
+                let rowHtml = `<div class="flex items-center p-3 border-b border-slate-100 ${t % 2 === 0 ? 'bg-slate-50' : 'bg-white'} rounded-lg mb-1"><div class="w-1/3 font-black text-slate-500 text-sm">第${t}ターン</div>`;
+                if (t <= currentTurn && player.history.length >= t) { const r = player.history[t-1]; if (r && r.project) { rowHtml += `<div class="w-2/3 text-emerald-700 font-bold text-sm flex justify-between items-center bg-emerald-50 px-2 py-1 rounded"><span>${projects[r.project].name}</span><span class="font-black">${r.amount}Y</span></div>`; } else { rowHtml += `<div class="w-2/3 text-slate-400 font-bold text-sm bg-slate-100 px-2 py-1 rounded text-center">データなし</div>`; } } else { rowHtml += `<div class="w-2/3 text-slate-300 font-bold text-center">-</div>`; }
+                content.innerHTML += rowHtml + `</div>`;
+            }
+            if (historyChartInstance) historyChartInstance.destroy();
+            historyChartInstance = new Chart(document.getElementById('history-chart').getContext('2d'), { type: 'line', data: { labels: Array.from({length: player.moneyHistory.length}, (_, i) => `Turn ${i}`), datasets: [{ label: '所持チップ (Y)', data: player.moneyHistory, borderColor: '#2563eb', backgroundColor: 'rgba(37, 99, 235, 0.1)', borderWidth: 2, pointBackgroundColor: '#2563eb', pointBorderColor: '#fff', tension: 0.1, fill: true }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } } });
+            modal.classList.remove('hidden');
+        };
+        window.closeHistoryModal = function() { document.getElementById('history-modal').classList.add('hidden'); };
+
+        startBtn.addEventListener('click', async () => {
+            if (players.every(p => p.isDefaulter)) { endGame(); return; }
+            
+            if (isOnlineMode && myPlayerIndex !== 0) {
+                alert('景気の決定（コイントス）はホストのみ実行できます。ホストの操作をお待ちください。');
+                return;
+            }
+
+            startBtn.classList.add('hidden'); 
+            const coinModal = document.getElementById('coin-modal'), coinVisual = document.getElementById('coin-visual'), coinText = document.getElementById('coin-result-text');
+            coinModal.classList.remove('hidden'); coinVisual.classList.add('coin-flip'); coinVisual.textContent = ''; coinText.textContent = 'コイントス中...';
+            await new Promise(r => setTimeout(r, 1500));
+            coinVisual.classList.remove('coin-flip');
+            
+            currentEconomy = Math.random() < 0.5 ? 'A' : 'B';
+            coinVisual.textContent = currentEconomy; coinVisual.className = `w-32 h-32 mx-auto rounded-full flex items-center justify-center shadow-2xl text-6xl font-black text-white mb-6 border-8 ${currentEconomy === 'A' ? 'bg-pink-400 border-pink-500 shadow-pink-500/40' : 'bg-blue-400 border-blue-500 shadow-blue-500/40'}`;
+            coinText.textContent = currentEconomy === 'A' ? '表：好景気 (必要労働力A)' : '裏：不景気 (必要労働力B)';
+            await new Promise(r => setTimeout(r, 1500)); coinModal.classList.add('hidden');
+            updateEconomyHighlight();
+
+            if (isOnlineMode && onlineChannel) {
+                onlineChannel.send({ type: 'broadcast', event: 'economy_decided', payload: { economy: currentEconomy, turn: currentTurn } });
+            }
+
+            if (players[myPlayerIndex].isDefaulter) { 
+                await executeTurnAfterMyBid({ project: 'none', amount: 0 }); 
+            } else { 
+                prepareBidding(); 
+            }
+        });
+
+        function prepareBidding() { isBiddingPhase = true; bidForm.classList.remove('hidden'); document.getElementById('bidding-inputs').classList.add('hidden'); selectedBiddingProject = 'none'; }
+        
+        window.selectProject = function(projKey) {
+            if (!isBiddingPhase) return;
+            selectedBiddingProject = projKey;
+            ['large', 'medium', 'small'].forEach(key => { const card = document.getElementById(`card-${key}`); if (key === projKey) card.classList.add('ring-4', 'ring-blue-400', 'scale-105'); else card.classList.remove('ring-4', 'ring-blue-400', 'scale-105'); });
+            document.getElementById('bidding-inputs').classList.remove('hidden'); document.getElementById('selected-project-name').textContent = projects[projKey].name + ` (上限${projects[projKey].maxBid}Y)`; bidAmountInput.max = projects[projKey].maxBid; bidAmountInput.value = 0;
+        };
+        
+        document.getElementById('skip-bid-btn').addEventListener('click', async () => { isBiddingPhase = false; bidForm.classList.add('hidden'); await executeTurnAfterMyBid({ project: 'none', amount: 0 }); });
+        
+        calcProfitBtn.addEventListener('click', () => {
+            if (selectedBiddingProject === 'none') { alert('先に左の場の工事カードから希望する工事を選択してください。'); return; }
+            const amount = parseInt(bidAmountInput.value, 10) || 0;
+            const proj = projects[selectedBiddingProject];
+            const reqLabor = currentEconomy === 'A' ? proj.laborA : proj.laborB;
+            const reqPeople = Math.ceil(reqLabor / 20);
+            const currentPeople = players[myPlayerIndex].employees;
+            const shortage = Math.max(0, reqPeople - currentPeople);
+            const costCurrent = currentPeople * 20;
+            const costTemp = shortage * 30;
+            const costFull = shortage * 20;
+            const profitTemp = amount - costCurrent - costTemp;
+            const profitFull = amount - costCurrent - costFull;
+            const content = document.getElementById('calc-content');
+            content.innerHTML = `
+                <div class="flex justify-between items-center border-b pb-2 mb-2"><span class="text-slate-500 font-bold">選択工事</span><span class="font-black text-slate-800">${proj.name}</span></div>
+                <div class="flex justify-between items-center border-b pb-2 mb-2"><span class="text-slate-500 font-bold">入札予定額</span><span class="font-black text-blue-600">${amount}Y</span></div>
+                <div class="flex justify-between items-center border-b pb-2 mb-2"><span class="text-slate-500 font-bold">必要労働力</span><span class="font-black text-rose-600">${reqLabor}P (${reqPeople}人分)</span></div>
+                <div class="flex justify-between items-center mb-2"><span class="text-slate-500 font-bold">不足労働力</span><span class="font-black text-rose-600">${Math.max(0, reqLabor - currentPeople * 20)}P (${shortage}人分不足)</span></div>
+                <div class="mt-4 space-y-3">
+                    <div class="bg-orange-50 p-3 rounded-lg border border-orange-200 shadow-sm"><div class="text-sm font-bold text-orange-800 mb-1">💡 不足分を全て発注(派遣)で補う場合</div><div class="flex justify-between items-center"><span class="text-xs text-orange-600 font-bold">費用: ${costCurrent}Y(固定) + ${costTemp}Y(今回のみ)</span><span class="font-black text-xl ${profitTemp < 0 ? 'text-red-600' : 'text-slate-800'}">${profitTemp}Y</span></div></div>
+                    <div class="bg-blue-50 p-3 rounded-lg border border-blue-200 shadow-sm"><div class="text-sm font-bold text-blue-800 mb-1">💡 不足分を全て正社員で補う場合</div><div class="flex justify-between items-center"><span class="text-xs text-blue-600 font-bold">費用: ${costCurrent + costFull}Y (次T以降も固定)</span><span class="font-black text-xl ${profitFull < 0 ? 'text-red-600' : 'text-slate-800'}">${profitFull}Y</span></div></div>
+                </div>`;
+            document.getElementById('calc-modal').classList.remove('hidden');
+        });
+
+        submitBidBtn.addEventListener('click', async () => {
+            if (!isBiddingPhase) return;
+            try {
+                const proj = selectedBiddingProject; const amount = parseInt(bidAmountInput.value, 10) || 0;
+                if (proj !== 'none') {
+                    if (amount % 10 !== 0) { alert('入札価格は10の倍数にしてください'); return; }
+                    if (amount > projects[proj].maxBid || amount < 0) { alert('入札価格が不正です'); return; }
+                }
+                submitBidBtn.disabled = true; submitBidBtn.textContent = '処理中...'; isBiddingPhase = false; bidForm.classList.add('hidden');
+                await executeTurnAfterMyBid({ project: proj === 'none' ? 'none' : proj, amount: proj === 'none' ? 0 : amount });
+            } catch (error) { console.error('入札処理エラー:', error); alert('入札処理中にエラーが発生しました。\n' + error.message); isBiddingPhase = true; bidForm.classList.remove('hidden'); } 
+            finally { submitBidBtn.disabled = false; submitBidBtn.innerHTML = '入札を確定する'; }
+        });
+
+        async function executeTurnAfterMyBid(myBid) {
+            bidInputs[myPlayerIndex] = myBid;
+
+            if (isOnlineMode) {
+                if (onlineChannel) {
+                    onlineChannel.send({ type: 'broadcast', event: 'player_bid', payload: { playerIndex: myPlayerIndex, bid: myBid, turn: currentTurn } });
+                }
+                document.getElementById('cpu-calculating-modal').classList.remove('hidden');
+                
+                if (myPlayerIndex === 0) {
+                    checkAndTriggerProcessBids();
+                }
+                return;
+            }
+
+            await decideCPUBids(); 
+            await processBids();
+        }
+
+        const CPU_LOOKAHEAD = 5, CPU_ROLLOUTS = 30, CPU_ACTION_LIMIT = 8, CPU_BR_ROUNDS = 2; const cpuActionMemo = new Map();
+        function cpuCloneState() { return { turn: currentTurn, economy: currentEconomy, isSim: false, players: players.map(p => ({ money: p.money, employees: p.employees, bankrupt: p.isDefaulter || p.money < 0 })) }; }
+        function cpuStateKey(s) { return `${s.turn}|${s.economy}|${s.players.map(p => `${Math.round(p.money)}:${p.employees}:${p.bankrupt ? 1 : 0}`).join('|')}`; }
+        function cpuReq(project, economy) { return economy === 'A' ? projects[project].laborA : projects[project].laborB; }
+        function cpuLabourCost(state, playerId, project) { const shortage = Math.max(0, Math.ceil(cpuReq(project, state.economy) / 20) - state.players[playerId].employees); return { shortage, full: shortage * 20, temp: shortage * 30 }; }
+        
+        function cpuCandidateActions(state, playerId) {
+            const key = `${cpuStateKey(state)}|${playerId}`; if (cpuActionMemo.has(key)) return cpuActionMemo.get(key);
+            if (state.players[playerId].bankrupt) return [{project:'none', amount:0}];
+            const out = new Map(); const add = (project, amount) => { if (project === 'none') { out.set('none:0',{project:'none',amount:0}); return; } amount = Math.max(0, Math.min(projects[project].maxBid, Math.round(amount / 10) * 10)); out.set(`${project}:${amount}`, {project, amount}); };
+            add('none',0);
+            for (const k of ['large','medium','small']) {
+                const own = cpuLabourCost(state, playerId, k), max = projects[k].maxBid;
+                [0, max, Math.round(max*.4), Math.round(max*.6), own.full-10, own.full, own.full+10, own.temp-10, own.temp, own.temp+10].forEach(x => add(k,x));
+                for (let j=0;j<state.players.length;j++) { if (j===playerId || state.players[j].bankrupt) continue; const rival = cpuLabourCost(state,j,k); [rival.full-10,rival.full,rival.full+10, rival.temp-10,rival.temp,rival.temp+10].forEach(x => add(k,x)); }
+                const mAvg = marketStats[state.economy]?.[k]?.avg; if (mAvg) { add(k, Math.round(mAvg / 10) * 10); add(k, Math.round((mAvg - 10) / 10) * 10); }
+                const pAvg = playerStats[state.economy]?.[k]?.avg; if (pAvg) add(k, Math.round((pAvg - 10) / 10) * 10);
+            }
+            let actions = [...out.values()];
+            if (actions.length > CPU_ACTION_LIMIT) {
+                const scored = actions.filter(a => a.project !== 'none').map(a => { const c = cpuLabourCost(state,playerId,a.project); return {a, score: (a.amount-Math.min(c.full,c.temp)) - 0.12*Math.abs(a.amount-projects[a.project].maxBid*.55)}; }).sort((a,b)=>b.score-a.score);
+                actions = [{project:'none',amount:0}, ...scored.slice(0,CPU_ACTION_LIMIT-1).map(x=>x.a)];
+            }
+            cpuActionMemo.set(key, actions); return actions;
+        }
+
+        function cpuWinner(actionProfile, project, rng) {
+            const bids = actionProfile.map((a,i) => ({i, b:a.amount})).filter((x,i) => actionProfile[i].project === project);
+            if(!bids.length) return null; const min = Math.min(...bids.map(x=>x.b)); const tied = bids.filter(x=>x.b===min); return tied[Math.floor(rng()*tied.length)];
+        }
+        
+        function cpuHiring(state, winnerId, project, remainingTurns, rng) {
+            const p = state.players[winnerId];
+            const shortage = Math.max(0, Math.ceil(cpuReq(project,state.economy)/20) - p.employees);
+            if(shortage === 0) return {f:0, t:0};
+            if(remainingTurns <= 2) return {f:0, t:shortage}; 
+            const strategy = aiStrategies[winnerId];
+            
+            if (strategy === 'outsource') return {f:0, t:shortage};
+            else if (strategy === 'fulltime') return {f:shortage, t:0};
+            else { 
+                let rivalEmployees = 0; let activeRivals = 0;
+                for(let i=0; i<4; i++) { 
+                    if(i !== winnerId && !state.players[i].bankrupt) {
+                        rivalEmployees += state.players[i].employees;
+                        activeRivals++;
+                    }
+                }
+                const avgRivalEmp = activeRivals > 0 ? rivalEmployees / activeRivals : 0;
+                
+                if (remainingTurns <= 4) return {f:0, t:shortage}; 
+                if (avgRivalEmp >= 2) return {f:0, t:shortage}; 
+                const nextFixedCost = (p.employees + shortage) * 20;
+                if (p.money >= nextFixedCost * 3.5) return {f:shortage, t:0}; 
+                return rng() < 0.3 ? {f:shortage, t:0} : {f:0, t:shortage};
+            }
+        }
+
+        function cpuTurnAction(state, playerId, rng, forcedActions) {
+            const actions = cpuCandidateActions(state,playerId);
+            if(forcedActions && forcedActions[0] && playerId === 0 && !state.isSim) return forcedActions[0] || {project:'none',amount:0};
+            let best=null, bestScore=-Infinity;
+            for(const a of actions) {
+                const profile=state.players.map((_,i)=>{
+                    if(i===playerId) return a; let ba={project:'none',amount:0}, bv=-Infinity;
+                    for(const r of cpuCandidateActions(state,i)) { const c=cpuLabourCost(state,i,r.project==='none'?'small':r.project); const v=(r.project==='none'?0:r.amount-Math.min(c.full,c.temp)) + (state.players[i].money<100?-Math.abs(r.amount-c.temp)*0.15:0) + rng()*0.001; if(v>bv){bv=v;ba=r;} } return ba;
+                });
+                let score = 0; for(let r=0;r<CPU_ROLLOUTS;r++) score += cpuRollout(state,playerId,profile,CPU_LOOKAHEAD,rng);
+                if(score/CPU_ROLLOUTS > bestScore){bestScore=score/CPU_ROLLOUTS; best=a;}
+            } return best || {project:'none',amount:0};
+        }
+
+        function cpuRollout(startState, focalPlayer, firstProfile, horizon, rng) {
+            let state={turn:startState.turn, economy:startState.economy, players:startState.players.map(p=>({...p}))};
+            for(let step=0;step<horizon;step++) {
+                if(state.players.every(p=>p.bankrupt)) break;
+                let profile = step===0 ? firstProfile.slice() : state.players.map((_,i)=>cpuTurnActionFast(state,i,rng));
+                const winners={}, hires={};
+                for(const k of ['large','medium','small']) { const w = cpuWinner(profile,k,rng); if(w) { winners[k]=w; hires[w.i]=cpuHiring(state,w.i,k,horizon-step,rng); state.players[w.i].money += w.b; } }
+                for(let i=0;i<state.players.length;i++) { 
+                    if(state.players[i].bankrupt) continue; 
+                    const h=hires[i]||{f:0,t:0}; state.players[i].employees += h.f; state.players[i].money -= state.players[i].employees*20 + h.t*30; if(state.players[i].money<0) state.players[i].bankrupt=true; 
+                }
+                if(step<horizon-1) state={turn:state.turn+1, economy:rng()<0.5?'A':'B', players:state.players.map(p=>({...p}))};
+            } return state.players[focalPlayer].money;
+        }
+
+        function cpuTurnActionFast(state,playerId,rng) {
+            let best={project:'none',amount:0}, bestValue=-Infinity;
+            const p = state.players[playerId];
+            const fixedCost = p.employees * 20;
+            const strategy = (state.isSim || playerId !== 0) ? aiStrategies[playerId] : 'adaptive';
+
+            for(const a of cpuCandidateActions(state,playerId)) {
+                let value=0;
+                if(a.project!=='none') {
+                    const k = a.project;
+                    const c = cpuLabourCost(state,playerId,k);
+                    const additionalCost = Math.min(c.full, c.temp);
+                    const totalCost = fixedCost + additionalCost;
+                    const profit = a.amount - totalCost;
+
+                    let targetProfit = 0;
+                    if(k === 'large') targetProfit = 60;
+                    if(k === 'medium') targetProfit = 40;
+                    if(k === 'small') targetProfit = 20;
+
+                    if(a.amount <= additionalCost) {
+                        value = -9999;
+                    } else {
+                        value = profit;
+                        if (strategy === 'adaptive') {
+                            if(profit >= targetProfit) { value += profit * 2.5; } 
+                            else if(profit > 0) { value -= (targetProfit - profit) * 0.3; } 
+                            else { value -= 50; }
+                            
+                            let activeRivals = 0; let poorRivals = 0;
+                            state.players.forEach((rp, j) => {
+                                if (j !== playerId && !rp.bankrupt) {
+                                    activeRivals++;
+                                    if (rp.money < 100) poorRivals++;
+                                }
+                            });
+                            if (activeRivals <= 1 || poorRivals >= activeRivals - 0.1) {
+                                value += a.amount * 0.8; 
+                            }
+                        } else {
+                            if(profit >= targetProfit) { value += profit * 2.0; } 
+                            else if(profit > 0) { value -= (targetProfit - profit) * 0.5; } 
+                            else { value -= 30; }
+                        }
+
+                        const winPressure = state.players.reduce((x,rp,j)=>(j!==playerId&&!rp.bankrupt)?x+Math.max(0,Math.min(1,(a.amount-(cpuLabourCost(state,j,k).temp-10))/60)):x,0);
+                        let dataBias = 0; 
+                        
+                        const gAvg = goldenStats[state.economy]?.[k]?.avg;
+                        if (strategy === 'adaptive' && gAvg) {
+                            if (a.amount === Math.round(gAvg/10)*10) dataBias += 25; 
+                            if (a.amount === Math.round(gAvg/10)*10 + 10) dataBias += 10;
+                            if (a.amount < gAvg) dataBias -= (gAvg - a.amount) * 0.5; 
+                        } else {
+                            const mAvg = marketStats[state.economy]?.[k]?.avg; 
+                            if (mAvg) { 
+                                if (strategy === 'adaptive') {
+                                    if (a.amount > mAvg + 10) dataBias -= (a.amount - mAvg) * 0.1; 
+                                    if (a.amount === Math.round(mAvg/10)*10 || a.amount === Math.round(mAvg/10)*10 + 10) dataBias += 10; 
+                                } else {
+                                    if (a.amount > mAvg) dataBias -= (a.amount - mAvg) * 0.1; 
+                                    if (a.amount === Math.round(mAvg/10)*10) dataBias += 5; 
+                                }
+                            }
+                        }
+                        const pAvg = playerStats[state.economy]?.[k]?.avg; 
+                        if (pAvg && (playerId !== 0 || state.isSim)) { 
+                            if (a.amount === Math.round(pAvg/10)*10) dataBias += 5; 
+                        }
+                        if (strategy === 'adaptive') { value += 0.5 * winPressure + dataBias; } 
+                        else { value += 1 * winPressure + dataBias; }
+                    }
+                } else {
+                    value = -fixedCost;
+                    if (strategy === 'adaptive' && p.money < fixedCost * 2) { value += 15; }
+                }
+                value += rng()*3; 
+                if(value>bestValue){bestValue=value;best=a;}
+            } 
+            return best;
+        }
+
+        async function decideCPUBids() {
+            const loadingModal = document.getElementById('cpu-calculating-modal');
+            if (loadingModal) loadingModal.classList.remove('hidden');
+            try {
+                await new Promise(resolve => setTimeout(resolve, 100));
+                const state = cpuCloneState(); const rng = Math.random; 
+                for (let i = 0; i < 4; i++) {
+                    if (players[i].isCPU && !players[i].isDefaulter) {
+                        let action = { project: 'none', amount: 0 };
+                        try { action = cpuTurnActionFast(state, i, rng) || action; } catch (fastError) { console.error(`CPU${i} 高速入札計算エラー:`, fastError); }
+                        try { const advanced = cpuTurnAction(state, i, rng, [bidInputs[0], action]); if (advanced && advanced.project !== undefined && Number.isFinite(Number(advanced.amount))) { action = advanced; } } catch (advancedError) { console.warn(`CPU${i} 高度計算をスキップ:`, advancedError); }
+                        if (!action || !['none', 'large', 'medium', 'small'].includes(action.project)) { action = { project: 'none', amount: 0 }; }
+                        if (action.project !== 'none') { action.amount = Math.max(0, Math.min(projects[action.project].maxBid, Math.round(Number(action.amount) / 10) * 10)); } else { action.amount = 0; }
+                        bidInputs[i] = action;
+                        await new Promise(resolve => setTimeout(resolve, 20));
+                    }
+                }
+            } finally { if (loadingModal) loadingModal.classList.add('hidden'); }
+        }
+
+        function executeSimulationWithPassword() {
+            const pass = prompt("管理者パスワードを入力してください:");
+            if (pass !== "2409") { alert("パスワードが異なります。実行をキャンセルしました。"); return; }
+            updateStrategies();
+            document.getElementById('sim-config-modal').classList.add('hidden');
+            runAutoSimulation(50);
+        }
+
+        async function runAutoSimulation(numGames = 50) {
+            const btn = document.getElementById('auto-sim-btn'); const startBtn = document.getElementById('start-turn-btn');
+            if (btn) { btn.disabled = true; btn.innerHTML = '<span>⏳</span> バックグラウンドで実行中...'; }
+            if (startBtn && !startBtn.classList.contains('hidden')) startBtn.classList.add('hidden');
+
+            let allLogs = []; const rng = Math.random;
+            let bankruptcyCounts = { 0: 0, 1: 0, 2: 0, 3: 0 }; let winCounts = { 0: 0, 1: 0, 2: 0, 3: 0 }; let plusCounts = { 0: 0, 1: 0, 2: 0, 3: 0 };
+            let moneySums = { 0: 0, 1: 0, 2: 0, 3: 0 }; let moneyMaxes = { 0: -Infinity, 1: -Infinity, 2: -Infinity, 3: -Infinity };
+            window.simGamesHistory = []; 
+
+            goldenStats = {
+                A: { large: { sum: 0, count: 0, avg: null }, medium: { sum: 0, count: 0, avg: null }, small: { sum: 0, count: 0, avg: null } },
+                B: { large: { sum: 0, count: 0, avg: null }, medium: { sum: 0, count: 0, avg: null }, small: { sum: 0, count: 0, avg: null } }
+            };
+
+            for (let g = 0; g < numGames; g++) {
+                let simState = { turn: 1, economy: '', isSim: true, players: Array.from({length: 4}, () => ({ money: 300, employees: 1, temps: 0, bankrupt: false })) };
+                let gameHistory = { 0: [{ turn: 0, money: 300, emp: 1 }], 1: [{ turn: 0, money: 300, emp: 1 }], 2: [{ turn: 0, money: 300, emp: 1 }], 3: [{ turn: 0, money: 300, emp: 1 }], economy: ['-'] };
+                let currentGameLogs = []; 
+
+                for (let t = 1; t <= 20; t++) {
+                    simState.turn = t; simState.economy = rng() < 0.5 ? 'A' : 'B'; gameHistory.economy.push(simState.economy); 
+                    if (simState.players.every(p => p.bankrupt)) { for (let i = 0; i < 4; i++) { gameHistory[i].push({ turn: t, money: simState.players[i].money, emp: simState.players[i].employees }); } break; }
+                    let profile = simState.players.map((_, i) => cpuTurnActionFast(simState, i, rng));
+                    for(let round=0; round<CPU_BR_ROUNDS; round++) { for(let i=0; i<4; i++) { if (!simState.players[i].bankrupt) profile[i] = cpuTurnAction(simState, i, rng, profile); else profile[i] = {project: 'none', amount: 0}; } }
+                    let projBids = { large: [], medium: [], small: [] };
+                    for (let i = 0; i < 4; i++) { if (profile[i].project !== 'none') projBids[profile[i].project].push({ playerId: i, amount: profile[i].amount }); }
+                    let winners = {};
+                    for (const pKey of ['large', 'medium', 'small']) {
+                        const bids = projBids[pKey];
+                        if (bids.length > 0) {
+                            const minBid = Math.min(...bids.map(b => b.amount)); const minBidders = bids.filter(b => b.amount === minBid);
+                            const winnerId = minBidders[Math.floor(rng() * minBidders.length)].playerId;
+                            winners[pKey] = { winnerId, amount: minBid }; 
+                            let logEntry = { turn: t, economy: simState.economy, project_type: pKey, winner_id: winnerId, winning_bid: minBid };
+                            allLogs.push(logEntry);
+                            currentGameLogs.push(logEntry);
+                        }
+                    }
+                    for (let i = 0; i < 4; i++) {
+                        const p = simState.players[i]; if (p.bankrupt) continue;
+                        let wProj = null; for (const k of ['large','medium','small']) { if (winners[k] && winners[k].winnerId === i) wProj = k; }
+                        if (wProj) { p.money += winners[wProj].amount; const hireAction = cpuHiring(simState, i, wProj, 20 - t + 1, rng); p.employees += hireAction.f; p.temps += hireAction.t; }
+                        p.money -= (p.employees * 20) + (p.temps * 30); p.temps = 0; if (p.money < 0) p.bankrupt = true;
+                    }
+                    for (let i = 0; i < 4; i++) { gameHistory[i].push({ turn: t, money: simState.players[i].money, emp: simState.players[i].employees }); }
+                }
+                window.simGamesHistory.push(gameHistory);
+
+                let currentMax = -Infinity;
+                let topPlayer = -1;
+                for (let i = 0; i < 4; i++) { 
+                    if (simState.players[i].money > currentMax) { 
+                        currentMax = simState.players[i].money; 
+                        topPlayer = i;
+                    } 
+                }
+                
+                if (currentMax >= 300 && topPlayer !== -1) {
+                    currentGameLogs.forEach(log => {
+                        if (log.winner_id === topPlayer) {
+                            let gStat = goldenStats[log.economy][log.project_type];
+                            gStat.sum += log.winning_bid;
+                            gStat.count++;
+                            gStat.avg = Math.round(gStat.sum / gStat.count);
+                        }
+                    });
+                }
+
+                for (let i = 0; i < 4; i++) {
+                    if (simState.players[i].bankrupt) bankruptcyCounts[i]++;
+                    if (simState.players[i].money === currentMax) winCounts[i]++;
+                    moneySums[i] += simState.players[i].money;
+                    if (simState.players[i].money > moneyMaxes[i]) moneyMaxes[i] = simState.players[i].money;
+                    if (simState.players[i].money >= 300) plusCounts[i]++;
+                }
+                if (g % 10 === 0) await new Promise(r => setTimeout(r, 0));
+            }
+            if (supabaseClient && allLogs.length > 0) {
+                if(btn) btn.innerHTML = `<span>📤</span> ${allLogs.length}件送信中...`;
+                try { for (let i = 0; i < allLogs.length; i += 500) await supabaseClient.from('game_logs').insert(allLogs.slice(i, i + 500)); } catch (e) { console.error("バルクインサートエラー:", e); }
+            }
+            if(btn) btn.innerHTML = '<span>🔄</span> 学習データ更新中...';
+            await loadHistoricalData();
+            
+            const tbody = document.getElementById('sim-result-tbody'); tbody.innerHTML = '';
+            for (let i = 0; i < 4; i++) {
+                let bankruptcyRate = (bankruptcyCounts[i] / numGames) * 100; let avgMoney = Math.round(moneySums[i] / numGames);
+                let maxMoney = moneyMaxes[i] === -Infinity ? 0 : moneyMaxes[i]; let winCount = winCounts[i]; let plusCount = plusCounts[i];
+                let rowColor = bankruptcyRate < 25 ? 'bg-emerald-50 text-emerald-900' : (bankruptcyRate > 50 ? 'bg-rose-50 text-rose-900' : 'bg-white');
+                let numColor = bankruptcyRate < 25 ? 'text-emerald-600' : (bankruptcyRate > 50 ? 'text-rose-600' : 'text-slate-800');
+                let stratLabel = strategyLabels[aiStrategies[i]];
+                tbody.innerHTML += `
+                    <tr class="${rowColor}">
+                        <td class="p-3 font-bold border-b border-slate-100 flex flex-col"><span class="text-xs text-slate-500 mb-0.5">${i === 0 ? 'あなた (代行AI)' : '競合 CPU ' + i}</span><span>${stratLabel}</span></td>
+                        <td class="p-3 font-black text-right border-b border-slate-100 text-lg ${numColor}">${bankruptcyRate.toFixed(1)}% <span class="text-xs font-normal text-slate-500">(${bankruptcyCounts[i]}回)</span></td>
+                        <td class="p-3 font-black text-right border-b border-slate-100 text-lg text-amber-600">${winCount}回</td>
+                        <td class="p-3 font-black text-right border-b border-slate-100 text-lg text-emerald-600">${plusCount}回</td>
+                        <td class="p-3 font-black text-right border-b border-slate-100 text-lg text-slate-700">${avgMoney}Y</td>
+                        <td class="p-3 font-black text-right border-b border-slate-100 text-lg text-blue-600">${maxMoney}Y</td>
+                    </tr>`;
+            }
+            document.getElementById('sim-result-modal').classList.remove('hidden');
+            if(btn) {
+                btn.innerHTML = '<span>✅</span> 完了';
+                setTimeout(() => { btn.disabled = false; btn.innerHTML = '<span>⚙️</span> CPU設定 / 自動収集'; if (startBtn && currentTurn === 1) startBtn.classList.remove('hidden'); }, 3000);
+            }
+        }
+
+        window.openSimDetailsList = function() {
+            const grid = document.getElementById('sim-details-grid'); grid.innerHTML = '';
+            window.simGamesHistory.forEach((history, idx) => {
+                const btn = document.createElement('button');
+                btn.className = 'bg-slate-50 hover:bg-indigo-100 active:scale-95 text-slate-700 font-bold py-3 rounded-lg shadow-sm border border-slate-200 transition-all text-xs';
+                btn.textContent = `Game ${idx + 1}`; btn.onclick = () => openSimGameChart(idx); grid.appendChild(btn);
+            });
+            document.getElementById('sim-details-list-modal').classList.remove('hidden');
+        };
+
+        window.openSimGameChart = function(gameIdx) {
+            const history = window.simGamesHistory[gameIdx]; const modal = document.getElementById('sim-game-chart-modal');
+            document.getElementById('sim-game-chart-title').textContent = `Game ${gameIdx + 1} 所持Y推移`;
+            const labels = Array.from({length: history.economy.length}, (_, i) => { if (i === 0) return 'Turn 0'; return `Turn ${i} (${history.economy[i] === 'A' ? '好' : '不'})`; });
+            const datasets = []; const colors = ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b'];
+            for (let i = 0; i < 4; i++) {
+                datasets.push({ label: players[i].name, data: history[i].map(h => ({ x: h.turn, y: h.money, emp: h.emp })), borderColor: colors[i], backgroundColor: colors[i], tension: 0.1, pointRadius: 4, pointHoverRadius: 7 });
+            }
+            datasets.push({ label: '初期Y (300)', data: Array.from({length: history.economy.length}, (_, i) => ({ x: i, y: 300, emp: '-' })), borderColor: '#ef4444', borderWidth: 2, borderDash: [5, 5], pointRadius: 0, pointHoverRadius: 0, fill: false, order: 10 });
+            const ctx = document.getElementById('sim-game-chart').getContext('2d');
+            if (simGameChartInstance) { simGameChartInstance.destroy(); }
+            const economyBackgroundPlugin = {
+                id: 'economyBackground',
+                beforeDraw: (chart) => {
+                    const ctx = chart.ctx; const xAxis = chart.scales.x; const yAxis = chart.scales.y; ctx.save();
+                    for (let i = 1; i < history.economy.length; i++) {
+                        const eco = history.economy[i]; if (eco !== 'A' && eco !== 'B') continue;
+                        const left = Math.max(xAxis.left, xAxis.getPixelForValue(i - 0.5)); const right = Math.min(xAxis.right, xAxis.getPixelForValue(i + 0.5));
+                        ctx.fillStyle = eco === 'A' ? 'rgba(252, 165, 165, 0.2)' : 'rgba(147, 197, 253, 0.2)'; ctx.fillRect(left, yAxis.top, right - left, yAxis.bottom - yAxis.top);
+                        ctx.fillStyle = eco === 'A' ? 'rgba(220, 38, 38, 0.5)' : 'rgba(37, 99, 235, 0.5)'; ctx.font = 'bold 12px sans-serif'; ctx.textAlign = 'center'; ctx.fillText(eco === 'A' ? '好' : '不', (left + right) / 2, yAxis.top + 20);
+                    } ctx.restore();
+                }
+            };
+            simGameChartInstance = new Chart(ctx, {
+                type: 'line', data: { labels: labels, datasets: datasets }, plugins: [economyBackgroundPlugin],
+                options: { responsive: true, maintainAspectRatio: false, parsing: { xAxisKey: 'x', yAxisKey: 'y' }, plugins: { legend: { labels: { filter: function(item, chart) { return !item.text.includes('初期Y'); } } }, tooltip: { callbacks: { label: function(context) { if (context.dataset.label === '初期Y (300)') return null; return `${context.dataset.label}: ${context.raw.y}Y (正社員: ${context.raw.emp}人)`; } } } }, scales: { x: { title: { display: true, text: 'ターン (景気)', font: { weight: 'bold' } } }, y: { title: { display: true, text: '所持Y', font: { weight: 'bold' } } } } }
+            });
+            modal.classList.remove('hidden');
+        };
+
+        async function processBids() {
+            document.getElementById('cpu-calculating-modal').classList.add('hidden');
+            winningResults = {}; const projBids = { large: [], medium: [], small: [] };
+            for (let i = 0; i < 4; i++) { const b = bidInputs[i]; if (b && b.project !== 'none') projBids[b.project].push({ playerId: i, amount: b.amount }); }
+            const resultsData = { large: null, medium: null, small: null };
+            for (const pKey of ['large', 'medium', 'small']) {
+                const bids = projBids[pKey]; let htmlContent = '';
+                if (bids.length === 0) { htmlContent = `<span class="text-slate-400 font-bold bg-slate-100 px-3 py-1 rounded text-sm">落札者なし</span>`; resultsData[pKey] = { winnerId: -1 }; updateProjectChart(pKey, null, currentEconomy); saveLogToSupabase(currentTurn, currentEconomy, pKey, -1, 0); } 
+                else {
+                    const minBid = Math.min(...bids.map(b => b.amount)), minBidders = bids.filter(b => b.amount === minBid);
+                    let winnerId; let isRandom = false;
+                    if (minBidders.length === 1) winnerId = minBidders[0].playerId; else { isRandom = true; winnerId = await playRoulette(pKey, minBidders, minBid); }
+                    resultsData[pKey] = { winnerId: winnerId, amount: minBid }; winningResults[winnerId] = { project: pKey, amount: minBid }; updateProjectChart(pKey, minBid, currentEconomy); saveLogToSupabase(currentTurn, currentEconomy, pKey, winnerId, minBid);
+                    const pName = players[winnerId].name, isMe = winnerId === myPlayerIndex;
+                    htmlContent = `<div class="flex-1"><div class="${isMe ? 'text-blue-700 font-black' : 'text-slate-700 font-bold'}">${isMe ? '👤' : '🤖'} ${pName}</div>${isRandom ? '<div class="text-[10px] text-amber-600 bg-amber-50 inline-block px-1 rounded border border-amber-200 mt-0.5">🎲 抽選で決定</div>' : ''}</div><div class="font-black text-xl text-emerald-600 font-mono text-right shrink-0">${minBid}<span class="text-sm text-emerald-800">Y</span></div>`;
+                }
+                document.getElementById(`res-${pKey}-content`).innerHTML = htmlContent;
+            }
+            for (let i = 0; i < 4; i++) { if (players[i].history.length < currentTurn) { if (winningResults[i]) players[i].history.push({ turn: currentTurn, project: winningResults[i].project, amount: winningResults[i].amount }); else players[i].history.push({ turn: currentTurn, project: null, amount: null }); } }
+            const resModal = document.getElementById('result-modal'); const closeBtn = document.getElementById('close-result-btn'); const closeTopBtn = document.getElementById('close-result-top-btn');
+            resModal.classList.remove('hidden');
+            await new Promise(resolve => { let handled = false; const closeHandler = async () => { if (handled) return; handled = true; closeBtn.removeEventListener('click', closeHandler); closeTopBtn.removeEventListener('click', closeHandler); resModal.classList.add('hidden'); resolve(); }; closeBtn.addEventListener('click', closeHandler); closeTopBtn.addEventListener('click', closeHandler); });
+            await proceedToHiring();
+        }
+
+        async function playRoulette(projKey, bidders, amount) {
+            return new Promise(resolve => {
+                const modal = document.getElementById('roulette-modal'), wheel = document.getElementById('roulette-wheel'), title = document.getElementById('roulette-title'), desc = document.getElementById('roulette-desc'), resText = document.getElementById('roulette-result-text');
+                title.textContent = `${projects[projKey].name} 同額入札！`; desc.textContent = bidders.map(b => players[b.playerId].name).join(' vs ') + ` (${amount}Y)`; resText.textContent = '抽選中...'; modal.classList.remove('hidden');
+                wheel.style.animation = 'none'; wheel.offsetHeight; wheel.style.animation = 'spinRoulette 2s cubic-bezier(0.25, 1, 0.5, 1) forwards';
+                
+                // ホストが生成した共通の乱数（currentTieBreaker）を使用して全員の抽選結果を一致させる
+                setTimeout(() => { const winner = bidders[Math.floor(currentTieBreaker * bidders.length)]; resText.textContent = `🎊 ${players[winner.playerId].name} !!`; setTimeout(() => { modal.classList.add('hidden'); resolve(winner.playerId); }, 1500); }, 2000);
+            });
+        }
+
+        async function proceedToHiring() {
+            if (winningResults[myPlayerIndex]) {
+                const p = winningResults[myPlayerIndex]; const proj = projects[p.project]; const reqLabor = currentEconomy === 'A' ? proj.laborA : proj.laborB; const currentLabor = players[myPlayerIndex].employees * 20;
+                document.getElementById('hiring-info').innerHTML = `<div class="flex justify-between items-center border-b pb-1 mb-1"><span class="text-slate-500 font-bold">落札</span><span class="font-black text-slate-800">${proj.name}</span></div><div class="flex justify-between items-center mb-1"><span class="text-slate-500">必要労働力</span><span class="font-black text-rose-600">${reqLabor}P</span></div><div class="flex justify-between items-center mb-1"><span class="text-slate-500">現在提供可能</span><span class="font-black text-blue-600">${currentLabor}P</span></div><div class="flex justify-between items-center mt-2 pt-1 border-t bg-rose-50 px-2 py-1 rounded"><span class="font-bold text-rose-800">不足分</span><span class="font-black text-rose-700 text-lg">${Math.max(0, reqLabor - currentLabor)}P</span></div>`;
+                hireForm.classList.remove('hidden');
+                const fInput = document.getElementById('hire-fulltime'), tInput = document.getElementById('hire-temp'), prev = document.getElementById('hiring-preview'), btn = document.getElementById('submit-hire-btn'), tooltip = document.getElementById('hiring-profit-tooltip');
+                fInput.value = 0; tInput.value = 0;
+                const checkLabor = () => { const f = parseInt(fInput.value) || 0, t = parseInt(tInput.value) || 0; const added = (f + t) * 20, total = currentLabor + added; prev.innerHTML = `追加: <span class="font-black">${added}P</span> (合計: <span class="font-black">${total}P</span>)`; tooltip.innerHTML = `最終純利益予想: <span class="text-yellow-300 font-black">${p.amount - ((players[myPlayerIndex].employees + f) * 20) - (t * 30)} Y</span>`; if (total >= reqLabor) { prev.className = 'text-sm text-center font-bold text-emerald-700 bg-emerald-50 py-2 rounded-lg border border-emerald-200 transition-colors'; btn.disabled = false; } else { prev.className = 'text-sm text-center font-bold text-rose-600 bg-rose-50 py-2 rounded-lg border border-rose-200 transition-colors'; btn.disabled = true; } };
+                fInput.oninput = checkLabor; tInput.oninput = checkLabor; checkLabor();
+                await new Promise(resolve => { const handler = () => { players[myPlayerIndex].employees += parseInt(fInput.value) || 0; players[myPlayerIndex].temps += parseInt(tInput.value) || 0; hireForm.classList.add('hidden'); btn.removeEventListener('click', handler); resolve(); }; btn.addEventListener('click', handler); });
+            }
+            
+            for (let i = 0; i < 4; i++) {
+                if (i !== myPlayerIndex && winningResults[i]) {
+                    const hireAction = cpuHiring({players: players, economy: currentEconomy}, i, winningResults[i].project, 20 - currentTurn + 1, Math.random);
+                    players[i].employees += hireAction.f; players[i].temps += hireAction.t;
+                }
+            }
+            renderPlayers(); processRewardsAndPayments();
+        }
+
+        function processRewardsAndPayments() {
+            bidInputs = {};
+            let hasBankruptcy = false;
+            for (let i = 0; i < 4; i++) {
+                const p = players[i]; 
+                if (p.isDefaulter) { p.moneyHistory.push(p.money); continue; }
+                if (winningResults[i]) p.money += winningResults[i].amount;
+                p.money -= (p.employees * 20) + (p.temps * 30); p.temps = 0; 
+                if (p.money < 0) { p.isDefaulter = true; hasBankruptcy = true; }
+                p.moneyHistory.push(p.money);
+            }
+            renderPlayers();
+            const allBankrupt = players.every(p => p.isDefaulter);
+            if (allBankrupt || currentTurn >= totalTurns) endGame();
+            else { currentTurn++; document.getElementById('turn-display').textContent = currentTurn; document.getElementById('start-turn-btn').classList.remove('hidden'); }
+        }
+
+        function endGame() {
+            const modal = document.getElementById('ranking-modal'), container = document.getElementById('ranking-container');
+            const sorted = [...players].sort((a, b) => b.money - a.money); container.innerHTML = '';
+            sorted.forEach((p, index) => {
+                const isMe = p.id === myPlayerIndex, isBankrupt = p.money < 0; const bg = index === 0 ? 'bg-gradient-to-r from-yellow-100 to-amber-50 border-2 border-yellow-300 shadow-md scale-105 z-10' : 'bg-slate-50 border border-slate-200'; const rankText = index === 0 ? '🏆 1位' : (index === 1 ? '🥈 2位' : (index === 2 ? '🥉 3位' : '4位'));
+                container.innerHTML += `<div class="flex justify-between items-center p-4 rounded-xl ${bg} ${isMe ? 'ring-2 ring-blue-400' : ''} ${isBankrupt ? 'opacity-60' : ''}"><div class="text-xl font-black flex items-center gap-2"><span>${rankText}</span><span class="text-lg ${isMe ? 'text-blue-700' : 'text-slate-700'}">${p.name}</span>${isBankrupt ? '<span class="text-[10px] bg-red-600 text-white px-2 py-1 rounded-full font-bold ml-1">破産</span>' : ''}</div><div class="text-3xl font-black font-mono tracking-tighter ${p.money < 0 ? 'text-red-600' : 'text-slate-800'}">${p.money}<span class="text-lg">Y</span></div></div>`;
+            });
+            modal.classList.remove('hidden');
+        }
+
+        // ==========================================
+        // Supabase Realtime オンラインルーム同期 (ホスト権限管理版)
+        // ==========================================
+        window.openLobbyModal = function() {
+            if (!supabaseClient) {
+                alert('Supabase接続クライアントが初期化されていません。');
+                return;
+            }
+            document.getElementById('lobby-modal').classList.remove('hidden');
+        };
+
+        window.createRoom = function() {
+            if (!supabaseClient) return;
+            const nameInput = document.getElementById('online-player-name').value.trim() || 'ホストプレイヤー';
+            
+            myPlayerIndex = 0;
+            players[0].name = nameInput;
+            players[0].isCPU = false;
+            activeRoomMembers = 1;
+
+            onlineRoomId = Math.random().toString(36).substring(2, 8).toUpperCase();
+            document.getElementById('display-room-code').textContent = onlineRoomId;
+            document.getElementById('room-status-box').classList.remove('hidden');
+            document.getElementById('start-online-game-btn').classList.remove('hidden');
+            
+            updateMemberCountDisplay(activeRoomMembers);
+            initRealtimeChannel(onlineRoomId);
+            isOnlineMode = true;
+            document.getElementById('room-badge').classList.remove('hidden');
+            document.getElementById('current-room-id-display').textContent = onlineRoomId;
+            renderPlayers();
+            startPeriodicSync();
+        };
+
+        window.joinRoom = function() {
+            const codeInput = document.getElementById('room-code-input').value.trim().toUpperCase();
+            if (!codeInput) { alert('ルームコードを入力してください'); return; }
+            guestNameInput = document.getElementById('online-player-name').value.trim() || 'ゲストプレイヤー';
+            
+            onlineRoomId = codeInput;
+            isWaitingToJoin = true;
+            joinTempId = Math.random().toString(36).substring(2);
+            
+            const btn = document.getElementById('join-btn-text');
+            if (btn) btn.textContent = 'ホストへ接続中...';
+
+            initRealtimeChannel(onlineRoomId, () => {
+                onlineChannel.send({ 
+                    type: 'broadcast', 
+                    event: 'request_join', 
+                    payload: { tempId: joinTempId, name: guestNameInput } 
+                });
+            });
+            
+            setTimeout(() => {
+                if (isWaitingToJoin) {
+                    alert('ルームが見つからないか、ホストの応答がありません。');
+                    isWaitingToJoin = false;
+                    if (btn) btn.textContent = 'ルームに参加';
+                }
+            }, 5000);
+        };
+
+        function updateMemberCountDisplay(count) {
+            const countEl = document.getElementById('room-member-count');
+            if (countEl) {
+                countEl.textContent = `参加メンバー: ${count} / 4人`;
+            }
+        }
+
+        function initRealtimeChannel(roomId, onSubscribed) {
+            if (!supabaseClient) return;
+            if (onlineChannel) supabaseClient.removeChannel(onlineChannel);
+
+            onlineChannel = supabaseClient.channel(`room_${roomId}`, {
+                config: { broadcast: { self: false } }
+            });
+
+            onlineChannel
+                .on('broadcast', { event: 'request_join' }, payload => {
+                    if (isOnlineMode && myPlayerIndex === 0) {
+                        const { tempId, name } = payload.payload;
+                        
+                        let slot = -1;
+                        for (let i = 1; i < 4; i++) {
+                            if (players[i].isCPU) {
+                                slot = i;
+                                break;
+                            }
+                        }
+                        
+                        if (slot !== -1) {
+                            players[slot].name = name;
+                            players[slot].isCPU = false;
+                            
+                            activeRoomMembers = players.filter(p => !p.isCPU).length;
+                            updateMemberCountDisplay(activeRoomMembers);
+                            renderPlayers();
+
+                            onlineChannel.send({
+                                type: 'broadcast',
+                                event: 'join_accepted',
+                                payload: { tempId, slot, snapshot: players }
+                            });
+                        } else {
+                            onlineChannel.send({
+                                type: 'broadcast',
+                                event: 'join_rejected',
+                                payload: { tempId, reason: 'ルームは満員です。' }
+                            });
+                        }
+                    }
+                })
+                .on('broadcast', { event: 'join_accepted' }, payload => {
+                    if (isWaitingToJoin && payload.payload.tempId === joinTempId) {
+                        isWaitingToJoin = false;
+                        myPlayerIndex = payload.payload.slot;
+                        const snapshot = payload.payload.snapshot;
+                        
+                        for (let i = 0; i < 4; i++) {
+                            players[i].name = snapshot[i].name;
+                            players[i].isCPU = snapshot[i].isCPU;
+                        }
+                        
+                        isOnlineMode = true;
+                        document.getElementById('room-badge').classList.remove('hidden');
+                        document.getElementById('current-room-id-display').textContent = onlineRoomId;
+                        document.getElementById('lobby-modal').classList.add('hidden');
+                        
+                        const btn = document.getElementById('join-btn-text');
+                        if (btn) btn.textContent = 'ルームに参加';
+                        
+                        alert(`ルーム ${onlineRoomId} に参加しました！ホストのターン開始をお待ちください。`);
+                        activeRoomMembers = players.filter(p => !p.isCPU).length;
+                        updateMemberCountDisplay(activeRoomMembers);
+                        renderPlayers();
+                    }
+                })
+                .on('broadcast', { event: 'join_rejected' }, payload => {
+                    if (isWaitingToJoin && payload.payload.tempId === joinTempId) {
+                        isWaitingToJoin = false;
+                        alert(`参加できませんでした: ${payload.payload.reason}`);
+                        const btn = document.getElementById('join-btn-text');
+                        if (btn) btn.textContent = 'ルームに参加';
+                    }
+                })
+                .on('broadcast', { event: 'state_sync' }, payload => {
+                    if (isOnlineMode && myPlayerIndex !== 0) {
+                        const { snapshot } = payload.payload;
+                        for (let i = 0; i < 4; i++) {
+                            players[i].name = snapshot[i].name;
+                            players[i].isCPU = snapshot[i].isCPU;
+                        }
+                        activeRoomMembers = players.filter(p => !p.isCPU).length;
+                        updateMemberCountDisplay(activeRoomMembers);
+                        renderPlayers();
+                    }
+                })
+                .on('broadcast', { event: 'player_bid' }, payload => {
+                    const { playerIndex, bid } = payload.payload;
+                    bidInputs[playerIndex] = bid;
+                    if (myPlayerIndex === 0) {
+                        checkAndTriggerProcessBids();
+                    }
+                })
+                .on('broadcast', { event: 'all_bids_determined' }, payload => {
+                    if (myPlayerIndex !== 0) {
+                        bidInputs = payload.payload.bids;
+                        currentTieBreaker = payload.payload.tieBreaker;
+                        document.getElementById('cpu-calculating-modal').classList.add('hidden');
+                        processBids();
+                    }
+                })
+                .on('broadcast', { event: 'economy_decided' }, payload => {
+                    currentEconomy = payload.payload.economy;
+                    currentTurn = payload.payload.turn;
+                    updateEconomyHighlight();
+                })
+                .on('broadcast', { event: 'start_game' }, payload => {
+                    document.getElementById('lobby-modal').classList.add('hidden');
+                    alert('オンライン対戦が開始されました！');
+                    renderPlayers();
+                })
+                .subscribe(status => {
+                    if (status === 'SUBSCRIBED') {
+                        console.log('Realtime connected to room:', roomId);
+                        if (onSubscribed) onSubscribed();
+                    }
+                });
+        }
+
+        function startPeriodicSync() {
+            if (periodicSyncTimer) clearInterval(periodicSyncTimer);
+            periodicSyncTimer = setInterval(() => {
+                if (isOnlineMode && onlineChannel && myPlayerIndex === 0) {
+                    onlineChannel.send({
+                        type: 'broadcast',
+                        event: 'state_sync',
+                        payload: { snapshot: players }
+                    });
+                }
+            }, 3000);
+        }
+
+        window.startOnlineGameHost = function() {
+            if (onlineChannel) {
+                onlineChannel.send({ type: 'broadcast', event: 'start_game', payload: {} });
+            }
+            document.getElementById('lobby-modal').classList.add('hidden');
+            renderPlayers();
+        };
+
+        function checkAndTriggerProcessBids() {
+            if (myPlayerIndex !== 0) return; 
+
+            let allReady = true;
+            for (let i = 0; i < 4; i++) {
+                if (!players[i].isDefaulter && !players[i].isCPU && !bidInputs[i]) {
+                    allReady = false;
+                }
+            }
+            
+            if (allReady) {
+                const state = { turn: currentTurn, economy: currentEconomy, players: players };
+                for (let i = 0; i < 4; i++) {
+                    if (players[i].isCPU && !players[i].isDefaulter) {
+                        let action = { project: 'none', amount: 0 };
+                        try { action = cpuTurnActionFast(state, i, Math.random) || action; } catch (e) { }
+                        
+                        try { const advanced = cpuTurnAction(state, i, Math.random, [bidInputs[0], action]); if (advanced && advanced.project !== undefined && Number.isFinite(Number(advanced.amount))) { action = advanced; } } catch (e) { }
+                        
+                        if (!action || !['none', 'large', 'medium', 'small'].includes(action.project)) { action = { project: 'none', amount: 0 }; }
+                        if (action.project !== 'none') { action.amount = Math.max(0, Math.min(projects[action.project].maxBid, Math.round(Number(action.amount) / 10) * 10)); } else { action.amount = 0; }
+                        bidInputs[i] = action;
+                    }
+                }
+                
+                currentTieBreaker = Math.random();
+                
+                if (onlineChannel) {
+                    onlineChannel.send({
+                        type: 'broadcast',
+                        event: 'all_bids_determined',
+                        payload: { bids: bidInputs, tieBreaker: currentTieBreaker }
+                    });
+                }
+
+                document.getElementById('cpu-calculating-modal').classList.add('hidden');
+                processBids();
+            }
+        }
+
+        renderPlayers(); 
+    </script>
+</body>
+</html>
