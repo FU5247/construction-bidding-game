@@ -37,9 +37,37 @@
 </head>
 <body class="text-gray-800 h-screen flex flex-col overflow-hidden">
 
+    <!-- ★ スタート時ウェルカムポップアップ -->
+    <div id="welcome-modal" class="fixed inset-0 modal-bg flex justify-center items-center z-[100] p-4 slide-in">
+        <div class="bg-white p-6 md:p-8 rounded-2xl shadow-2xl w-full max-w-lg relative border-t-8 border-blue-600 flex flex-col">
+            <button onclick="document.getElementById('welcome-modal').classList.add('hidden')" class="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 font-bold transition-colors z-10">✕</button>
+            <div class="text-center mb-6 shrink-0">
+                <span class="text-5xl mb-3 block">🏢</span>
+                <h2 class="text-2xl font-black text-slate-800">建設業入札ゲームへようこそ</h2>
+            </div>
+            <div class="space-y-4 text-slate-700 text-sm">
+                <p class="text-base font-bold text-center">あなたは<strong>「ゼネコン（元請業者）」</strong>の経営者です。</p>
+                <div class="bg-blue-50 p-4 rounded-xl border border-blue-100 shadow-sm">
+                    <h3 class="font-black text-blue-800 mb-2 border-b border-blue-200 pb-1">📌 基本ルール</h3>
+                    <ul class="list-disc list-inside space-y-2 font-medium">
+                        <li>他社よりも<strong>安い価格</strong>で入札すると工事を落札できます。</li>
+                        <li>しかし、利益を出すためには<strong>できるだけ高い価格</strong>で落札する必要があります。</li>
+                        <li>落札後は、工事に必要な人数を「正社員」か「発注（外注）」で確保します。</li>
+                        <li>全10ターン終了時、最も多くの資金を持っていた企業が勝利です！</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="mt-6 pt-4 border-t border-slate-200 shrink-0">
+                <button onclick="document.getElementById('welcome-modal').classList.add('hidden')" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-4 rounded-xl shadow-lg transition-colors text-lg border-b-4 border-blue-800 active:scale-95">
+                    ゲームを始める
+                </button>
+            </div>
+        </div>
+    </div>
+
     <header class="bg-slate-800 text-white p-4 shadow-md flex justify-between items-center z-10 shrink-0">
         <div class="flex items-center gap-3">
-            <h1 class="text-xl font-bold">建設業入札 vol.54 <span class="text-sm font-normal ml-2">第 <span id="turn-display" class="text-yellow-400 font-bold text-2xl">1</span> / 10 ターン</span></h1>
+            <h1 class="text-xl font-bold">建設業入札 vol.55 <span class="text-sm font-normal ml-2">第 <span id="turn-display" class="text-yellow-400 font-bold text-2xl">1</span> / 10 ターン</span></h1>
             <div id="room-badge" class="hidden px-2 py-0.5 bg-indigo-600 rounded text-xs font-bold text-white shadow border border-indigo-500">🏠 ルーム: <span id="current-room-id-display">---</span></div>
             <div id="ai-status" class="hidden px-2 py-1 bg-emerald-500 rounded text-xs font-bold shadow animate-pulse">🤖 データ学習済</div>
             
@@ -529,6 +557,10 @@
         let joinTempId = null;
         let currentTieBreaker = Math.random();
 
+        // ★ 非同期の多重実行・進行停止を防ぐためのロックフラグ
+        let isProcessingBids = false;
+        let isProcessingHiring = false;
+
         let marketStats = { A: {}, B: {} };
         let playerStats = { A: {}, B: {} };
         let goldenStats = { 
@@ -574,7 +606,7 @@
                 const h2 = calcModal.querySelector('h2');
                 const p = calcModal.querySelector('p');
                 if (h2) h2.textContent = '処理中...';
-                if (p) p.textContent = '競合AIの思考、または他プレイヤーの入力を待機しています。';
+                if (p) p.textContent = '他のプレイヤーの入力を待機しています。';
             }
         }
 
@@ -596,6 +628,8 @@
             activeRoomMembers = 1;
             isOnlineMode = false;
             myPlayerIndex = 0;
+            isProcessingBids = false;
+            isProcessingHiring = false;
             
             const turnDisplay = document.getElementById('turn-display');
             if(turnDisplay) turnDisplay.textContent = currentTurn;
@@ -1520,17 +1554,27 @@
             });
         }
 
+        // ★ オンライン時の進行停止バグを防ぐため、落札していないプレイヤーの自動パス対応とロックを導入
         function handleHiringCompleted(playerIndex, hire) {
             hiringInputs[playerIndex] = hire;
+            
+            if (isProcessingHiring) return; // 多重実行防止
             
             let allReady = true;
             for (let i = 0; i < 4; i++) {
                 if (!players[i].isCPU && !players[i].isDefaulter && typeof hiringInputs[i] === 'undefined') {
-                    allReady = false;
+                    // ★ 落札していない場合は雇用入力が発生しないので、ホスト側で自動的にパス扱いにする
+                    if (!winningResults[i]) {
+                        hiringInputs[i] = { f: 0, t: 0 };
+                    } else {
+                        allReady = false;
+                    }
                 }
             }
             
             if (allReady) {
+                isProcessingHiring = true; // 多重実行防止
+                
                 for (let i = 0; i < 4; i++) {
                     if (players[i].isCPU && !players[i].isDefaulter && winningResults[i]) {
                         hiringInputs[i] = cpuHiring({players: players, economy: currentEconomy}, i, winningResults[i].project, totalTurns - currentTurn + 1, Math.random);
@@ -1601,6 +1645,7 @@
                 });
             }
 
+            // オンラインとオフラインのフロー分岐
             if (isOnlineMode) {
                 const calcModal = document.getElementById('cpu-calculating-modal');
                 if (calcModal) {
@@ -1612,8 +1657,12 @@
                 }
 
                 if (myPlayerIndex !== 0) {
-                    onlineChannel.send({ type: 'broadcast', event: 'hiring_completed', payload: { playerIndex: myPlayerIndex, hire: myHire } });
+                    // ★ 落札したゲストのみ送信する（落札していないゲストの入力はホスト側で自動パスされる）
+                    if (winningResults[myPlayerIndex]) {
+                        onlineChannel.send({ type: 'broadcast', event: 'hiring_completed', payload: { playerIndex: myPlayerIndex, hire: myHire } });
+                    }
                 } else {
+                    // ホストは自身のチェック関数を回す
                     handleHiringCompleted(0, myHire);
                 }
             } else {
@@ -1697,6 +1746,9 @@
 
             bidInputs = {};
             hiringInputs = {}; 
+            // ★ フラグをリセット
+            isProcessingBids = false;
+            isProcessingHiring = false;
             
             renderPlayers();
             const allBankrupt = players.every(p => p.isDefaulter);
@@ -1840,6 +1892,10 @@
                         updateMemberCountDisplay(activeRoomMembers);
                         renderPlayers();
                         onlineChannel.send({ type: 'broadcast', event: 'state_sync', payload: { snapshot: players } });
+
+                        // ★ プレイヤー離脱時に待機状態を解除するための再チェック
+                        checkAndTriggerProcessBids();
+                        handleHiringCompleted(playerIndex, {f:0, t:0});
                     }
                 })
                 .on('broadcast', { event: 'request_join' }, payload => {
@@ -2008,8 +2064,10 @@
             renderPlayers();
         };
 
+        // ★ オンライン時の進行停止バグを防ぐための多重起動防止とフラグチェック
         function checkAndTriggerProcessBids() {
             if (myPlayerIndex !== 0) return; 
+            if (isProcessingBids) return; // 重複実行防止
 
             let allReady = true;
             for (let i = 0; i < 4; i++) {
@@ -2019,6 +2077,8 @@
             }
             
             if (allReady) {
+                isProcessingBids = true; // ロックをかける
+                
                 const state = { turn: currentTurn, economy: currentEconomy, players: players };
                 for (let i = 0; i < 4; i++) {
                     if (players[i].isCPU && !players[i].isDefaulter) {
