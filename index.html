@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>建設業入札ゲーム</title>
+    <title>入札ゲーム</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -43,7 +43,7 @@
             <button onclick="document.getElementById('welcome-modal').classList.add('hidden')" class="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 font-bold transition-colors z-10">✕</button>
             <div class="text-center mb-6 shrink-0">
                 <span class="text-5xl mb-3 block">🏢</span>
-                <h2 class="text-2xl font-black text-slate-800">建設業入札ゲームへようこそ</h2>
+                <h2 class="text-2xl font-black text-slate-800">入札ゲームへようこそ</h2>
             </div>
             <div class="space-y-4 text-slate-700 text-sm">
                 <p class="text-base font-bold text-center">あなたは<strong>「ゼネコン（元請業者）」</strong>の経営者です。</p>
@@ -67,7 +67,7 @@
 
     <header class="bg-slate-800 text-white p-4 shadow-md flex justify-between items-center z-10 shrink-0">
         <div class="flex items-center gap-3">
-            <h1 class="text-xl font-bold">建設業入札 vol.55 <span class="text-sm font-normal ml-2">第 <span id="turn-display" class="text-yellow-400 font-bold text-2xl">1</span> / 10 ターン</span></h1>
+            <h1 class="text-xl font-bold">入札 vol.56 <span class="text-sm font-normal ml-2">第 <span id="turn-display" class="text-yellow-400 font-bold text-2xl">1</span> / 10 ターン</span></h1>
             <div id="room-badge" class="hidden px-2 py-0.5 bg-indigo-600 rounded text-xs font-bold text-white shadow border border-indigo-500">🏠 ルーム: <span id="current-room-id-display">---</span></div>
             <div id="ai-status" class="hidden px-2 py-1 bg-emerald-500 rounded text-xs font-bold shadow animate-pulse">🤖 データ学習済</div>
             
@@ -396,11 +396,11 @@
         </div>
     </div>
     
-    <div id="cpu-calculating-modal" class="fixed inset-0 modal-bg hidden flex justify-center items-center z-50">
+    <div id="cpu-calculating-modal" class="fixed inset-0 modal-bg hidden flex justify-center items-center z-[80]">
         <div class="bg-white p-8 rounded-2xl shadow-2xl text-center max-w-sm w-full flex flex-col items-center gap-4 slide-in border-t-8 border-indigo-600">
             <div class="text-5xl animate-bounce">🤖</div>
             <h2 class="text-xl font-black text-slate-800">処理中...</h2>
-            <p class="text-sm text-slate-500 font-bold">競合AIの思考、または他プレイヤーの入力を待機しています。</p>
+            <p class="text-sm text-slate-500 font-bold">他のプレイヤーの入力を待機しています。</p>
         </div>
     </div>
 
@@ -433,7 +433,7 @@
         </div>
     </div>
 
-    <div id="coin-modal" class="fixed inset-0 modal-bg hidden flex justify-center items-center z-50">
+    <div id="coin-modal" class="fixed inset-0 modal-bg hidden flex justify-center items-center z-[90]">
         <div class="bg-white p-8 rounded-2xl shadow-2xl text-center max-w-sm w-full">
             <h2 class="text-2xl font-black text-slate-800 mb-8">景気決定コイントス</h2>
             <div id="coin-visual" class="w-32 h-32 mx-auto rounded-full bg-yellow-400 border-8 border-yellow-500 flex items-center justify-center shadow-lg text-4xl font-bold text-yellow-800 mb-8">?</div>
@@ -557,9 +557,10 @@
         let joinTempId = null;
         let currentTieBreaker = Math.random();
 
-        // ★ 非同期の多重実行・進行停止を防ぐためのロックフラグ
+        // ★ 非同期の多重実行・進行停止を防ぐためのロックフラグと確認配列
         let isProcessingBids = false;
         let isProcessingHiring = false;
+        let resultConfirmations = {};
 
         let marketStats = { A: {}, B: {} };
         let playerStats = { A: {}, B: {} };
@@ -600,14 +601,21 @@
             tempCost: 30
         };
 
-        function resetCalculatingModalText() {
+        // ★ 待機モーダルの統一管理
+        function showCalculatingModal(titleText, descText) {
             const calcModal = document.getElementById('cpu-calculating-modal');
-            if(calcModal) {
+            if (calcModal) {
+                calcModal.classList.remove('hidden');
                 const h2 = calcModal.querySelector('h2');
                 const p = calcModal.querySelector('p');
-                if (h2) h2.textContent = '処理中...';
-                if (p) p.textContent = '他のプレイヤーの入力を待機しています。';
+                if (h2) h2.textContent = titleText;
+                if (p) p.textContent = descText;
             }
+        }
+
+        function hideCalculatingModal() {
+            const calcModal = document.getElementById('cpu-calculating-modal');
+            if (calcModal) calcModal.classList.add('hidden');
         }
 
         function resetGameState() {
@@ -628,8 +636,10 @@
             activeRoomMembers = 1;
             isOnlineMode = false;
             myPlayerIndex = 0;
+            
             isProcessingBids = false;
             isProcessingHiring = false;
+            resultConfirmations = {};
             
             const turnDisplay = document.getElementById('turn-display');
             if(turnDisplay) turnDisplay.textContent = currentTurn;
@@ -658,7 +668,7 @@
             const multiBtn = document.getElementById('multiplayer-btn');
             if(multiBtn) multiBtn.classList.remove('hidden');
 
-            resetCalculatingModalText();
+            hideCalculatingModal();
             renderPlayers();
             
             if (charts && Object.keys(charts).length > 0) {
@@ -1056,8 +1066,7 @@
                 if (onlineChannel) {
                     onlineChannel.send({ type: 'broadcast', event: 'player_bid', payload: { playerIndex: myPlayerIndex, bid: myBid, turn: currentTurn } });
                 }
-                resetCalculatingModalText();
-                document.getElementById('cpu-calculating-modal').classList.remove('hidden');
+                showCalculatingModal('処理中...', '他のプレイヤーの入力を待機しています。');
                 
                 if (myPlayerIndex === 0) {
                     checkAndTriggerProcessBids();
@@ -1268,11 +1277,7 @@
         }
 
         async function decideCPUBids() {
-            const loadingModal = document.getElementById('cpu-calculating-modal');
-            if (loadingModal) {
-                resetCalculatingModalText();
-                loadingModal.classList.remove('hidden');
-            }
+            showCalculatingModal('処理中...', '競合AIの思考、または他プレイヤーの入力を待機しています。');
             try {
                 await new Promise(resolve => setTimeout(resolve, 100));
                 const state = cpuCloneState(); const rng = Math.random; 
@@ -1290,7 +1295,7 @@
                         await new Promise(resolve => setTimeout(resolve, 20));
                     }
                 }
-            } finally { if (loadingModal) loadingModal.classList.add('hidden'); }
+            } finally { hideCalculatingModal(); }
         }
 
         function executeSimulationWithPassword() {
@@ -1502,9 +1507,70 @@
             modal.classList.remove('hidden');
         };
 
+        // ★ ホスト側の同期管理関数群
+        function handleResultConfirmed(playerIndex) {
+            resultConfirmations[playerIndex] = true;
+            let allReady = true;
+            for(let i=0; i<4; i++) {
+                if(!players[i].isDefaulter && !players[i].isCPU && !resultConfirmations[i]) {
+                    allReady = false;
+                }
+            }
+            if (allReady) {
+                resultConfirmations = {}; // リセット
+                if (onlineChannel) {
+                    onlineChannel.send({ type: 'broadcast', event: 'start_hiring_phase', payload: {} });
+                }
+                startHiringPhase();
+            }
+        }
+
+        function startHiringPhase() {
+            hideCalculatingModal();
+            proceedToHiring();
+        }
+
+        function handleHiringCompleted(playerIndex, hire) {
+            hiringInputs[playerIndex] = hire;
+            
+            if (isProcessingHiring) return; // 多重実行防止
+            
+            let allReady = true;
+            for (let i = 0; i < 4; i++) {
+                if (!players[i].isCPU && !players[i].isDefaulter && typeof hiringInputs[i] === 'undefined') {
+                    allReady = false;
+                }
+            }
+            
+            if (allReady) {
+                isProcessingHiring = true; // 多重実行防止
+                
+                for (let i = 0; i < 4; i++) {
+                    if (players[i].isCPU && !players[i].isDefaulter && winningResults[i]) {
+                        hiringInputs[i] = cpuHiring({players: players, economy: currentEconomy}, i, winningResults[i].project, totalTurns - currentTurn + 1, Math.random);
+                    } else if (typeof hiringInputs[i] === 'undefined') {
+                        hiringInputs[i] = { f: 0, t: 0 };
+                    }
+                }
+                
+                for (let i = 0; i < 4; i++) {
+                    players[i].employees += hiringInputs[i].f;
+                    players[i].temps += hiringInputs[i].t;
+                }
+
+                if (onlineChannel) {
+                    onlineChannel.send({ type: 'broadcast', event: 'all_hiring_completed', payload: { hiringInputs: hiringInputs } });
+                }
+                
+                hideCalculatingModal();
+                
+                renderPlayers();
+                processRewardsAndPayments();
+            }
+        }
+
         async function processBids() {
-            const calcModal = document.getElementById('cpu-calculating-modal');
-            if(calcModal) calcModal.classList.add('hidden');
+            hideCalculatingModal();
 
             winningResults = {}; const projBids = { large: [], medium: [], small: [] };
             for (let i = 0; i < 4; i++) { const b = bidInputs[i]; if (b && b.project !== 'none') projBids[b.project].push({ playerId: i, amount: b.amount }); }
@@ -1538,10 +1604,36 @@
                 document.getElementById(`res-${pKey}-content`).innerHTML = htmlContent;
             }
             for (let i = 0; i < 4; i++) { if (players[i].history.length < currentTurn) { if (winningResults[i]) players[i].history.push({ turn: currentTurn, project: winningResults[i].project, amount: winningResults[i].amount }); else players[i].history.push({ turn: currentTurn, project: null, amount: null }); } }
+            
             const resModal = document.getElementById('result-modal'); const closeBtn = document.getElementById('close-result-btn'); const closeTopBtn = document.getElementById('close-result-top-btn');
             resModal.classList.remove('hidden');
-            await new Promise(resolve => { let handled = false; const closeHandler = async () => { if (handled) return; handled = true; closeBtn.removeEventListener('click', closeHandler); closeTopBtn.removeEventListener('click', closeHandler); resModal.classList.add('hidden'); resolve(); }; closeBtn.addEventListener('click', closeHandler); closeTopBtn.addEventListener('click', closeHandler); });
-            await proceedToHiring();
+            
+            // ★ 結果画面確認待機
+            await new Promise(resolve => { 
+                let handled = false; 
+                const closeHandler = async () => { 
+                    if (handled) return; 
+                    handled = true; 
+                    closeBtn.removeEventListener('click', closeHandler); 
+                    closeTopBtn.removeEventListener('click', closeHandler); 
+                    resModal.classList.add('hidden'); 
+                    resolve(); 
+                }; 
+                closeBtn.addEventListener('click', closeHandler); 
+                closeTopBtn.addEventListener('click', closeHandler); 
+            });
+
+            // ★ 結果確認の同期
+            if (isOnlineMode) {
+                showCalculatingModal('待機中...', '他のプレイヤーの確認を待っています。');
+                if (myPlayerIndex !== 0) {
+                    onlineChannel.send({ type: 'broadcast', event: 'result_confirmed', payload: { playerIndex: myPlayerIndex } });
+                } else {
+                    handleResultConfirmed(0);
+                }
+            } else {
+                await proceedToHiring();
+            }
         }
 
         async function playRoulette(projKey, bidders, amount) {
@@ -1552,53 +1644,6 @@
                 
                 setTimeout(() => { const winner = bidders[Math.floor(currentTieBreaker * bidders.length)]; resText.textContent = `🎊 ${players[winner.playerId].name} !!`; setTimeout(() => { modal.classList.add('hidden'); resolve(winner.playerId); }, 1500); }, 2000);
             });
-        }
-
-        // ★ オンライン時の進行停止バグを防ぐため、落札していないプレイヤーの自動パス対応とロックを導入
-        function handleHiringCompleted(playerIndex, hire) {
-            hiringInputs[playerIndex] = hire;
-            
-            if (isProcessingHiring) return; // 多重実行防止
-            
-            let allReady = true;
-            for (let i = 0; i < 4; i++) {
-                if (!players[i].isCPU && !players[i].isDefaulter && typeof hiringInputs[i] === 'undefined') {
-                    // ★ 落札していない場合は雇用入力が発生しないので、ホスト側で自動的にパス扱いにする
-                    if (!winningResults[i]) {
-                        hiringInputs[i] = { f: 0, t: 0 };
-                    } else {
-                        allReady = false;
-                    }
-                }
-            }
-            
-            if (allReady) {
-                isProcessingHiring = true; // 多重実行防止
-                
-                for (let i = 0; i < 4; i++) {
-                    if (players[i].isCPU && !players[i].isDefaulter && winningResults[i]) {
-                        hiringInputs[i] = cpuHiring({players: players, economy: currentEconomy}, i, winningResults[i].project, totalTurns - currentTurn + 1, Math.random);
-                    } else if (typeof hiringInputs[i] === 'undefined') {
-                        hiringInputs[i] = { f: 0, t: 0 };
-                    }
-                }
-                
-                for (let i = 0; i < 4; i++) {
-                    players[i].employees += hiringInputs[i].f;
-                    players[i].temps += hiringInputs[i].t;
-                }
-
-                if (onlineChannel) {
-                    onlineChannel.send({ type: 'broadcast', event: 'all_hiring_completed', payload: { hiringInputs: hiringInputs } });
-                }
-                
-                resetCalculatingModalText();
-                const calcModal = document.getElementById('cpu-calculating-modal');
-                if(calcModal) calcModal.classList.add('hidden');
-                
-                renderPlayers();
-                processRewardsAndPayments();
-            }
         }
 
         async function proceedToHiring() {
@@ -1633,6 +1678,7 @@
                     if (total >= reqLabor) { prev.className = 'text-sm text-center font-bold text-emerald-700 bg-emerald-50 py-2 rounded-lg border border-emerald-200 transition-colors'; btn.disabled = false; } else { prev.className = 'text-sm text-center font-bold text-rose-600 bg-rose-50 py-2 rounded-lg border border-rose-200 transition-colors'; btn.disabled = true; } 
                 };
                 fInput.oninput = checkLabor; tInput.oninput = checkLabor; checkLabor();
+                
                 await new Promise(resolve => { 
                     const handler = () => { 
                         myHire.f = parseInt(fInput.value) || 0; 
@@ -1645,24 +1691,13 @@
                 });
             }
 
-            // オンラインとオフラインのフロー分岐
             if (isOnlineMode) {
-                const calcModal = document.getElementById('cpu-calculating-modal');
-                if (calcModal) {
-                    calcModal.classList.remove('hidden');
-                    const h2 = calcModal.querySelector('h2');
-                    const p = calcModal.querySelector('p');
-                    if(h2) h2.textContent = '待機中...';
-                    if(p) p.textContent = '他のプレイヤーの雇用完了を待っています。';
-                }
-
+                showCalculatingModal('待機中...', '他のプレイヤーの操作を待っています。');
+                
                 if (myPlayerIndex !== 0) {
-                    // ★ 落札したゲストのみ送信する（落札していないゲストの入力はホスト側で自動パスされる）
-                    if (winningResults[myPlayerIndex]) {
-                        onlineChannel.send({ type: 'broadcast', event: 'hiring_completed', payload: { playerIndex: myPlayerIndex, hire: myHire } });
-                    }
+                    // ★ 落札・未落札にかかわらず送信する（雇用なしの場合は0,0が飛ぶ）
+                    onlineChannel.send({ type: 'broadcast', event: 'hiring_completed', payload: { playerIndex: myPlayerIndex, hire: myHire } });
                 } else {
-                    // ホストは自身のチェック関数を回す
                     handleHiringCompleted(0, myHire);
                 }
             } else {
@@ -1746,6 +1781,7 @@
 
             bidInputs = {};
             hiringInputs = {}; 
+            
             // ★ フラグをリセット
             isProcessingBids = false;
             isProcessingHiring = false;
@@ -1895,6 +1931,7 @@
 
                         // ★ プレイヤー離脱時に待機状態を解除するための再チェック
                         checkAndTriggerProcessBids();
+                        handleResultConfirmed(playerIndex);
                         handleHiringCompleted(playerIndex, {f:0, t:0});
                     }
                 })
@@ -1998,15 +2035,19 @@
                     if (myPlayerIndex !== 0) {
                         bidInputs = payload.payload.bids;
                         currentTieBreaker = payload.payload.tieBreaker;
-                        const calcModal = document.getElementById('cpu-calculating-modal');
-                        if(calcModal) calcModal.classList.add('hidden');
+                        hideCalculatingModal();
                         processBids();
                     }
                 })
-                .on('broadcast', { event: 'start_coin_toss' }, payload => {
+                // ★ 結果確認の同期受信処理
+                .on('broadcast', { event: 'result_confirmed' }, payload => {
+                    if (myPlayerIndex === 0) {
+                        handleResultConfirmed(payload.payload.playerIndex);
+                    }
+                })
+                .on('broadcast', { event: 'start_hiring_phase' }, payload => {
                     if (myPlayerIndex !== 0) {
-                        currentTurn = payload.payload.turn;
-                        playCoinTossAnimation(payload.payload.economy);
+                        startHiringPhase();
                     }
                 })
                 .on('broadcast', { event: 'hiring_completed' }, payload => {
@@ -2023,11 +2064,15 @@
                                 players[i].temps += hInputs[i].t;
                             }
                         }
-                        resetCalculatingModalText();
-                        const calcModal = document.getElementById('cpu-calculating-modal');
-                        if (calcModal) calcModal.classList.add('hidden');
+                        hideCalculatingModal();
                         renderPlayers();
                         processRewardsAndPayments();
+                    }
+                })
+                .on('broadcast', { event: 'start_coin_toss' }, payload => {
+                    if (myPlayerIndex !== 0) {
+                        currentTurn = payload.payload.turn;
+                        playCoinTossAnimation(payload.payload.economy);
                     }
                 })
                 .on('broadcast', { event: 'start_game' }, payload => {
@@ -2104,9 +2149,7 @@
                     });
                 }
 
-                const calcModal = document.getElementById('cpu-calculating-modal');
-                if(calcModal) calcModal.classList.add('hidden');
-                
+                hideCalculatingModal();
                 processBids();
             }
         }
