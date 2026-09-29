@@ -64,10 +64,10 @@
         </div>
     </div>
 
-    <!-- ヘッダーの z-index を z-[85] に変更 -->
+    <!-- ヘッダー -->
     <header class="bg-slate-800 text-white p-3 shadow-md flex justify-between items-center z-[85] shrink-0">
         <div class="flex items-center gap-3">
-            <h1 class="text-xl font-bold">入札 ver.72 <span class="text-sm font-normal ml-2">第 <span id="turn-display" class="text-yellow-400 font-bold text-2xl">1</span> / <span id="total-turn-display">10</span> ターン</span></h1>
+            <h1 class="text-xl font-bold">入札 ver.73 <span class="text-sm font-normal ml-2">第 <span id="turn-display" class="text-yellow-400 font-bold text-2xl">1</span> / <span id="total-turn-display">10</span> ターン</span></h1>
             <button id="room-badge" class="hidden px-2 py-0.5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 rounded text-xs font-bold text-white shadow border border-indigo-500 transition-colors" onclick="if(myPlayerIndex === 0) document.getElementById('lobby-modal').classList.remove('hidden')">🏠 ルーム: <span id="current-room-id-display">---</span></button>
             <div id="ai-status" class="hidden px-2 py-1 bg-emerald-500 rounded text-xs font-bold shadow animate-pulse">🤖 データ学習済</div>
             
@@ -224,13 +224,13 @@
     <!-- ★ 収益結果ポップアップ -->
     <div id="turn-profit-modal" class="fixed inset-0 modal-bg hidden flex justify-center items-center z-[110] p-4">
         <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-sm text-center border-t-8 border-yellow-400 flex flex-col slide-in">
-            <h2 class="text-xl font-black text-slate-800 mb-4">第 <span id="tp-turn"></span> ターン 収益結果</h2>
+            <h2 id="tp-title" class="text-xl font-black text-slate-800 mb-4">第 <span id="tp-turn"></span> ターン 収益結果</h2>
             <div id="tp-content" class="space-y-2 mb-6 text-left"></div>
             <div class="text-4xl font-black text-slate-300" id="tp-countdown">4</div>
         </div>
     </div>
 
-    <!-- ★ 設定モーダル (z-[90] に変更) -->
+    <!-- ★ 設定モーダル -->
     <div id="game-settings-modal" class="fixed inset-0 modal-bg hidden flex justify-center items-center z-[90] p-4">
         <div class="bg-white p-6 md:p-8 rounded-2xl shadow-2xl w-full max-w-3xl slide-in relative border-t-8 border-fuchsia-600 flex flex-col max-h-[90vh]">
             <button onclick="document.getElementById('game-settings-modal').classList.add('hidden')" class="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 font-bold transition-colors z-10">✕</button>
@@ -241,6 +241,23 @@
             </div>
             
             <div class="flex-1 overflow-y-auto custom-scroll pr-2 space-y-6 text-slate-700 text-sm">
+                <!-- 初期設定 -->
+                <section>
+                    <h3 class="text-lg font-bold text-fuchsia-700 border-b-2 border-fuchsia-200 pb-1 mb-3 flex items-center gap-2"><span>💰</span> 初期状態設定</h3>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                            <label class="flex flex-col text-xs font-bold text-slate-600">初期資金 (Y) 
+                                <input type="number" id="set-init-money" class="mt-1 border border-slate-300 p-1.5 rounded font-mono font-bold" min="0">
+                            </label>
+                        </div>
+                        <div class="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                            <label class="flex flex-col text-xs font-bold text-slate-600">初期正社員 (人) 
+                                <input type="number" id="set-init-emp" class="mt-1 border border-slate-300 p-1.5 rounded font-mono font-bold" min="0">
+                            </label>
+                        </div>
+                    </div>
+                </section>
+
                 <!-- 工事設定 -->
                 <section>
                     <h3 class="text-lg font-bold text-fuchsia-700 border-b-2 border-fuchsia-200 pb-1 mb-3 flex items-center gap-2"><span>🏗️</span> 工事カード設定</h3>
@@ -311,7 +328,7 @@
         </div>
     </div>
 
-    <!-- ★ ヘルプモーダル (z-[90] に変更) -->
+    <!-- ★ ヘルプモーダル -->
     <div id="help-modal" class="fixed inset-0 modal-bg hidden flex justify-center items-center z-[90] p-4">
         <div class="bg-white p-6 md:p-8 rounded-2xl shadow-2xl w-full max-w-3xl slide-in relative border-t-8 border-teal-500 flex flex-col max-h-[90vh]">
             <button onclick="document.getElementById('help-modal').classList.add('hidden')" class="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 font-bold transition-colors z-10">✕</button>
@@ -394,7 +411,7 @@
         </div>
     </div>
 
-    <!-- オンラインロビー モーダル (z-[90] に変更) -->
+    <!-- オンラインロビー モーダル -->
     <div id="lobby-modal" class="fixed inset-0 modal-bg hidden flex justify-center items-center z-[90] p-4">
         <div class="bg-white p-6 md:p-8 rounded-2xl shadow-2xl w-full max-w-md slide-in relative border-t-8 border-indigo-600">
             <button onclick="document.getElementById('lobby-modal').classList.add('hidden')" class="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 font-bold transition-colors">✕</button>
@@ -434,7 +451,7 @@
         </div>
     </div>
 
-    <!-- CPU設定モーダル (z-[90] に変更) -->
+    <!-- CPU設定モーダル -->
     <div id="sim-config-modal" class="fixed inset-0 modal-bg hidden flex justify-center items-center z-[90] p-4">
         <div class="bg-white p-6 md:p-8 rounded-2xl shadow-2xl w-full max-w-md slide-in relative border-t-8 border-slate-600">
             <button onclick="closeConfigModal()" class="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 font-bold transition-colors">✕</button>
@@ -512,7 +529,7 @@
                             <th class="p-3 font-black border-b border-slate-200">AIプレイヤー＆戦略</th>
                             <th class="p-3 font-black border-b border-slate-200 text-right">破産率 (回数)</th>
                             <th class="p-3 font-black border-b border-slate-200 text-right">1位終了</th>
-                            <th class="p-3 font-black border-b border-slate-200 text-right">＋収益 (≧300Y)</th>
+                            <th class="p-3 font-black border-b border-slate-200 text-right">＋収益 (≧初期資金)</th>
                             <th class="p-3 font-black border-b border-slate-200 text-right">最終平均Y</th>
                             <th class="p-3 font-black border-b border-slate-200 text-right">最高Y</th>
                         </tr>
@@ -565,7 +582,7 @@
     <div id="ranking-modal" class="fixed inset-0 modal-bg hidden flex justify-center items-center z-50 p-4">
         <div class="bg-white p-8 rounded-3xl shadow-2xl w-full max-w-lg slide-in text-center border-4 border-yellow-400 overflow-hidden relative">
             <div class="absolute inset-0 bg-gradient-to-br from-yellow-50 to-white -z-10"></div>
-            <h2 class="text-4xl font-black mb-2 text-yellow-600 drop-shadow-sm">🏁 ゲーム終了！</h2><p class="text-gray-500 font-bold mb-8">最終清算結果ランキング</p>
+            <h2 class="text-4xl font-black mb-2 text-yellow-600 drop-shadow-sm">🏁 ゲーム終了！</h2><p class="text-gray-500 font-bold mb-8">ランキング</p>
             <div id="ranking-container" class="space-y-3 mb-8 text-left"></div>
             <div id="ranking-buttons" class="mt-4 flex flex-col gap-3"></div>
         </div>
@@ -609,6 +626,10 @@
 
         const CPU_LOOKAHEAD = 3, CPU_ROLLOUTS = 30, CPU_ACTION_LIMIT = 8, CPU_BR_ROUNDS = 2; 
         const cpuActionMemo = new Map();
+
+        // 追加：初期設定変数
+        let initialMoney = 300;
+        let initialEmployees = 1;
 
         let totalTurns = 10; 
         let currentTurn = 1; 
@@ -669,12 +690,12 @@
 
             for (let i = 0; i < players.length; i++) {
                 if(players[i]){
-                    players[i].money = 300;
-                    players[i].employees = 1;
+                    players[i].money = initialMoney;
+                    players[i].employees = initialEmployees;
                     players[i].temps = 0;
                     players[i].isDefaulter = false;
                     players[i].history = [];
-                    players[i].moneyHistory = [300];
+                    players[i].moneyHistory = [initialMoney];
                 }
             }
 
@@ -702,10 +723,10 @@
 
         function resetGameState() {
             players.length = 0;
-            players.push({ id: 0, name: 'あなた (Player)', money: 300, employees: 1, temps: 0, isDefaulter: false, isCPU: false, history: [], moneyHistory: [300] });
-            players.push({ id: 1, name: '競合A (CPU)', money: 300, employees: 1, temps: 0, isDefaulter: false, isCPU: true, history: [], moneyHistory: [300] });
-            players.push({ id: 2, name: '競合B (CPU)', money: 300, employees: 1, temps: 0, isDefaulter: false, isCPU: true, history: [], moneyHistory: [300] });
-            players.push({ id: 3, name: '競合C (CPU)', money: 300, employees: 1, temps: 0, isDefaulter: false, isCPU: true, history: [], moneyHistory: [300] });
+            players.push({ id: 0, name: 'あなた (Player)', money: initialMoney, employees: initialEmployees, temps: 0, isDefaulter: false, isCPU: false, history: [], moneyHistory: [initialMoney] });
+            players.push({ id: 1, name: '競合A (CPU)', money: initialMoney, employees: initialEmployees, temps: 0, isDefaulter: false, isCPU: true, history: [], moneyHistory: [initialMoney] });
+            players.push({ id: 2, name: '競合B (CPU)', money: initialMoney, employees: initialEmployees, temps: 0, isDefaulter: false, isCPU: true, history: [], moneyHistory: [initialMoney] });
+            players.push({ id: 3, name: '競合C (CPU)', money: initialMoney, employees: initialEmployees, temps: 0, isDefaulter: false, isCPU: true, history: [], moneyHistory: [initialMoney] });
             
             softResetGameState();
             
@@ -736,6 +757,9 @@
                 alert('数値の変更はホストのみ実行できます。');
                 return;
             }
+            document.getElementById('set-init-money').value = initialMoney;
+            document.getElementById('set-init-emp').value = initialEmployees;
+
             ['large', 'medium', 'small'].forEach(k => {
                 document.getElementById(`set-${k[0]}-max`).value = projects[k].maxBid;
                 document.getElementById(`set-${k[0]}-labor`).value = projects[k].labor;
@@ -768,6 +792,9 @@
             await new Promise(r => setTimeout(r, 500));
 
             try {
+                initialMoney = parseInt(document.getElementById('set-init-money').value) || 0;
+                initialEmployees = parseInt(document.getElementById('set-init-emp').value) || 0;
+
                 ['large', 'medium', 'small'].forEach(k => {
                     projects[k].maxBid = parseInt(document.getElementById(`set-${k[0]}-max`).value) || 0;
                     projects[k].labor = parseInt(document.getElementById(`set-${k[0]}-labor`).value) || 0;
@@ -791,7 +818,7 @@
                 initCharts(); 
 
                 if (isOnlineMode && onlineChannel && myPlayerIndex === 0) {
-                    await onlineChannel.send({ type: 'broadcast', event: 'game_settings_updated', payload: { projects, laborConfig, totalTurns } });
+                    await onlineChannel.send({ type: 'broadcast', event: 'game_settings_updated', payload: { projects, laborConfig, totalTurns, initialMoney, initialEmployees } });
                 }
 
                 alert('設定を反映しました。');
@@ -1429,8 +1456,8 @@
                 await new Promise(r => setTimeout(r, 10));
 
                 let simGameId = Math.random().toString(36).substring(2, 10);
-                let simState = { turn: 1, economy: '', isSim: true, players: Array.from({length: 4}, () => ({ money: 300, employees: 1, temps: 0, bankrupt: false })) };
-                let gameHistory = { 0: [{ turn: 0, money: 300, emp: 1 }], 1: [{ turn: 0, money: 300, emp: 1 }], 2: [{ turn: 0, money: 300, emp: 1 }], 3: [{ turn: 0, money: 300, emp: 1 }], economy: ['-'] };
+                let simState = { turn: 1, economy: '', isSim: true, players: Array.from({length: 4}, () => ({ money: initialMoney, employees: initialEmployees, temps: 0, bankrupt: false })) };
+                let gameHistory = { 0: [{ turn: 0, money: initialMoney, emp: initialEmployees }], 1: [{ turn: 0, money: initialMoney, emp: initialEmployees }], 2: [{ turn: 0, money: initialMoney, emp: initialEmployees }], 3: [{ turn: 0, money: initialMoney, emp: initialEmployees }], economy: ['-'] };
                 let currentGameDetailedLogs = []; 
 
                 for (let t = 1; t <= totalTurns; t++) {
@@ -1543,7 +1570,7 @@
                     } 
                 }
                 
-                if (currentMax >= 300 && topPlayer !== -1) {
+                if (currentMax >= initialMoney && topPlayer !== -1) {
                     currentGameDetailedLogs.forEach(log => {
                         if (log.player_id === topPlayer && log.is_winner) {
                             let gStat = goldenStats[simState.economy][log.construction_mode];
@@ -1582,7 +1609,7 @@
                     if (simState.players[i].money === currentMax) winCounts[i]++;
                     moneySums[i] += simState.players[i].money;
                     if (simState.players[i].money > moneyMaxes[i]) moneyMaxes[i] = simState.players[i].money;
-                    if (simState.players[i].money >= 300) plusCounts[i]++;
+                    if (simState.players[i].money >= initialMoney) plusCounts[i]++;
                 }
             }
             if (supabaseClient && allDetailedLogs.length > 0) {
@@ -1638,7 +1665,7 @@
             for (let i = 0; i < 4; i++) {
                 datasets.push({ label: players[i].name, data: history[i].map(h => ({ x: h.turn, y: h.money, emp: h.emp })), borderColor: colors[i], backgroundColor: colors[i], tension: 0.1, pointRadius: 4, pointHoverRadius: 7 });
             }
-            datasets.push({ label: '初期Y (300)', data: Array.from({length: history.economy.length}, (_, i) => ({ x: i, y: 300, emp: '-' })), borderColor: '#ef4444', borderWidth: 2, borderDash: [5, 5], pointRadius: 0, pointHoverRadius: 0, fill: false, order: 10 });
+            datasets.push({ label: `初期Y (${initialMoney})`, data: Array.from({length: history.economy.length}, (_, i) => ({ x: i, y: initialMoney, emp: '-' })), borderColor: '#ef4444', borderWidth: 2, borderDash: [5, 5], pointRadius: 0, pointHoverRadius: 0, fill: false, order: 10 });
             const ctx = document.getElementById('sim-game-chart').getContext('2d');
             if (simGameChartInstance) { simGameChartInstance.destroy(); }
             const economyBackgroundPlugin = {
@@ -1655,7 +1682,7 @@
             };
             simGameChartInstance = new Chart(ctx, {
                 type: 'line', data: { labels: labels, datasets: datasets }, plugins: [economyBackgroundPlugin],
-                options: { responsive: true, maintainAspectRatio: false, parsing: { xAxisKey: 'x', yAxisKey: 'y' }, plugins: { legend: { labels: { filter: function(item, chart) { return !item.text.includes('初期Y'); } } }, tooltip: { callbacks: { label: function(context) { if (context.dataset.label === '初期Y (300)') return null; return `${context.dataset.label}: ${context.raw.y}Y (正社員: ${context.raw.emp}人)`; } } } }, scales: { x: { title: { display: true, text: 'ターン (景気)', font: { weight: 'bold' } } }, y: { title: { display: true, text: '所持Y', font: { weight: 'bold' } } } } }
+                options: { responsive: true, maintainAspectRatio: false, parsing: { xAxisKey: 'x', yAxisKey: 'y' }, plugins: { legend: { labels: { filter: function(item, chart) { return !item.text.includes('初期Y'); } } }, tooltip: { callbacks: { label: function(context) { if (context.dataset.label.includes('初期Y')) return null; return `${context.dataset.label}: ${context.raw.y}Y (正社員: ${context.raw.emp}人)`; } } } }, scales: { x: { title: { display: true, text: 'ターン (景気)', font: { weight: 'bold' } } }, y: { title: { display: true, text: '所持Y', font: { weight: 'bold' } } } } }
             });
             modal.classList.remove('hidden');
         };
@@ -2017,7 +2044,15 @@
 
         async function showTurnProfitAndNext(turnProfits, allBankrupt) {
             const modal = document.getElementById('turn-profit-modal');
-            document.getElementById('tp-turn').textContent = currentTurn;
+            const tpTitle = document.getElementById('tp-title');
+            
+            // ① 最終ターンのみ「最終ターン 収益結果」とし、「最終ターン」を赤文字化する
+            if (currentTurn === totalTurns) {
+                tpTitle.innerHTML = `<span class="text-red-600">最終ターン</span> 収益結果`;
+            } else {
+                tpTitle.innerHTML = `第 <span id="tp-turn">${currentTurn}</span> ターン 収益結果`;
+            }
+
             const content = document.getElementById('tp-content');
             content.innerHTML = turnProfits.map(p => {
                 const color = p.profit > 0 ? 'text-emerald-600' : (p.profit < 0 ? 'text-red-600' : 'text-slate-700');
@@ -2051,7 +2086,6 @@
                 return;
             }
 
-            // 【修正点】ゲストは勝手にカウントアップせず、ホストからの start_coin_toss 同期を待つ
             if (!isOnlineMode || myPlayerIndex === 0) {
                 currentTurn++;
                 const turnDisplayNode = document.getElementById('turn-display');
@@ -2285,7 +2319,6 @@
                             updateMemberCountDisplay(activeRoomMembers);
                             renderPlayers();
 
-                            // 【修正点】途中参加者にも現在のホスト側の全設定状態を渡す
                             await onlineChannel.send({
                                 type: 'broadcast',
                                 event: 'join_accepted',
@@ -2293,7 +2326,7 @@
                                     tempId, 
                                     slot, 
                                     snapshot: players,
-                                    settings: { projects, laborConfig, totalTurns } 
+                                    settings: { projects, laborConfig, totalTurns, initialMoney, initialEmployees } 
                                 }
                             });
                         } else {
@@ -2316,11 +2349,13 @@
                             players[i].isCPU = snapshot[i].isCPU;
                         }
 
-                        // 【修正点】参加時にホスト側の最新設定（全ターン数など）を反映
                         if (payload.payload.settings) {
                             projects = payload.payload.settings.projects;
                             laborConfig = payload.payload.settings.laborConfig;
                             totalTurns = payload.payload.settings.totalTurns;
+                            if (payload.payload.settings.initialMoney !== undefined) initialMoney = payload.payload.settings.initialMoney;
+                            if (payload.payload.settings.initialEmployees !== undefined) initialEmployees = payload.payload.settings.initialEmployees;
+                            
                             const totalTurnDisplayNode = document.getElementById('total-turn-display');
                             if (totalTurnDisplayNode) totalTurnDisplayNode.textContent = totalTurns;
                             updateProjectCardsUI();
@@ -2359,6 +2394,9 @@
                     if (isOnlineMode && myPlayerIndex !== 0) {
                         projects = payload.payload.projects;
                         laborConfig = payload.payload.laborConfig;
+                        if(payload.payload.initialMoney !== undefined) initialMoney = payload.payload.initialMoney;
+                        if(payload.payload.initialEmployees !== undefined) initialEmployees = payload.payload.initialEmployees;
+                        
                         if(payload.payload.totalTurns) {
                             totalTurns = payload.payload.totalTurns;
                             const turnDisplayNode = document.getElementById('turn-display');
@@ -2417,7 +2455,6 @@
                 })
                 .on('broadcast', { event: 'start_coin_toss' }, async payload => {
                     if (myPlayerIndex !== 0) {
-                        // 【修正点】ここでホストから正しいターン数を受け取り同期する
                         currentTurn = payload.payload.turn;
                         const turnDisplayNode = document.getElementById('turn-display');
                         if (turnDisplayNode) turnDisplayNode.textContent = currentTurn;
