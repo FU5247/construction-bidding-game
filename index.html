@@ -67,7 +67,7 @@
     <!-- ヘッダー -->
     <header class="bg-slate-800 text-white p-3 shadow-md flex justify-between items-center z-[85] shrink-0">
         <div class="flex items-center gap-3">
-            <h1 class="text-xl font-bold">入札 ver.73 <span class="text-sm font-normal ml-2">第 <span id="turn-display" class="text-yellow-400 font-bold text-2xl">1</span> / <span id="total-turn-display">10</span> ターン</span></h1>
+            <h1 class="text-xl font-bold">入札 ver.74 <span class="text-sm font-normal ml-2">第 <span id="turn-display" class="text-yellow-400 font-bold text-2xl">1</span> / <span id="total-turn-display">10</span> ターン</span></h1>
             <button id="room-badge" class="hidden px-2 py-0.5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 rounded text-xs font-bold text-white shadow border border-indigo-500 transition-colors" onclick="if(myPlayerIndex === 0) document.getElementById('lobby-modal').classList.remove('hidden')">🏠 ルーム: <span id="current-room-id-display">---</span></button>
             <div id="ai-status" class="hidden px-2 py-1 bg-emerald-500 rounded text-xs font-bold shadow animate-pulse">🤖 データ学習済</div>
             
@@ -627,7 +627,6 @@
         const CPU_LOOKAHEAD = 3, CPU_ROLLOUTS = 30, CPU_ACTION_LIMIT = 8, CPU_BR_ROUNDS = 2; 
         const cpuActionMemo = new Map();
 
-        // 追加：初期設定変数
         let initialMoney = 300;
         let initialEmployees = 1;
 
@@ -812,6 +811,15 @@
                 if (turnDisplayNode) turnDisplayNode.textContent = currentTurn;
                 const totalTurnDisplayNode = document.getElementById('total-turn-display');
                 if (totalTurnDisplayNode) totalTurnDisplayNode.textContent = totalTurns;
+
+                // まだ1ターン目の最初の段階であれば、初期設定を現在のプレイヤーに即座に反映する
+                if (currentTurn === 1 && Object.keys(bidInputs).length === 0 && !isProcessingBids && !isProcessingHiring) {
+                    for (let i = 0; i < players.length; i++) {
+                        players[i].money = initialMoney;
+                        players[i].moneyHistory = [initialMoney];
+                        players[i].employees = initialEmployees;
+                    }
+                }
 
                 updateProjectCardsUI();
                 renderPlayers();
@@ -2046,7 +2054,6 @@
             const modal = document.getElementById('turn-profit-modal');
             const tpTitle = document.getElementById('tp-title');
             
-            // ① 最終ターンのみ「最終ターン 収益結果」とし、「最終ターン」を赤文字化する
             if (currentTurn === totalTurns) {
                 tpTitle.innerHTML = `<span class="text-red-600">最終ターン</span> 収益結果`;
             } else {
@@ -2404,6 +2411,15 @@
                             const totalTurnDisplayNode = document.getElementById('total-turn-display');
                             if (totalTurnDisplayNode) totalTurnDisplayNode.textContent = totalTurns;
                         }
+
+                        if (currentTurn === 1 && Object.keys(bidInputs).length === 0 && !isProcessingBids && !isProcessingHiring) {
+                            for (let i = 0; i < players.length; i++) {
+                                players[i].money = initialMoney;
+                                players[i].moneyHistory = [initialMoney];
+                                players[i].employees = initialEmployees;
+                            }
+                        }
+
                         updateProjectCardsUI();
                         renderPlayers();
                         initCharts();
