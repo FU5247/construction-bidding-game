@@ -67,7 +67,7 @@
     <!-- ヘッダー -->
     <header class="bg-slate-800 text-white p-3 shadow-md flex justify-between items-center z-[85] shrink-0">
         <div class="flex items-center gap-3">
-            <h1 class="text-xl font-bold">入札 ver.74 <span class="text-sm font-normal ml-2">第 <span id="turn-display" class="text-yellow-400 font-bold text-2xl">1</span> / <span id="total-turn-display">10</span> ターン</span></h1>
+            <h1 class="text-xl font-bold">入札 ver.75 <span class="text-sm font-normal ml-2">第 <span id="turn-display" class="text-yellow-400 font-bold text-2xl">1</span> / <span id="total-turn-display">10</span> ターン</span></h1>
             <button id="room-badge" class="hidden px-2 py-0.5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 rounded text-xs font-bold text-white shadow border border-indigo-500 transition-colors" onclick="if(myPlayerIndex === 0) document.getElementById('lobby-modal').classList.remove('hidden')">🏠 ルーム: <span id="current-room-id-display">---</span></button>
             <div id="ai-status" class="hidden px-2 py-1 bg-emerald-500 rounded text-xs font-bold shadow animate-pulse">🤖 データ学習済</div>
             
@@ -105,21 +105,21 @@
                         <h3 class="text-red-700 font-bold text-center mb-1 text-base">大工事</h3>
                         <div class="text-xs space-y-1 bg-white p-2 rounded border border-red-100 pointer-events-none">
                             <p class="text-gray-600 font-bold mb-1 border-b border-red-100 pb-1">必要人数: <span id="labor-large">10</span>人</p>
-                            <p id="maxbid-large" class="text-gray-700 font-black">入札上限: 400Y</p>
+                            <p id="maxbid-large" class="text-gray-700 font-black">入札上限: 500Y</p>
                         </div>
                     </div>
                     <div id="card-medium" class="border-2 border-blue-500 rounded-lg p-3 bg-blue-50 relative shadow-sm transition-all" onclick="selectProject('medium')">
                         <h3 class="text-blue-700 font-bold text-center mb-1 text-base">中工事</h3>
                         <div class="text-xs space-y-1 bg-white p-2 rounded border border-blue-100 pointer-events-none">
                             <p class="text-gray-600 font-bold mb-1 border-b border-blue-100 pb-1">必要人数: <span id="labor-medium">7</span>人</p>
-                            <p id="maxbid-medium" class="text-gray-700 font-black">入札上限: 280Y</p>
+                            <p id="maxbid-medium" class="text-gray-700 font-black">入札上限: 350Y</p>
                         </div>
                     </div>
                     <div id="card-small" class="border-2 border-green-500 rounded-lg p-3 bg-green-50 relative shadow-sm transition-all" onclick="selectProject('small')">
                         <h3 class="text-green-700 font-bold text-center mb-1 text-base">小工事</h3>
                         <div class="text-xs space-y-1 bg-white p-2 rounded border border-green-100 pointer-events-none">
                             <p class="text-gray-600 font-bold mb-1 border-b border-green-100 pb-1">必要人数: <span id="labor-small">4</span>人</p>
-                            <p id="maxbid-small" class="text-gray-700 font-black">入札上限: 160Y</p>
+                            <p id="maxbid-small" class="text-gray-700 font-black">入札上限: 200Y</p>
                         </div>
                     </div>
                 </div>
@@ -177,7 +177,7 @@
                         <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 shadow-inner mt-1 flex flex-col justify-between">
                             <label class="block text-sm font-bold mb-2 text-slate-700 text-center">入札価格（10Y単位）: <span id="bid-amount-display" class="text-2xl text-blue-700 font-black">0</span> Y</label>
                             <div class="w-full py-2">
-                                <input type="range" id="bid-amount" class="w-full h-3 bg-slate-300 rounded-lg cursor-pointer accent-blue-600 shadow-inner" step="10" min="0" max="400" value="0">
+                                <input type="range" id="bid-amount" class="w-full h-3 bg-slate-300 rounded-lg cursor-pointer accent-blue-600 shadow-inner" step="10" min="0" max="500" value="0">
                             </div>
                             <div class="text-sm font-bold text-slate-700 text-center mt-2 h-5 flex items-center justify-center">
                                 <span id="submit-bid-profit"></span>
@@ -370,7 +370,7 @@
                             <p class="text-xs text-slate-600 mb-2">大きな利益を見込めますが、必要な人数も多くなります。</p>
                             <ul class="text-xs space-y-0.5 font-bold">
                                 <li id="help-large-labor" class="text-gray-700">必要人数: 10人</li>
-                                <li id="help-large-max" class="text-pink-600">入札上限: 400Y</li>
+                                <li id="help-large-max" class="text-pink-600">入札上限: 500Y</li>
                             </ul>
                         </div>
                         <div class="bg-blue-50 p-3 rounded border border-blue-200">
@@ -378,7 +378,7 @@
                             <p class="text-xs text-slate-600 mb-2">バランスの良い工事です。中堅企業向け。</p>
                             <ul class="text-xs space-y-0.5 font-bold">
                                 <li id="help-medium-labor" class="text-gray-700">必要人数: 7人</li>
-                                <li id="help-medium-max" class="text-pink-600">入札上限: 280Y</li>
+                                <li id="help-medium-max" class="text-pink-600">入札上限: 350Y</li>
                             </ul>
                         </div>
                         <div class="bg-green-50 p-3 rounded border border-green-200">
@@ -386,7 +386,7 @@
                             <p class="text-xs text-slate-600 mb-2">手軽に受注できますが、利益は少なめです。</p>
                             <ul class="text-xs space-y-0.5 font-bold">
                                 <li id="help-small-labor" class="text-gray-700">必要人数: 4人</li>
-                                <li id="help-small-max" class="text-pink-600">入札上限: 160Y</li>
+                                <li id="help-small-max" class="text-pink-600">入札上限: 200Y</li>
                             </ul>
                         </div>
                     </div>
@@ -458,7 +458,7 @@
             <div class="text-center mb-6">
                 <span class="text-4xl mb-2 block">⚙️</span>
                 <h2 class="text-2xl font-black text-slate-800">CPU戦略設定</h2>
-                <p class="text-sm font-bold text-slate-500 mt-1">手動プレイ・自動収集でAIが使用する戦略</p>
+                <p class="text-sm font-bold text-slate-500 mt-1">手初プレイ・自動収集でAIが使用する戦略</p>
             </div>
             <div class="space-y-3 mb-6" id="cpu-strat-settings-container">
             </div>
@@ -643,9 +643,9 @@
         let simGameChartInstance = null;
 
         let projects = { 
-            large: { name: '大工事', maxBid: 400, labor: 10, color: 'rgb(239, 68, 68)' }, 
-            medium: { name: '中工事', maxBid: 280, labor: 7, color: 'rgb(59, 130, 246)' }, 
-            small: { name: '小工事', maxBid: 160, labor: 4, color: 'rgb(34, 197, 94)' } 
+            large: { name: '大工事', maxBid: 500, labor: 10, color: 'rgb(239, 68, 68)' }, 
+            medium: { name: '中工事', maxBid: 350, labor: 7, color: 'rgb(59, 130, 246)' }, 
+            small: { name: '小工事', maxBid: 200, labor: 4, color: 'rgb(34, 197, 94)' } 
         };
         
         let laborConfig = {
@@ -812,7 +812,6 @@
                 const totalTurnDisplayNode = document.getElementById('total-turn-display');
                 if (totalTurnDisplayNode) totalTurnDisplayNode.textContent = totalTurns;
 
-                // まだ1ターン目の最初の段階であれば、初期設定を現在のプレイヤーに即座に反映する
                 if (currentTurn === 1 && Object.keys(bidInputs).length === 0 && !isProcessingBids && !isProcessingHiring) {
                     for (let i = 0; i < players.length; i++) {
                         players[i].money = initialMoney;
@@ -847,6 +846,11 @@
                 
                 document.getElementById(`help-${key}-max`).textContent = `入札上限: ${projects[key].maxBid}Y`;
                 document.getElementById(`help-${key}-labor`).textContent = `必要人数: ${projects[key].labor}人`;
+                
+                const bidAmountElement = document.getElementById('bid-amount');
+                if (selectedBiddingProject === key) {
+                    bidAmountElement.max = projects[key].maxBid;
+                }
             });
             
             document.getElementById('help-labor-text').textContent = `人数は 正社員:${laborConfig.fulltimeP}人 / 発注・派遣:${laborConfig.tempP}人 として計算されます。`;
