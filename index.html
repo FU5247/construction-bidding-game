@@ -52,7 +52,7 @@
                         <li>他社よりも<strong>安い価格</strong>で入札すると工事を落札できます。</li>
                         <li>しかし、利益を出すためには<strong>できるだけ高い価格</strong>で落札する必要があります。</li>
                         <li>落札後は、工事に必要な人数を「正社員」か「発注（外注）」で確保します。</li>
-                        <li>全10ターン終了時、最も多くの資金を持っていた企業が勝利です！</li>
+                        <li>全ターン終了時、最も多くの資金を持っていた企業が勝利です！</li>
                     </ul>
                 </div>
             </div>
@@ -66,8 +66,8 @@
 
     <header class="bg-slate-800 text-white p-3 shadow-md flex justify-between items-center z-10 shrink-0">
         <div class="flex items-center gap-3">
-            <h1 class="text-xl font-bold">入札 vol.65 <span class="text-sm font-normal ml-2">第 <span id="turn-display" class="text-yellow-400 font-bold text-2xl">1</span> / 10 ターン</span></h1>
-            <div id="room-badge" class="hidden px-2 py-0.5 bg-indigo-600 rounded text-xs font-bold text-white shadow border border-indigo-500">🏠 ルーム: <span id="current-room-id-display">---</span></div>
+            <h1 class="text-xl font-bold">入札 vol.66 <span class="text-sm font-normal ml-2">第 <span id="turn-display" class="text-yellow-400 font-bold text-2xl">1</span> / 10 ターン</span></h1>
+            <button id="room-badge" class="hidden px-2 py-0.5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 rounded text-xs font-bold text-white shadow border border-indigo-500 transition-colors" onclick="if(myPlayerIndex === 0) document.getElementById('lobby-modal').classList.remove('hidden')">🏠 ルーム: <span id="current-room-id-display">---</span></button>
             <div id="ai-status" class="hidden px-2 py-1 bg-emerald-500 rounded text-xs font-bold shadow animate-pulse">🤖 データ学習済</div>
             
             <div class="flex gap-2 ml-2">
@@ -154,6 +154,14 @@
 
             <!-- ★ ラベル削除・中央寄せ -->
             <div class="flex-1 p-4 bg-white flex flex-col justify-center overflow-y-auto custom-scroll" id="action-area">
+                
+                <!-- ★ ソロプレイ用ゲーム開始ボタン -->
+                <div id="start-game-container" class="hidden slide-in w-full text-center my-auto">
+                    <p class="text-sm font-bold text-slate-500 mb-4">準備ができたらゲームを開始してください</p>
+                    <button onclick="startSoloGame()" class="w-full bg-yellow-400 hover:bg-yellow-500 active:scale-95 text-slate-900 font-black py-4 rounded-xl shadow-lg transition-all border-b-4 border-yellow-600 flex justify-center items-center gap-2 text-lg">
+                        ▶️ 1ターン目を開始する
+                    </button>
+                </div>
                 
                 <div id="bidding-form" class="hidden space-y-4 slide-in w-full">
                     <div id="bidding-instructions" class="text-center">
@@ -284,6 +292,16 @@
                         </div>
                     </div>
                 </section>
+                
+                <!-- 全体設定（ターン数） -->
+                <section>
+                    <h3 class="text-lg font-bold text-fuchsia-700 border-b-2 border-fuchsia-200 pb-1 mb-3 flex items-center gap-2"><span>🔄</span> 全体設定</h3>
+                    <div class="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                        <label class="flex flex-col text-xs font-bold text-slate-600">全ターン数 (1〜20) 
+                            <input type="number" id="set-total-turns" class="mt-1 border border-slate-300 p-1.5 rounded font-mono font-bold" min="1" max="20">
+                        </label>
+                    </div>
+                </section>
             </div>
             
             <div class="mt-6 pt-4 border-t border-slate-200 shrink-0">
@@ -306,7 +324,7 @@
             <div class="flex-1 overflow-y-auto custom-scroll pr-2 space-y-6 text-slate-700 text-sm">
                 <section>
                     <h3 class="text-lg font-bold text-teal-700 border-b-2 border-teal-200 pb-1 mb-2 flex items-center gap-2"><span>🎯</span> ゲームの目的</h3>
-                    <p>全10ターンを生き残り、最も多くの資金（Y）を持っていた企業が勝利となります。資金がマイナスになると「破産」となり、実質脱落となります（他の企業の市場競争は最後まで進行します）。</p>
+                    <p>全ターンを生き残り、最も多くの資金（Y）を持っていた企業が勝利となります。資金がマイナスになると「破産」となり、実質脱落となります（他の企業の市場競争は最後まで進行します）。</p>
                 </section>
                 
                 <section>
@@ -591,7 +609,7 @@
         const CPU_LOOKAHEAD = 3, CPU_ROLLOUTS = 30, CPU_ACTION_LIMIT = 8, CPU_BR_ROUNDS = 2; 
         const cpuActionMemo = new Map();
 
-        const totalTurns = 10; 
+        let totalTurns = 10; 
         let currentTurn = 1; 
         let currentEconomy = ''; 
         let bidInputs = {}; 
@@ -660,7 +678,9 @@
             pendingGameLogs = [];
             
             const turnDisplay = document.getElementById('turn-display');
-            if(turnDisplay) turnDisplay.textContent = currentTurn;
+            if(turnDisplay) {
+                turnDisplay.parentNode.innerHTML = `第 <span id="turn-display" class="text-yellow-400 font-bold text-2xl">${currentTurn}</span> / ${totalTurns} ターン`;
+            }
 
             const ecoBar = document.getElementById('economy-status');
             if(ecoBar) {
@@ -678,6 +698,9 @@
             if(leaveBtn) leaveBtn.classList.add('hidden');
             const multiBtn = document.getElementById('multiplayer-btn');
             if(multiBtn) multiBtn.classList.remove('hidden');
+
+            const sgc = document.getElementById('start-game-container');
+            if(sgc) sgc.classList.add('hidden');
 
             hideCalculatingModal();
             renderPlayers();
@@ -708,6 +731,7 @@
             document.getElementById('set-temp-p').value = laborConfig.tempP;
             document.getElementById('set-temp-cA').value = laborConfig.tempCostA;
             document.getElementById('set-temp-cB').value = laborConfig.tempCostB;
+            document.getElementById('set-total-turns').value = totalTurns;
 
             document.getElementById('game-settings-modal').classList.remove('hidden');
         }
@@ -732,18 +756,19 @@
                 laborConfig.tempCostA = parseInt(document.getElementById('set-temp-cA').value) || 0;
                 laborConfig.tempCostB = parseInt(document.getElementById('set-temp-cB').value) || 0;
 
+                let newTotalTurns = parseInt(document.getElementById('set-total-turns').value) || 10;
+                totalTurns = Math.max(1, Math.min(20, newTotalTurns));
+                const turnDisplayNode = document.getElementById('turn-display');
+                if (turnDisplayNode) {
+                    turnDisplayNode.parentNode.innerHTML = `第 <span id="turn-display" class="text-yellow-400 font-bold text-2xl">${currentTurn}</span> / ${totalTurns} ターン`;
+                }
+
                 updateProjectCardsUI();
                 renderPlayers();
-                
-                ['large', 'medium', 'small'].forEach(key => {
-                    if (charts[key]) {
-                        charts[key].options.scales.y.max = projects[key].maxBid;
-                        charts[key].update();
-                    }
-                });
+                initCharts(); // update x-axis max length
 
                 if (isOnlineMode && onlineChannel && myPlayerIndex === 0) {
-                    await onlineChannel.send({ type: 'broadcast', event: 'game_settings_updated', payload: { projects, laborConfig } });
+                    await onlineChannel.send({ type: 'broadcast', event: 'game_settings_updated', payload: { projects, laborConfig, totalTurns } });
                 }
 
                 alert('設定を反映しました。');
@@ -879,6 +904,7 @@
                 if (charts[key]) {
                     charts[key].options.scales.y.max = projects[key].maxBid;
                     charts[key].options.scales.x.max = totalTurns;
+                    charts[key].data.labels = Array.from({length: totalTurns}, (_, i) => i + 1);
                     charts[key].update();
                     return;
                 }
@@ -1016,8 +1042,14 @@
         window.startGameLocal = function() {
             document.getElementById('welcome-modal').classList.add('hidden');
             if (!isOnlineMode) {
-                startAutoCoinToss();
+                document.getElementById('start-game-container').classList.remove('hidden');
             }
+        };
+
+        // ★ ソロプレイ時の開始ボタン処理
+        window.startSoloGame = function() {
+            document.getElementById('start-game-container').classList.add('hidden');
+            startAutoCoinToss();
         };
 
         // ★ 自動コイントス呼び出し（ローカル）
@@ -1998,7 +2030,7 @@
             document.getElementById('turn-display').textContent = currentTurn;
 
             if (!isOnlineMode) {
-                await startAutoCoinToss();
+                document.getElementById('start-game-container').classList.remove('hidden');
             } else if (myPlayerIndex === 0) {
                 await startAutoCoinTossOnline();
             }
@@ -2112,7 +2144,7 @@
                     isWaitingToJoin = false;
                     if (btn) btn.textContent = 'ルームに参加';
                 }
-            }, 10000); // 待機時間を10秒に延長
+            }, 10000); 
         };
 
         function updateMemberCountDisplay(count) {
@@ -2235,6 +2267,13 @@
                     if (isOnlineMode && myPlayerIndex !== 0) {
                         projects = payload.payload.projects;
                         laborConfig = payload.payload.laborConfig;
+                        if(payload.payload.totalTurns) {
+                            totalTurns = payload.payload.totalTurns;
+                            const turnDisplayNode = document.getElementById('turn-display');
+                            if (turnDisplayNode) {
+                                turnDisplayNode.parentNode.innerHTML = `第 <span id="turn-display" class="text-yellow-400 font-bold text-2xl">${currentTurn}</span> / ${totalTurns} ターン`;
+                            }
+                        }
                         updateProjectCardsUI();
                         renderPlayers();
                         initCharts();
@@ -2302,6 +2341,7 @@
                 .subscribe(status => {
                     if (status === 'SUBSCRIBED') {
                         console.log('Realtime connected to room:', roomId);
+                        if (typeof onSubscribed === 'function') onSubscribed();
                     }
                 });
         }
