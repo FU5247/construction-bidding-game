@@ -40,7 +40,6 @@
     <!-- ★ スタート時ウェルカムポップアップ -->
     <div id="welcome-modal" class="fixed inset-0 modal-bg flex justify-center items-center z-[100] p-4 slide-in">
         <div class="bg-white p-6 md:p-8 rounded-2xl shadow-2xl w-full max-w-lg relative border-t-8 border-blue-600 flex flex-col">
-            <button onclick="document.getElementById('welcome-modal').classList.add('hidden')" class="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 font-bold transition-colors z-10">✕</button>
             <div class="text-center mb-6 shrink-0">
                 <span class="text-5xl mb-3 block">🏢</span>
                 <h2 class="text-2xl font-black text-slate-800">入札ゲームへようこそ</h2>
@@ -58,16 +57,16 @@
                 </div>
             </div>
             <div class="mt-6 pt-4 border-t border-slate-200 shrink-0">
-                <button onclick="document.getElementById('welcome-modal').classList.add('hidden')" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-4 rounded-xl shadow-lg transition-colors text-lg border-b-4 border-blue-800 active:scale-95">
+                <button id="welcome-start-btn" onclick="startGameLocal()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-4 rounded-xl shadow-lg transition-colors text-lg border-b-4 border-blue-800 active:scale-95">
                     ゲームを始める
                 </button>
             </div>
         </div>
     </div>
 
-    <header class="bg-slate-800 text-white p-4 shadow-md flex justify-between items-center z-10 shrink-0">
+    <header class="bg-slate-800 text-white p-3 shadow-md flex justify-between items-center z-10 shrink-0">
         <div class="flex items-center gap-3">
-            <h1 class="text-xl font-bold">入札 vol.63 <span class="text-sm font-normal ml-2">第 <span id="turn-display" class="text-yellow-400 font-bold text-2xl">1</span> / 10 ターン</span></h1>
+            <h1 class="text-xl font-bold">入札 vol.64 <span class="text-sm font-normal ml-2">第 <span id="turn-display" class="text-yellow-400 font-bold text-2xl">1</span> / 10 ターン</span></h1>
             <div id="room-badge" class="hidden px-2 py-0.5 bg-indigo-600 rounded text-xs font-bold text-white shadow border border-indigo-500">🏠 ルーム: <span id="current-room-id-display">---</span></div>
             <div id="ai-status" class="hidden px-2 py-1 bg-emerald-500 rounded text-xs font-bold shadow animate-pulse">🤖 データ学習済</div>
             
@@ -96,27 +95,28 @@
 
     <main class="flex-1 flex overflow-hidden">
         
-        <section class="w-2/3 p-4 flex flex-col gap-4 overflow-y-auto bg-gray-100 custom-scroll">
-            <div class="bg-white p-4 rounded-xl shadow border border-gray-200">
-                <h2 class="text-lg font-bold border-b border-gray-300 mb-4 pb-2 flex items-center gap-2"><span>🏗️</span> 場の工事カード</h2>
-                <div class="grid grid-cols-3 gap-4">
+        <!-- ★ 左側パネル: スクロールをなくし画面内に収める -->
+        <section class="w-2/3 p-3 flex flex-col gap-3 bg-gray-100 overflow-hidden">
+            <div class="bg-white p-3 rounded-xl shadow border border-gray-200 shrink-0">
+                <h2 class="text-base font-bold border-b border-gray-300 mb-2 pb-1 flex items-center gap-2"><span>🏗️</span> 場の工事カード</h2>
+                <div class="grid grid-cols-3 gap-3">
                     <div id="card-large" class="border-2 border-red-500 rounded-lg p-3 bg-red-50 relative shadow-sm transition-all" onclick="selectProject('large')">
-                        <h3 class="text-red-700 font-bold text-center mb-2 text-lg">大工事</h3>
-                        <div class="text-sm space-y-1 bg-white p-2 rounded border border-red-100 pointer-events-none">
+                        <h3 class="text-red-700 font-bold text-center mb-1 text-base">大工事</h3>
+                        <div class="text-xs space-y-1 bg-white p-2 rounded border border-red-100 pointer-events-none">
                             <p class="text-gray-600 font-bold mb-1 border-b border-red-100 pb-1">必要人数: <span id="labor-large">10</span>人</p>
                             <p id="maxbid-large" class="text-gray-700 font-black">入札上限: 400Y</p>
                         </div>
                     </div>
                     <div id="card-medium" class="border-2 border-blue-500 rounded-lg p-3 bg-blue-50 relative shadow-sm transition-all" onclick="selectProject('medium')">
-                        <h3 class="text-blue-700 font-bold text-center mb-2 text-lg">中工事</h3>
-                        <div class="text-sm space-y-1 bg-white p-2 rounded border border-blue-100 pointer-events-none">
+                        <h3 class="text-blue-700 font-bold text-center mb-1 text-base">中工事</h3>
+                        <div class="text-xs space-y-1 bg-white p-2 rounded border border-blue-100 pointer-events-none">
                             <p class="text-gray-600 font-bold mb-1 border-b border-blue-100 pb-1">必要人数: <span id="labor-medium">7</span>人</p>
                             <p id="maxbid-medium" class="text-gray-700 font-black">入札上限: 280Y</p>
                         </div>
                     </div>
                     <div id="card-small" class="border-2 border-green-500 rounded-lg p-3 bg-green-50 relative shadow-sm transition-all" onclick="selectProject('small')">
-                        <h3 class="text-green-700 font-bold text-center mb-2 text-lg">小工事</h3>
-                        <div class="text-sm space-y-1 bg-white p-2 rounded border border-green-100 pointer-events-none">
+                        <h3 class="text-green-700 font-bold text-center mb-1 text-base">小工事</h3>
+                        <div class="text-xs space-y-1 bg-white p-2 rounded border border-green-100 pointer-events-none">
                             <p class="text-gray-600 font-bold mb-1 border-b border-green-100 pb-1">必要人数: <span id="labor-small">4</span>人</p>
                             <p id="maxbid-small" class="text-gray-700 font-black">入札上限: 160Y</p>
                         </div>
@@ -124,26 +124,27 @@
                 </div>
             </div>
 
-            <div class="bg-white p-4 rounded-xl shadow border border-gray-200 flex-1 flex flex-col">
-                <h2 class="text-lg font-bold border-b border-gray-300 mb-4 pb-2 flex items-center gap-2"><span>🏢</span> 各社の状況</h2>
-                <div class="grid grid-cols-2 gap-4" id="players-container"></div>
+            <div class="bg-white p-3 rounded-xl shadow border border-gray-200 flex-1 flex flex-col overflow-hidden">
+                <h2 class="text-base font-bold border-b border-gray-300 mb-2 pb-1 flex items-center gap-2"><span>🏢</span> 各社の状況</h2>
+                <div class="grid grid-cols-2 gap-3 overflow-y-auto custom-scroll pr-1" id="players-container"></div>
             </div>
         </section>
 
-        <section class="w-1/3 flex flex-col border-l border-gray-300 bg-slate-50 shadow-xl z-10">
-            <div class="shrink-0 p-4 border-b border-slate-200 bg-slate-50" id="charts-buttons-area">
-                <div class="bg-white p-3 rounded-xl shadow-sm border border-slate-200">
-                    <h3 class="font-bold text-slate-700 text-center mb-2 flex items-center justify-center gap-2 text-sm"><span>📈</span> 落札価格推移グラフ</h3>
-                    <div class="space-y-2">
-                        <button onclick="openChartModal('large')" class="w-full bg-red-50 hover:bg-red-100 active:scale-95 text-red-700 font-bold py-2 px-3 rounded-lg border border-red-200 shadow-sm transition-all flex justify-between items-center text-sm">
+        <!-- ★ 右側パネル: スクロールなし・中央寄せ -->
+        <section class="w-1/3 flex flex-col border-l border-gray-300 bg-slate-50 shadow-xl z-10 overflow-hidden">
+            <div class="shrink-0 p-3 border-b border-slate-200 bg-slate-50" id="charts-buttons-area">
+                <div class="bg-white p-2 rounded-xl shadow-sm border border-slate-200">
+                    <h3 class="font-bold text-slate-700 text-center mb-1.5 flex items-center justify-center gap-1 text-xs"><span>📈</span> 落札価格推移グラフ</h3>
+                    <div class="space-y-1.5">
+                        <button onclick="openChartModal('large')" class="w-full bg-red-50 hover:bg-red-100 active:scale-95 text-red-700 font-bold py-1.5 px-2 rounded-lg border border-red-200 shadow-sm transition-all flex justify-between items-center text-xs">
                             <span class="flex items-center gap-1"><span>🏢</span> 大工事グラフ</span>
                             <span>📊</span>
                         </button>
-                        <button onclick="openChartModal('medium')" class="w-full bg-blue-50 hover:bg-blue-100 active:scale-95 text-blue-700 font-bold py-2 px-3 rounded-lg border border-blue-200 shadow-sm transition-all flex justify-between items-center text-sm">
+                        <button onclick="openChartModal('medium')" class="w-full bg-blue-50 hover:bg-blue-100 active:scale-95 text-blue-700 font-bold py-1.5 px-2 rounded-lg border border-blue-200 shadow-sm transition-all flex justify-between items-center text-xs">
                             <span class="flex items-center gap-1"><span>🏬</span> 中工事グラフ</span>
                             <span>📊</span>
                         </button>
-                        <button onclick="openChartModal('small')" class="w-full bg-green-50 hover:bg-green-100 active:scale-95 text-green-700 font-bold py-2 px-3 rounded-lg border border-green-200 shadow-sm transition-all flex justify-between items-center text-sm">
+                        <button onclick="openChartModal('small')" class="w-full bg-green-50 hover:bg-green-100 active:scale-95 text-green-700 font-bold py-1.5 px-2 rounded-lg border border-green-200 shadow-sm transition-all flex justify-between items-center text-xs">
                             <span class="flex items-center gap-1"><span>🏠</span> 小工事グラフ</span>
                             <span>📊</span>
                         </button>
@@ -151,43 +152,38 @@
                 </div>
             </div>
 
-            <div class="flex-1 p-5 bg-white overflow-y-auto custom-scroll" id="action-area">
-                <button id="start-turn-btn" class="w-full bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold py-4 px-4 rounded-xl shadow-lg transition-all border-b-4 border-indigo-800 flex justify-center items-center gap-2 text-lg">
-                    <span>🪙</span> ターン開始（コイントス）
-                </button>
+            <!-- ★ ラベル削除・中央寄せ -->
+            <div class="flex-1 p-4 bg-white flex flex-col justify-center overflow-y-auto custom-scroll" id="action-area">
                 
-                <div id="bidding-form" class="hidden space-y-4 slide-in">
-                    <h3 class="font-bold text-gray-800 text-center text-lg flex justify-center items-center gap-2"><span>📝</span> 入札フェイズ</h3>
-                    
+                <div id="bidding-form" class="hidden space-y-4 slide-in w-full">
                     <div id="bidding-instructions" class="text-center">
                         <button id="skip-bid-btn" class="w-full bg-slate-400 hover:bg-slate-500 active:scale-95 text-white font-bold py-3 rounded-xl shadow border-b-4 border-slate-500 transition-all">入札しない（パス）</button>
                     </div>
                     
-                    <div id="bidding-inputs" class="hidden space-y-4">
-                        <div class="bg-blue-50 p-3 rounded-lg border border-blue-200 shadow-inner text-center">
-                            <span class="text-sm font-bold text-blue-700">選択中:</span>
-                            <div id="selected-project-name" class="font-black text-xl text-blue-900 mt-1">---</div>
+                    <div id="bidding-inputs" class="hidden space-y-3">
+                        <div class="bg-blue-50 p-2 rounded-lg border border-blue-200 shadow-inner text-center">
+                            <span class="text-xs font-bold text-blue-700">選択中:</span>
+                            <div id="selected-project-name" class="font-black text-lg text-blue-900 mt-0.5">---</div>
                         </div>
                         
-                        <!-- ★ スライダーによる入札入力（ホバー削除版） -->
-                        <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 shadow-inner mt-2">
-                            <label class="block text-sm font-bold mb-3 text-slate-700 text-center">入札価格（10Y単位）: <span id="bid-amount-display" class="text-2xl text-blue-700 font-black">0</span> Y</label>
-                            <div class="w-full pt-2 pb-2">
+                        <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 shadow-inner mt-1 flex flex-col justify-between">
+                            <label class="block text-sm font-bold mb-2 text-slate-700 text-center">入札価格（10Y単位）: <span id="bid-amount-display" class="text-2xl text-blue-700 font-black">0</span> Y</label>
+                            <div class="w-full py-2">
                                 <input type="range" id="bid-amount" class="w-full h-3 bg-slate-300 rounded-lg cursor-pointer accent-blue-600 shadow-inner" step="10" min="0" max="400" value="0">
+                            </div>
+                            <div class="text-sm font-bold text-slate-700 text-center mt-2 h-5 flex items-center justify-center">
+                                <span id="submit-bid-profit"></span>
                             </div>
                         </div>
 
-                        <!-- ★ 収益予想をボタン内に組み込み -->
-                        <button id="submit-bid-btn" class="w-full bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold py-3 px-2 rounded-xl shadow-lg transition-all border-b-4 border-blue-800 flex flex-col justify-center items-center gap-0.5 whitespace-nowrap overflow-hidden text-sm h-[56px]">
-                            <span>入札を確定する</span>
-                            <span id="submit-bid-profit" class="text-[11px] font-normal text-blue-100 truncate w-full text-center"></span>
+                        <button id="submit-bid-btn" class="w-full bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold py-3 rounded-xl shadow-lg transition-all border-b-4 border-blue-800 flex justify-center items-center gap-2">
+                            入札を確定する
                         </button>
                     </div>
                 </div>
 
                 <!-- ★ 雇用フェイズ スライダーUI -->
-                <div id="hiring-form" class="hidden space-y-3 slide-in">
-                    <h3 class="font-bold text-emerald-800 text-center bg-emerald-100 py-2 rounded-lg border border-emerald-200">👷 雇用フェイズ</h3>
+                <div id="hiring-form" class="hidden space-y-3 slide-in w-full">
                     <div id="hiring-info" class="text-sm space-y-1 p-3 bg-gray-50 border rounded-lg shadow-inner"></div>
                     
                     <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 relative mt-2 shadow-sm">
@@ -196,24 +192,36 @@
                             <span class="text-orange-800 bg-orange-100 px-2 py-1 rounded shadow-sm">全て発注 ▶</span>
                         </div>
                         
-                        <div class="relative w-full pt-4 pb-2">
-                            <div id="slider-tooltip" class="absolute -top-6 bg-slate-800 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-xl pointer-events-none opacity-0 transition-opacity whitespace-nowrap z-20 transform -translate-x-1/2 before:content-[''] before:absolute before:top-full before:left-1/2 before:-translate-x-1/2 before:border-4 before:border-transparent before:border-t-slate-800">
-                                予想利益: --Y
-                            </div>
+                        <div class="w-full pt-2 pb-2">
                             <input type="range" id="hire-slider" class="w-full h-3 bg-slate-300 rounded-lg cursor-pointer accent-indigo-600 shadow-inner" min="0" max="100" value="0">
                         </div>
                         
-                        <div class="flex justify-between mt-4 text-sm font-black">
-                            <div class="text-blue-700 bg-white border border-blue-200 px-3 py-1.5 rounded-lg shadow-sm" id="slider-val-full">👨‍💼 正社員追加: 0</div>
-                            <div class="text-orange-700 bg-white border border-orange-200 px-3 py-1.5 rounded-lg shadow-sm" id="slider-val-temp">👷 発注追加: 0</div>
+                        <div class="flex justify-between items-center mt-4 text-sm font-black gap-1">
+                            <div class="text-blue-700 bg-white border border-blue-200 px-2 py-1.5 rounded-lg shadow-sm whitespace-nowrap text-xs sm:text-sm" id="slider-val-full">👨‍💼 正社員: 0</div>
+                            
+                            <div class="flex-1 text-center font-bold text-xs sm:text-sm text-slate-700 whitespace-nowrap px-1 flex flex-col justify-center items-center">
+                                <span class="text-[10px] sm:text-xs text-slate-500 mb-0.5">純利益</span>
+                                <span id="hire-profit-display" class="text-yellow-600 font-black text-sm sm:text-base leading-none">-- Y</span>
+                            </div>
+
+                            <div class="text-orange-700 bg-white border border-orange-200 px-2 py-1.5 rounded-lg shadow-sm whitespace-nowrap text-xs sm:text-sm" id="slider-val-temp">👷 発注: 0</div>
                         </div>
                     </div>
 
-                    <button id="submit-hire-btn" class="w-full bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold py-4 mt-2 rounded-xl shadow-lg transition-all border-b-4 border-emerald-800 disabled:opacity-50" disabled>雇用を確定する</button>
+                    <button id="submit-hire-btn" class="w-full bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold py-3 mt-1 rounded-xl shadow-lg transition-all border-b-4 border-emerald-800 disabled:opacity-50" disabled>雇用を確定する</button>
                 </div>
             </div>
         </section>
     </main>
+
+    <!-- ★ 収益結果ポップアップ（自動進行） -->
+    <div id="turn-profit-modal" class="fixed inset-0 modal-bg hidden flex justify-center items-center z-[110] p-4">
+        <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-sm text-center border-t-8 border-yellow-400 flex flex-col slide-in">
+            <h2 class="text-xl font-black text-slate-800 mb-4">第 <span id="tp-turn"></span> ターン 収益結果</h2>
+            <div id="tp-content" class="space-y-2 mb-6 text-left"></div>
+            <div class="text-4xl font-black text-slate-300" id="tp-countdown">4</div>
+        </div>
+    </div>
 
     <!-- ★ 設定モーダル -->
     <div id="game-settings-modal" class="fixed inset-0 modal-bg hidden flex justify-center items-center z-50 p-4">
@@ -665,14 +673,6 @@
 
             const statusBox = document.getElementById('room-status-box');
             if(statusBox) statusBox.classList.add('hidden');
-
-            const startBtn = document.getElementById('start-turn-btn');
-            if(startBtn) {
-                startBtn.classList.remove('hidden', 'opacity-70', 'cursor-not-allowed');
-                startBtn.disabled = false;
-                startBtn.innerHTML = '<span>🪙</span> ターン開始（コイントス）';
-                startBtn.className = 'w-full bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold py-4 px-4 rounded-xl shadow-lg transition-all border-b-4 border-indigo-800 flex justify-center items-center gap-2 text-lg';
-            }
             
             const leaveBtn = document.getElementById('leave-room-btn');
             if(leaveBtn) leaveBtn.classList.add('hidden');
@@ -822,9 +822,9 @@
         };
 
         async function loadHistoricalData() {
-            const startBtn = document.getElementById('start-turn-btn');
+            const welcomeStartBtn = document.getElementById('welcome-start-btn');
             const simBtn = document.getElementById('auto-sim-btn');
-            if(startBtn) { startBtn.disabled = true; startBtn.innerHTML = '<span>🤖</span> 過去データを学習中...'; startBtn.classList.add('opacity-75', 'cursor-not-allowed'); }
+            if(welcomeStartBtn) { welcomeStartBtn.disabled = true; welcomeStartBtn.innerHTML = '🤖 過去データを学習中...'; welcomeStartBtn.classList.add('opacity-75', 'cursor-not-allowed'); }
             if(simBtn) simBtn.disabled = true;
             try {
                 if(!supabaseClient) throw new Error("Supabase is not initialized");
@@ -847,11 +847,10 @@
                 console.error("ログ読み込みエラー:", error);
                 const aiStatus = document.getElementById('ai-status'); aiStatus.textContent = '⚠️ 学習データなし'; aiStatus.classList.remove('hidden', 'bg-emerald-500'); aiStatus.classList.add('bg-amber-500');
             } finally {
-                if(startBtn) { 
-                    startBtn.disabled = false; 
-                    startBtn.innerHTML = '<span>🪙</span> ターン開始（コイントス）'; 
-                    startBtn.classList.remove('opacity-75', 'cursor-not-allowed');
-                    startBtn.className = 'w-full bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold py-4 px-4 rounded-xl shadow-lg transition-all border-b-4 border-indigo-800 flex justify-center items-center gap-2 text-lg';
+                if(welcomeStartBtn) { 
+                    welcomeStartBtn.disabled = false; 
+                    welcomeStartBtn.innerHTML = 'ゲームを始める'; 
+                    welcomeStartBtn.classList.remove('opacity-75', 'cursor-not-allowed');
                 }
                 if(simBtn) simBtn.disabled = false;
             }
@@ -912,10 +911,9 @@
         }
 
         const playersContainer = document.getElementById('players-container');
-        const startBtn = document.getElementById('start-turn-btn');
         const bidForm = document.getElementById('bidding-form'), hireForm = document.getElementById('hiring-form'), bidAmountInput = document.getElementById('bid-amount'), submitBidBtn = document.getElementById('submit-bid-btn');
 
-        // ★ 入札額スライダーのUI更新処理（ボタン内テキスト更新）
+        // ★ 入札額スライダーのUI更新処理（四角形内に収益予想を表示）
         bidAmountInput.oninput = () => {
             const amount = parseInt(bidAmountInput.value, 10) || 0;
             const display = document.getElementById('bid-amount-display');
@@ -940,18 +938,16 @@
             
             let tooltipText = '';
             if (shortageLabor === 0) {
-                // パターン②
                 const profit = amount - costCurrent;
-                tooltipText = `(予想収益: ${profit}Y)`;
+                tooltipText = `予想収益: ${profit}Y`;
             } else {
-                // パターン①
                 const reqFull = Math.ceil(shortageLabor / laborConfig.fulltimeP);
                 const reqTemp = Math.ceil(shortageLabor / laborConfig.tempP);
                 const costFull = reqFull * fCost;
                 const costTemp = reqTemp * tCost;
                 const profitTemp = amount - costCurrent - costTemp;
                 const profitFull = amount - costCurrent - costFull;
-                tooltipText = `(予想収益: ${profitTemp}Y ～ ${profitFull}Y)`;
+                tooltipText = `予想収益: ${profitTemp}Y ～ ${profitFull}Y`;
             }
             
             profitEl.textContent = tooltipText;
@@ -968,14 +964,14 @@
                 const typeLabel = p.isCPU ? '<span class="text-[10px] font-bold text-slate-500 ml-1 border border-slate-300 px-1 rounded bg-white">' + strategyLabels[aiStrategies[p.id]] + '</span>' : '<span class="text-[10px] font-bold text-emerald-600 ml-1 border border-emerald-300 px-1 rounded bg-emerald-50">人間</span>';
                 
                 playersContainer.innerHTML += `
-                    <div class="border-2 rounded-xl p-3 ${bg} ${opacity} transition-all relative">
-                        <div class="font-bold border-b border-slate-200 pb-2 mb-2 flex justify-between items-center">
-                            <div class="flex items-center text-slate-800">
+                    <div class="border-2 rounded-xl p-2 ${bg} ${opacity} transition-all relative flex flex-col justify-between h-full">
+                        <div class="font-bold border-b border-slate-200 pb-1 mb-1 flex justify-between items-center">
+                            <div class="flex items-center text-slate-800 text-sm">
                                 ${isMe ? '👤' : (p.isCPU ? '🤖' : '🧑‍💻')} ${p.name} ${typeLabel} ${roleBadge} ${defaultLabel}
                             </div>
                             <button onclick="showPlayerHistory(${p.id})" class="text-[10px] bg-white border border-slate-300 text-slate-600 hover:bg-slate-100 px-2 py-1 rounded shadow-sm font-bold">📊 データ</button>
                         </div>
-                        <div class="text-sm grid grid-cols-2 gap-y-2 gap-x-1 font-medium">
+                        <div class="text-sm grid grid-cols-2 gap-y-1 gap-x-1 font-medium">
                             <div class="text-slate-500">資金:<br><span class="font-black text-lg ${p.money < 0 ? 'text-red-600' : 'text-slate-800'}">${p.money} <span class="text-xs">Y</span></span></div>
                             <div class="text-slate-500 text-right">人数:<br><span class="font-black text-lg text-slate-800">${(p.employees * laborConfig.fulltimeP) + (p.temps * laborConfig.tempP)} <span class="text-xs">人</span></span></div>
                             <div class="col-span-2 text-xs font-bold text-blue-700 bg-blue-100/50 p-1 rounded text-center">👨‍💼 正社員: ${p.employees} 人</div>
@@ -1016,29 +1012,30 @@
         };
         window.closeHistoryModal = function() { document.getElementById('history-modal').classList.add('hidden'); };
 
-        startBtn.addEventListener('click', async () => {
-            if (players.every(p => p.isDefaulter)) { endGame(); return; }
-            
-            if (isOnlineMode && myPlayerIndex !== 0) {
-                alert('景気の決定（コイントス）はホストのみ実行できます。ホストの操作をお待ちください。');
-                return;
+        // ★ ローカルでのゲーム開始処理
+        window.startGameLocal = function() {
+            document.getElementById('welcome-modal').classList.add('hidden');
+            if (!isOnlineMode) {
+                startAutoCoinToss();
             }
+        };
 
-            startBtn.classList.add('hidden'); 
-            
+        // ★ 自動コイントス呼び出し（ローカル）
+        async function startAutoCoinToss() {
             const nextEconomy = Math.random() < 0.5 ? 'A' : 'B';
-
-            if (isOnlineMode && onlineChannel) {
-                await onlineChannel.send({ type: 'broadcast', event: 'start_coin_toss', payload: { economy: nextEconomy, turn: currentTurn } });
-            }
-
             await playCoinTossAnimation(nextEconomy);
-        });
+        }
+
+        // ★ 自動コイントス呼び出し（オンライン・ホスト専用）
+        async function startAutoCoinTossOnline() {
+            const nextEconomy = Math.random() < 0.5 ? 'A' : 'B';
+            await onlineChannel.send({ type: 'broadcast', event: 'start_coin_toss', payload: { economy: nextEconomy, turn: currentTurn } });
+            await playCoinTossAnimation(nextEconomy);
+        }
 
         async function playCoinTossAnimation(economy) {
             const coinModal = document.getElementById('coin-modal'), coinVisual = document.getElementById('coin-visual'), coinText = document.getElementById('coin-result-text');
             
-            document.getElementById('start-turn-btn').classList.add('hidden');
             document.getElementById('bidding-form').classList.add('hidden');
             isBiddingPhase = false;
 
@@ -1100,10 +1097,10 @@
                         return;
                     }
                 }
-                submitBidBtn.disabled = true; submitBidBtn.innerHTML = '<span>処理中...</span>'; isBiddingPhase = false; bidForm.classList.add('hidden');
+                submitBidBtn.disabled = true; submitBidBtn.innerHTML = '処理中...'; isBiddingPhase = false; bidForm.classList.add('hidden');
                 await executeTurnAfterMyBid({ project: proj === 'none' ? 'none' : proj, amount: proj === 'none' ? 0 : amount });
             } catch (error) { console.error('入札処理エラー:', error); alert('入札処理中にエラーが発生しました。\n' + error.message); isBiddingPhase = true; bidForm.classList.remove('hidden'); } 
-            finally { submitBidBtn.disabled = false; }
+            finally { submitBidBtn.disabled = false; submitBidBtn.innerHTML = '入札を確定する'; }
         });
 
         async function executeTurnAfterMyBid(myBid) {
@@ -1360,9 +1357,8 @@
         }
 
         async function runAutoSimulation(numGames = 50) {
-            const btn = document.getElementById('auto-sim-btn'); const startBtn = document.getElementById('start-turn-btn');
+            const btn = document.getElementById('auto-sim-btn');
             if (btn) { btn.disabled = true; btn.innerHTML = '<span>⏳</span> バックグラウンドで実行中...'; }
-            if (startBtn && !startBtn.classList.contains('hidden')) startBtn.classList.add('hidden');
 
             let allDetailedLogs = []; 
             let allGameResults = [];
@@ -1563,7 +1559,7 @@
             document.getElementById('sim-result-modal').classList.remove('hidden');
             if(btn) {
                 btn.innerHTML = '<span>✅</span> 完了';
-                setTimeout(() => { btn.disabled = false; btn.innerHTML = '<span>⚙️</span> CPU設定 / 自動収集'; if (startBtn && currentTurn === 1) startBtn.classList.remove('hidden'); }, 3000);
+                setTimeout(() => { btn.disabled = false; btn.innerHTML = '<span>⚙️</span> CPU設定 / 自動収集'; }, 3000);
             }
         }
 
@@ -1709,17 +1705,22 @@
             resModal.classList.remove('hidden');
             
             await new Promise(resolve => { 
-                let handled = false; 
-                const closeHandler = async () => { 
-                    if (handled) return; 
-                    handled = true; 
-                    closeBtn.removeEventListener('click', closeHandler); 
-                    closeTopBtn.removeEventListener('click', closeHandler); 
-                    resModal.classList.add('hidden'); 
-                    resolve(); 
-                }; 
-                closeBtn.addEventListener('click', closeHandler); 
-                closeTopBtn.addEventListener('click', closeHandler); 
+                if (players[myPlayerIndex].isDefaulter) {
+                    resModal.classList.add('hidden');
+                    resolve();
+                } else {
+                    let handled = false; 
+                    const closeHandler = async () => { 
+                        if (handled) return; 
+                        handled = true; 
+                        closeBtn.removeEventListener('click', closeHandler); 
+                        closeTopBtn.removeEventListener('click', closeHandler); 
+                        resModal.classList.add('hidden'); 
+                        resolve(); 
+                    }; 
+                    closeBtn.addEventListener('click', closeHandler); 
+                    closeTopBtn.addEventListener('click', closeHandler); 
+                }
             });
 
             if (isOnlineMode) {
@@ -1747,7 +1748,10 @@
         async function proceedToHiring() {
             let myHire = { f: 0, t: 0 };
             
-            if (winningResults[myPlayerIndex]) {
+            if (players[myPlayerIndex].isDefaulter) {
+                // 破産者は何もしない
+            }
+            else if (winningResults[myPlayerIndex]) {
                 const p = winningResults[myPlayerIndex]; const proj = projects[p.project]; const reqLabor = proj.labor; 
                 const currentLabor = players[myPlayerIndex].employees * laborConfig.fulltimeP;
                 const shortageLabor = Math.max(0, reqLabor - currentLabor);
@@ -1766,8 +1770,8 @@
                 const slider = document.getElementById('hire-slider');
                 const valFull = document.getElementById('slider-val-full');
                 const valTemp = document.getElementById('slider-val-temp');
-                const tooltip = document.getElementById('slider-tooltip');
                 const btn = document.getElementById('submit-hire-btn');
+                const profitDisplay = document.getElementById('hire-profit-display');
                 
                 const fCost = currentEconomy === 'B' ? laborConfig.fulltimeCostB : laborConfig.fulltimeCostA;
                 const tCost = currentEconomy === 'B' ? laborConfig.tempCostB : laborConfig.tempCostA;
@@ -1777,10 +1781,9 @@
                     slider.value = 0;
                     slider.min = 0;
                     slider.max = 0;
-                    valFull.innerHTML = `👨‍💼 追加: 0`;
-                    valTemp.innerHTML = `👷 追加: 0`;
-                    tooltip.innerHTML = `予想利益: <span class="text-yellow-300">${p.amount - (players[myPlayerIndex].employees * fCost)}Y</span> (追加なし)`;
-                    tooltip.style.left = '50%';
+                    valFull.innerHTML = `👨‍💼 正社員: 0`;
+                    valTemp.innerHTML = `👷 発注: 0`;
+                    profitDisplay.textContent = `${p.amount - (players[myPlayerIndex].employees * fCost)}Y`;
                     btn.disabled = false;
                 } else {
                     slider.disabled = false;
@@ -1793,25 +1796,16 @@
                         const tAdd = Math.ceil(v / laborConfig.tempP);
                         const fAdd = Math.ceil((shortageLabor - v) / laborConfig.fulltimeP);
                         
-                        valFull.innerHTML = `👨‍💼 正社員追加: <span class="text-lg">${fAdd}</span>`;
-                        valTemp.innerHTML = `👷 発注追加: <span class="text-lg">${tAdd}</span>`;
+                        valFull.innerHTML = `👨‍💼 正社員: <span class="text-lg">${fAdd}</span>`;
+                        valTemp.innerHTML = `👷 発注: <span class="text-lg">${tAdd}</span>`;
                         
                         const estProfit = p.amount - ((players[myPlayerIndex].employees + fAdd) * fCost) - (tAdd * tCost);
-                        tooltip.innerHTML = `予想純利益: <span class="text-yellow-300 font-black text-sm">${estProfit}Y</span>`;
-                        
-                        const percent = (v / shortageLabor) * 100;
-                        tooltip.style.left = `calc(${percent}% + (${8 - percent * 0.16}px))`;
+                        profitDisplay.textContent = `${estProfit}Y`;
                         
                         btn.disabled = false;
                     };
                     
                     slider.oninput = updateSlider;
-                    
-                    slider.onmouseenter = () => tooltip.classList.remove('opacity-0');
-                    slider.onmouseleave = () => tooltip.classList.add('opacity-0');
-                    slider.ontouchstart = () => tooltip.classList.remove('opacity-0');
-                    slider.ontouchend = () => tooltip.classList.add('opacity-0');
-
                     updateSlider();
                 }
                 
@@ -1869,9 +1863,15 @@
                 }
             }
 
+            let turnProfits = [];
+
             for (let i = 0; i < 4; i++) {
                 const p = players[i]; 
-                if (p.isDefaulter) { p.moneyHistory.push(p.money); continue; }
+                if (p.isDefaulter) { 
+                    p.moneyHistory.push(p.money); 
+                    turnProfits.push({ id: i, name: p.name, profit: 0 });
+                    continue; 
+                }
                 
                 let isWinner = !!winningResults[i];
                 let revenue = isWinner ? winningResults[i].amount : 0;
@@ -1889,6 +1889,8 @@
                 let bankruptAfter = false;
                 if (p.money < 0) { p.isDefaulter = true; bankruptAfter = true; }
                 p.moneyHistory.push(p.money);
+
+                turnProfits.push({ id: i, name: p.name, profit: profit });
                 
                 let myBidProject = bidObj.project !== 'none' ? bidObj.project : null;
                 let currentWinnerId = null;
@@ -1952,32 +1954,53 @@
             
             renderPlayers();
             const allBankrupt = players.every(p => p.isDefaulter);
-            if (allBankrupt || currentTurn >= totalTurns) endGame();
-            else { 
-                currentTurn++; 
-                document.getElementById('turn-display').textContent = currentTurn; 
-                
-                const startBtn = document.getElementById('start-turn-btn');
-                startBtn.classList.remove('hidden'); 
-                
-                if (isOnlineMode && myPlayerIndex !== 0) {
-                    if (players[myPlayerIndex].isDefaulter) {
-                        startBtn.innerHTML = '<span>💀</span> 破産しました（他プレイヤーの進行を待機中）';
+            
+            await showTurnProfitAndNext(turnProfits, allBankrupt);
+        }
+
+        async function showTurnProfitAndNext(turnProfits, allBankrupt) {
+            if (allBankrupt || currentTurn >= totalTurns) {
+                endGame();
+                return;
+            }
+
+            const modal = document.getElementById('turn-profit-modal');
+            document.getElementById('tp-turn').textContent = currentTurn;
+            const content = document.getElementById('tp-content');
+            content.innerHTML = turnProfits.map(p => {
+                const color = p.profit > 0 ? 'text-emerald-600' : (p.profit < 0 ? 'text-red-600' : 'text-slate-700');
+                const sign = p.profit > 0 ? '+' : '';
+                return `<div class="flex justify-between items-center p-2 rounded-lg bg-slate-50 border border-slate-200">
+                    <span class="font-bold text-slate-700 text-sm">${p.name}</span>
+                    <span class="font-black text-lg ${color}">${sign}${p.profit}Y</span>
+                </div>`;
+            }).join('');
+            
+            modal.classList.remove('hidden');
+            let count = 4;
+            const countdownEl = document.getElementById('tp-countdown');
+            countdownEl.textContent = count;
+
+            await new Promise(resolve => {
+                const timer = setInterval(() => {
+                    count--;
+                    if (count > 0) {
+                        countdownEl.textContent = count;
                     } else {
-                        startBtn.innerHTML = '<span>⏳</span> ホストのコイントス待機中...';
+                        clearInterval(timer);
+                        modal.classList.add('hidden');
+                        resolve();
                     }
-                    startBtn.disabled = true;
-                    startBtn.className = 'w-full bg-slate-400 text-white font-bold py-4 px-4 rounded-xl shadow-lg border-b-4 border-slate-500 flex justify-center items-center gap-2 text-lg opacity-70 cursor-not-allowed';
-                } else {
-                    if (players[myPlayerIndex].isDefaulter) {
-                        startBtn.innerHTML = '<span>💀</span> 破産しました（コイントスしてゲームを進行）';
-                        startBtn.className = 'w-full bg-slate-700 hover:bg-slate-800 active:scale-95 text-white font-bold py-4 px-4 rounded-xl shadow-lg transition-all border-b-4 border-slate-900 flex justify-center items-center gap-2 text-lg';
-                    } else {
-                        startBtn.innerHTML = '<span>🪙</span> ターン開始（コイントス）';
-                        startBtn.className = 'w-full bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold py-4 px-4 rounded-xl shadow-lg transition-all border-b-4 border-indigo-800 flex justify-center items-center gap-2 text-lg';
-                    }
-                    startBtn.disabled = false;
-                }
+                }, 1000);
+            });
+
+            currentTurn++;
+            document.getElementById('turn-display').textContent = currentTurn;
+
+            if (!isOnlineMode) {
+                await startAutoCoinToss();
+            } else if (myPlayerIndex === 0) {
+                await startAutoCoinTossOnline();
             }
         }
 
@@ -2194,13 +2217,6 @@
                         activeRoomMembers = players.filter(p => !p.isCPU).length;
                         updateMemberCountDisplay(activeRoomMembers);
                         renderPlayers();
-                        
-                        const startBtn = document.getElementById('start-turn-btn');
-                        if (startBtn && currentTurn === 1) { 
-                            startBtn.innerHTML = '<span>⏳</span> ホストのコイントス待機中...';
-                            startBtn.disabled = true;
-                            startBtn.classList.add('opacity-70', 'cursor-not-allowed');
-                        }
                     }
                 })
                 .on('broadcast', { event: 'state_sync' }, payload => {
@@ -2268,21 +2284,24 @@
                         processRewardsAndPayments();
                     }
                 })
-                .on('broadcast', { event: 'start_coin_toss' }, payload => {
+                .on('broadcast', { event: 'start_coin_toss' }, async payload => {
                     if (myPlayerIndex !== 0) {
                         currentTurn = payload.payload.turn;
-                        playCoinTossAnimation(payload.payload.economy);
+                        document.getElementById('turn-display').textContent = currentTurn;
+                        await playCoinTossAnimation(payload.payload.economy);
                     }
                 })
-                .on('broadcast', { event: 'start_game' }, payload => {
+                .on('broadcast', { event: 'start_game' }, async payload => {
                     document.getElementById('lobby-modal').classList.add('hidden');
                     alert('オンライン対戦が開始されました！');
                     renderPlayers();
+                    currentTurn = 1;
+                    document.getElementById('turn-display').textContent = currentTurn;
+                    await playCoinTossAnimation(payload.payload.economy);
                 })
                 .subscribe(status => {
                     if (status === 'SUBSCRIBED') {
                         console.log('Realtime connected to room:', roomId);
-                        if (onSubscribed) onSubscribed();
                     }
                 });
         }
@@ -2301,11 +2320,13 @@
         }
 
         window.startOnlineGameHost = async function() {
-            if (onlineChannel) {
-                await onlineChannel.send({ type: 'broadcast', event: 'start_game', payload: {} });
-            }
             document.getElementById('lobby-modal').classList.add('hidden');
             renderPlayers();
+            if (onlineChannel) {
+                const nextEconomy = Math.random() < 0.5 ? 'A' : 'B';
+                await onlineChannel.send({ type: 'broadcast', event: 'start_game', payload: { economy: nextEconomy } });
+                await playCoinTossAnimation(nextEconomy);
+            }
         };
 
         async function checkAndTriggerProcessBids() {
