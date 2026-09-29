@@ -67,7 +67,7 @@
     <!-- ヘッダーの z-index を z-[85] に変更 -->
     <header class="bg-slate-800 text-white p-3 shadow-md flex justify-between items-center z-[85] shrink-0">
         <div class="flex items-center gap-3">
-            <h1 class="text-xl font-bold">入札 ver.71 <span class="text-sm font-normal ml-2">第 <span id="turn-display" class="text-yellow-400 font-bold text-2xl">1</span> / <span id="total-turn-display">10</span> ターン</span></h1>
+            <h1 class="text-xl font-bold">入札 ver.72 <span class="text-sm font-normal ml-2">第 <span id="turn-display" class="text-yellow-400 font-bold text-2xl">1</span> / <span id="total-turn-display">10</span> ターン</span></h1>
             <button id="room-badge" class="hidden px-2 py-0.5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 rounded text-xs font-bold text-white shadow border border-indigo-500 transition-colors" onclick="if(myPlayerIndex === 0) document.getElementById('lobby-modal').classList.remove('hidden')">🏠 ルーム: <span id="current-room-id-display">---</span></button>
             <div id="ai-status" class="hidden px-2 py-1 bg-emerald-500 rounded text-xs font-bold shadow animate-pulse">🤖 データ学習済</div>
             
@@ -84,7 +84,6 @@
                 <button id="help-btn" class="bg-teal-600 hover:bg-teal-700 active:scale-95 text-white font-bold py-1.5 px-3 rounded-lg shadow transition-colors flex items-center gap-1 text-sm border border-teal-500" onclick="document.getElementById('help-modal').classList.remove('hidden')">
                     <span>❓</span> ヘルプ
                 </button>
-                <!-- onclick を openSimConfigModal() に変更 -->
                 <button id="auto-sim-btn" class="bg-slate-600 hover:bg-slate-700 active:scale-95 text-white font-bold py-1.5 px-3 rounded-lg shadow transition-colors flex items-center gap-1 text-sm border border-slate-500" onclick="openSimConfigModal()">
                     <span>⚙️</span> CPU設定 / 自動収集
                 </button>
@@ -97,7 +96,7 @@
 
     <main class="flex-1 flex overflow-hidden">
         
-        <!-- ★ 左側パネル: スクロールをなくし画面内に収める -->
+        <!-- ★ 左側パネル -->
         <section class="w-2/3 p-3 flex flex-col gap-3 bg-gray-100 overflow-hidden">
             <div class="bg-white p-3 rounded-xl shadow border border-gray-200 shrink-0">
                 <h2 class="text-base font-bold border-b border-gray-300 mb-2 pb-1 flex items-center gap-2"><span>🏗️</span> 場の工事カード</h2>
@@ -132,7 +131,7 @@
             </div>
         </section>
 
-        <!-- ★ 右側パネル: スクロールなし・中央寄せ -->
+        <!-- ★ 右側パネル -->
         <section class="w-1/3 flex flex-col border-l border-gray-300 bg-slate-50 shadow-xl z-10 overflow-hidden">
             <div class="shrink-0 p-3 border-b border-slate-200 bg-slate-50" id="charts-buttons-area">
                 <div class="bg-white p-2 rounded-xl shadow-sm border border-slate-200">
@@ -154,10 +153,9 @@
                 </div>
             </div>
 
-            <!-- ★ ラベル削除・中央寄せ -->
+            <!-- ★ アクションエリア -->
             <div class="flex-1 p-4 bg-white flex flex-col justify-center overflow-y-auto custom-scroll" id="action-area">
                 
-                <!-- ★ ソロプレイ用ゲーム開始ボタン -->
                 <div id="start-game-container" class="hidden slide-in w-full text-center my-auto">
                     <p class="text-sm font-bold text-slate-500 mb-4">準備ができたらゲームを開始してください</p>
                     <button onclick="startSoloGame()" class="w-full bg-yellow-400 hover:bg-yellow-500 active:scale-95 text-slate-900 font-black py-4 rounded-xl shadow-lg transition-all border-b-4 border-yellow-600 flex justify-center items-center gap-2 text-lg">
@@ -192,7 +190,6 @@
                     </div>
                 </div>
 
-                <!-- ★ 雇用フェイズ スライダーUI -->
                 <div id="hiring-form" class="hidden space-y-3 slide-in w-full">
                     <div id="hiring-info" class="text-sm space-y-1 p-3 bg-gray-50 border rounded-lg shadow-inner"></div>
                     
@@ -224,7 +221,7 @@
         </section>
     </main>
 
-    <!-- ★ 収益結果ポップアップ（自動進行） -->
+    <!-- ★ 収益結果ポップアップ -->
     <div id="turn-profit-modal" class="fixed inset-0 modal-bg hidden flex justify-center items-center z-[110] p-4">
         <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-sm text-center border-t-8 border-yellow-400 flex flex-col slide-in">
             <h2 class="text-xl font-black text-slate-800 mb-4">第 <span id="tp-turn"></span> ターン 収益結果</h2>
@@ -681,7 +678,6 @@
                 }
             }
 
-            // HTMLの書き換えではなく、textContentで数値を更新
             const turnDisplayNode = document.getElementById('turn-display');
             if (turnDisplayNode) turnDisplayNode.textContent = currentTurn;
             const totalTurnDisplayNode = document.getElementById('total-turn-display');
@@ -755,7 +751,6 @@
             document.getElementById('game-settings-modal').classList.remove('hidden');
         }
 
-        // CPU設定用関数
         window.openSimConfigModal = function() {
             if (isOnlineMode && myPlayerIndex !== 0) {
                 alert('CPU設定はホストのみ実行できます。');
@@ -2056,9 +2051,12 @@
                 return;
             }
 
-            currentTurn++;
-            const turnDisplayNode = document.getElementById('turn-display');
-            if (turnDisplayNode) turnDisplayNode.textContent = currentTurn;
+            // 【修正点】ゲストは勝手にカウントアップせず、ホストからの start_coin_toss 同期を待つ
+            if (!isOnlineMode || myPlayerIndex === 0) {
+                currentTurn++;
+                const turnDisplayNode = document.getElementById('turn-display');
+                if (turnDisplayNode) turnDisplayNode.textContent = currentTurn;
+            }
 
             if (!isOnlineMode) {
                 startAutoCoinToss();
@@ -2287,10 +2285,16 @@
                             updateMemberCountDisplay(activeRoomMembers);
                             renderPlayers();
 
+                            // 【修正点】途中参加者にも現在のホスト側の全設定状態を渡す
                             await onlineChannel.send({
                                 type: 'broadcast',
                                 event: 'join_accepted',
-                                payload: { tempId, slot, snapshot: players }
+                                payload: { 
+                                    tempId, 
+                                    slot, 
+                                    snapshot: players,
+                                    settings: { projects, laborConfig, totalTurns } 
+                                }
                             });
                         } else {
                             await onlineChannel.send({
@@ -2310,6 +2314,17 @@
                         for (let i = 0; i < 4; i++) {
                             players[i].name = snapshot[i].name;
                             players[i].isCPU = snapshot[i].isCPU;
+                        }
+
+                        // 【修正点】参加時にホスト側の最新設定（全ターン数など）を反映
+                        if (payload.payload.settings) {
+                            projects = payload.payload.settings.projects;
+                            laborConfig = payload.payload.settings.laborConfig;
+                            totalTurns = payload.payload.settings.totalTurns;
+                            const totalTurnDisplayNode = document.getElementById('total-turn-display');
+                            if (totalTurnDisplayNode) totalTurnDisplayNode.textContent = totalTurns;
+                            updateProjectCardsUI();
+                            initCharts();
                         }
                         
                         isOnlineMode = true;
@@ -2402,8 +2417,10 @@
                 })
                 .on('broadcast', { event: 'start_coin_toss' }, async payload => {
                     if (myPlayerIndex !== 0) {
+                        // 【修正点】ここでホストから正しいターン数を受け取り同期する
                         currentTurn = payload.payload.turn;
-                        document.getElementById('turn-display').textContent = currentTurn;
+                        const turnDisplayNode = document.getElementById('turn-display');
+                        if (turnDisplayNode) turnDisplayNode.textContent = currentTurn;
                         await playCoinTossAnimation(payload.payload.economy);
                     }
                 })
@@ -2412,7 +2429,8 @@
                     alert('オンライン対戦が開始されました！');
                     renderPlayers();
                     currentTurn = 1;
-                    document.getElementById('turn-display').textContent = currentTurn;
+                    const turnDisplayNode = document.getElementById('turn-display');
+                    if (turnDisplayNode) turnDisplayNode.textContent = currentTurn;
                     await playCoinTossAnimation(payload.payload.economy);
                 })
                 .on('broadcast', { event: 'return_to_lobby' }, payload => {
