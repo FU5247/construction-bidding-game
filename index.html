@@ -64,9 +64,10 @@
         </div>
     </div>
 
-    <header class="bg-slate-800 text-white p-3 shadow-md flex justify-between items-center z-10 shrink-0">
+    <!-- ヘッダーの z-index を z-[85] に変更 -->
+    <header class="bg-slate-800 text-white p-3 shadow-md flex justify-between items-center z-[85] shrink-0">
         <div class="flex items-center gap-3">
-            <h1 class="text-xl font-bold">入札 ver.70 <span class="text-sm font-normal ml-2">第 <span id="turn-display" class="text-yellow-400 font-bold text-2xl">1</span> / 10 ターン</span></h1>
+            <h1 class="text-xl font-bold">入札 ver.71 <span class="text-sm font-normal ml-2">第 <span id="turn-display" class="text-yellow-400 font-bold text-2xl">1</span> / <span id="total-turn-display">10</span> ターン</span></h1>
             <button id="room-badge" class="hidden px-2 py-0.5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 rounded text-xs font-bold text-white shadow border border-indigo-500 transition-colors" onclick="if(myPlayerIndex === 0) document.getElementById('lobby-modal').classList.remove('hidden')">🏠 ルーム: <span id="current-room-id-display">---</span></button>
             <div id="ai-status" class="hidden px-2 py-1 bg-emerald-500 rounded text-xs font-bold shadow animate-pulse">🤖 データ学習済</div>
             
@@ -83,7 +84,8 @@
                 <button id="help-btn" class="bg-teal-600 hover:bg-teal-700 active:scale-95 text-white font-bold py-1.5 px-3 rounded-lg shadow transition-colors flex items-center gap-1 text-sm border border-teal-500" onclick="document.getElementById('help-modal').classList.remove('hidden')">
                     <span>❓</span> ヘルプ
                 </button>
-                <button id="auto-sim-btn" class="bg-slate-600 hover:bg-slate-700 active:scale-95 text-white font-bold py-1.5 px-3 rounded-lg shadow transition-colors flex items-center gap-1 text-sm border border-slate-500" onclick="document.getElementById('sim-config-modal').classList.remove('hidden')">
+                <!-- onclick を openSimConfigModal() に変更 -->
+                <button id="auto-sim-btn" class="bg-slate-600 hover:bg-slate-700 active:scale-95 text-white font-bold py-1.5 px-3 rounded-lg shadow transition-colors flex items-center gap-1 text-sm border border-slate-500" onclick="openSimConfigModal()">
                     <span>⚙️</span> CPU設定 / 自動収集
                 </button>
             </div>
@@ -231,8 +233,8 @@
         </div>
     </div>
 
-    <!-- ★ 設定モーダル -->
-    <div id="game-settings-modal" class="fixed inset-0 modal-bg hidden flex justify-center items-center z-50 p-4">
+    <!-- ★ 設定モーダル (z-[90] に変更) -->
+    <div id="game-settings-modal" class="fixed inset-0 modal-bg hidden flex justify-center items-center z-[90] p-4">
         <div class="bg-white p-6 md:p-8 rounded-2xl shadow-2xl w-full max-w-3xl slide-in relative border-t-8 border-fuchsia-600 flex flex-col max-h-[90vh]">
             <button onclick="document.getElementById('game-settings-modal').classList.add('hidden')" class="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 font-bold transition-colors z-10">✕</button>
             <div class="text-center mb-6 shrink-0">
@@ -312,8 +314,8 @@
         </div>
     </div>
 
-    <!-- ★ ヘルプモーダル -->
-    <div id="help-modal" class="fixed inset-0 modal-bg hidden flex justify-center items-center z-50 p-4">
+    <!-- ★ ヘルプモーダル (z-[90] に変更) -->
+    <div id="help-modal" class="fixed inset-0 modal-bg hidden flex justify-center items-center z-[90] p-4">
         <div class="bg-white p-6 md:p-8 rounded-2xl shadow-2xl w-full max-w-3xl slide-in relative border-t-8 border-teal-500 flex flex-col max-h-[90vh]">
             <button onclick="document.getElementById('help-modal').classList.add('hidden')" class="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 font-bold transition-colors z-10">✕</button>
             <div class="text-center mb-6 shrink-0">
@@ -395,8 +397,8 @@
         </div>
     </div>
 
-    <!-- オンラインロビー モーダル -->
-    <div id="lobby-modal" class="fixed inset-0 modal-bg hidden flex justify-center items-center z-50 p-4">
+    <!-- オンラインロビー モーダル (z-[90] に変更) -->
+    <div id="lobby-modal" class="fixed inset-0 modal-bg hidden flex justify-center items-center z-[90] p-4">
         <div class="bg-white p-6 md:p-8 rounded-2xl shadow-2xl w-full max-w-md slide-in relative border-t-8 border-indigo-600">
             <button onclick="document.getElementById('lobby-modal').classList.add('hidden')" class="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 font-bold transition-colors">✕</button>
             <div class="text-center mb-6">
@@ -435,7 +437,8 @@
         </div>
     </div>
 
-    <div id="sim-config-modal" class="fixed inset-0 modal-bg hidden flex justify-center items-center z-50 p-4">
+    <!-- CPU設定モーダル (z-[90] に変更) -->
+    <div id="sim-config-modal" class="fixed inset-0 modal-bg hidden flex justify-center items-center z-[90] p-4">
         <div class="bg-white p-6 md:p-8 rounded-2xl shadow-2xl w-full max-w-md slide-in relative border-t-8 border-slate-600">
             <button onclick="closeConfigModal()" class="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 font-bold transition-colors">✕</button>
             <div class="text-center mb-6">
@@ -678,8 +681,11 @@
                 }
             }
 
+            // HTMLの書き換えではなく、textContentで数値を更新
             const turnDisplayNode = document.getElementById('turn-display');
-            if (turnDisplayNode) turnDisplayNode.parentNode.innerHTML = `第 <span id="turn-display" class="text-yellow-400 font-bold text-2xl">1</span> / ${totalTurns} ターン`;
+            if (turnDisplayNode) turnDisplayNode.textContent = currentTurn;
+            const totalTurnDisplayNode = document.getElementById('total-turn-display');
+            if (totalTurnDisplayNode) totalTurnDisplayNode.textContent = totalTurns;
             
             const ecoBar = document.getElementById('economy-status');
             if(ecoBar) {
@@ -749,6 +755,15 @@
             document.getElementById('game-settings-modal').classList.remove('hidden');
         }
 
+        // CPU設定用関数
+        window.openSimConfigModal = function() {
+            if (isOnlineMode && myPlayerIndex !== 0) {
+                alert('CPU設定はホストのみ実行できます。');
+                return;
+            }
+            document.getElementById('sim-config-modal').classList.remove('hidden');
+        };
+
         async function saveGameSettings() {
             const btn = document.getElementById('save-settings-btn');
             const originalText = btn.innerHTML;
@@ -772,9 +787,9 @@
                 let newTotalTurns = parseInt(document.getElementById('set-total-turns').value) || 10;
                 totalTurns = Math.max(1, Math.min(20, newTotalTurns));
                 const turnDisplayNode = document.getElementById('turn-display');
-                if (turnDisplayNode) {
-                    turnDisplayNode.parentNode.innerHTML = `第 <span id="turn-display" class="text-yellow-400 font-bold text-2xl">${currentTurn}</span> / ${totalTurns} ターン`;
-                }
+                if (turnDisplayNode) turnDisplayNode.textContent = currentTurn;
+                const totalTurnDisplayNode = document.getElementById('total-turn-display');
+                if (totalTurnDisplayNode) totalTurnDisplayNode.textContent = totalTurns;
 
                 updateProjectCardsUI();
                 renderPlayers();
@@ -1080,7 +1095,12 @@
             document.getElementById('bidding-form').classList.add('hidden');
             isBiddingPhase = false;
 
-            document.getElementById('coin-toss-title').textContent = `第 ${currentTurn} ターン 景気決定コイントス`;
+            if (currentTurn === totalTurns) {
+                document.getElementById('coin-toss-title').innerHTML = `<span class="text-red-600">最終ターン</span><br>景気決定コイントス`;
+            } else {
+                document.getElementById('coin-toss-title').innerHTML = `第 ${currentTurn} ターン<br>景気決定コイントス`;
+            }
+
             coinModal.classList.remove('hidden'); 
             coinVisual.classList.add('coin-flip'); 
             coinVisual.textContent = ''; 
@@ -2038,9 +2058,7 @@
 
             currentTurn++;
             const turnDisplayNode = document.getElementById('turn-display');
-            if (turnDisplayNode) {
-                turnDisplayNode.parentNode.innerHTML = `第 <span id="turn-display" class="text-yellow-400 font-bold text-2xl">${currentTurn}</span> / ${totalTurns} ターン`;
-            }
+            if (turnDisplayNode) turnDisplayNode.textContent = currentTurn;
 
             if (!isOnlineMode) {
                 startAutoCoinToss();
@@ -2329,9 +2347,9 @@
                         if(payload.payload.totalTurns) {
                             totalTurns = payload.payload.totalTurns;
                             const turnDisplayNode = document.getElementById('turn-display');
-                            if (turnDisplayNode) {
-                                turnDisplayNode.parentNode.innerHTML = `第 <span id="turn-display" class="text-yellow-400 font-bold text-2xl">${currentTurn}</span> / ${totalTurns} ターン`;
-                            }
+                            if (turnDisplayNode) turnDisplayNode.textContent = currentTurn;
+                            const totalTurnDisplayNode = document.getElementById('total-turn-display');
+                            if (totalTurnDisplayNode) totalTurnDisplayNode.textContent = totalTurns;
                         }
                         updateProjectCardsUI();
                         renderPlayers();
