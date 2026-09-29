@@ -67,7 +67,7 @@
 
     <header class="bg-slate-800 text-white p-4 shadow-md flex justify-between items-center z-10 shrink-0">
         <div class="flex items-center gap-3">
-            <h1 class="text-xl font-bold">入札 vol.62 <span class="text-sm font-normal ml-2">第 <span id="turn-display" class="text-yellow-400 font-bold text-2xl">1</span> / 10 ターン</span></h1>
+            <h1 class="text-xl font-bold">入札 vol.63 <span class="text-sm font-normal ml-2">第 <span id="turn-display" class="text-yellow-400 font-bold text-2xl">1</span> / 10 ターン</span></h1>
             <div id="room-badge" class="hidden px-2 py-0.5 bg-indigo-600 rounded text-xs font-bold text-white shadow border border-indigo-500">🏠 ルーム: <span id="current-room-id-display">---</span></div>
             <div id="ai-status" class="hidden px-2 py-1 bg-emerald-500 rounded text-xs font-bold shadow animate-pulse">🤖 データ学習済</div>
             
@@ -169,18 +169,19 @@
                             <div id="selected-project-name" class="font-black text-xl text-blue-900 mt-1">---</div>
                         </div>
                         
-                        <!-- ★ スライダーによる入札入力 -->
-                        <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 shadow-inner relative mt-2">
+                        <!-- ★ スライダーによる入札入力（ホバー削除版） -->
+                        <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 shadow-inner mt-2">
                             <label class="block text-sm font-bold mb-3 text-slate-700 text-center">入札価格（10Y単位）: <span id="bid-amount-display" class="text-2xl text-blue-700 font-black">0</span> Y</label>
-                            <div class="relative w-full pt-6 pb-2">
-                                <div id="bid-slider-tooltip" class="absolute -top-4 bg-slate-800 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-xl pointer-events-none opacity-0 transition-opacity whitespace-nowrap z-20 transform -translate-x-1/2 before:content-[''] before:absolute before:top-full before:left-1/2 before:-translate-x-1/2 before:border-4 before:border-transparent before:border-t-slate-800">
-                                    予想収益: --Y
-                                </div>
+                            <div class="w-full pt-2 pb-2">
                                 <input type="range" id="bid-amount" class="w-full h-3 bg-slate-300 rounded-lg cursor-pointer accent-blue-600 shadow-inner" step="10" min="0" max="400" value="0">
                             </div>
                         </div>
 
-                        <button id="submit-bid-btn" class="w-full bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold py-3 rounded-xl shadow-lg transition-all border-b-4 border-blue-800 flex justify-center items-center gap-2">入札を確定する</button>
+                        <!-- ★ 収益予想をボタン内に組み込み -->
+                        <button id="submit-bid-btn" class="w-full bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold py-3 px-2 rounded-xl shadow-lg transition-all border-b-4 border-blue-800 flex flex-col justify-center items-center gap-0.5 whitespace-nowrap overflow-hidden text-sm h-[56px]">
+                            <span>入札を確定する</span>
+                            <span id="submit-bid-profit" class="text-[11px] font-normal text-blue-100 truncate w-full text-center"></span>
+                        </button>
                     </div>
                 </div>
 
@@ -742,7 +743,7 @@
                 });
 
                 if (isOnlineMode && onlineChannel && myPlayerIndex === 0) {
-                    onlineChannel.send({ type: 'broadcast', event: 'game_settings_updated', payload: { projects, laborConfig } });
+                    await onlineChannel.send({ type: 'broadcast', event: 'game_settings_updated', payload: { projects, laborConfig } });
                 }
 
                 alert('設定を反映しました。');
@@ -772,13 +773,13 @@
             updateEconomyHighlight();
         }
 
-        window.leaveRoom = function() {
+        window.leaveRoom = async function() {
             if (!isOnlineMode || !onlineChannel) return;
             if (confirm('現在のルームから退出しますか？')) {
                 if (myPlayerIndex === 0) {
-                    onlineChannel.send({ type: 'broadcast', event: 'room_closed', payload: {} });
+                    await onlineChannel.send({ type: 'broadcast', event: 'room_closed', payload: {} });
                 } else {
-                    onlineChannel.send({ type: 'broadcast', event: 'player_left', payload: { playerIndex: myPlayerIndex } });
+                    await onlineChannel.send({ type: 'broadcast', event: 'player_left', payload: { playerIndex: myPlayerIndex } });
                 }
                 supabaseClient.removeChannel(onlineChannel);
                 onlineChannel = null;
@@ -914,16 +915,20 @@
         const startBtn = document.getElementById('start-turn-btn');
         const bidForm = document.getElementById('bidding-form'), hireForm = document.getElementById('hiring-form'), bidAmountInput = document.getElementById('bid-amount'), submitBidBtn = document.getElementById('submit-bid-btn');
 
-        // ★ 入札額スライダーのUI更新処理
+        // ★ 入札額スライダーのUI更新処理（ボタン内テキスト更新）
         bidAmountInput.oninput = () => {
             const amount = parseInt(bidAmountInput.value, 10) || 0;
             const display = document.getElementById('bid-amount-display');
             if (display) display.textContent = amount;
             
-            const tooltip = document.getElementById('bid-slider-tooltip');
-            if (!tooltip) return;
+            const profitEl = document.getElementById('submit-bid-profit');
+            if (!profitEl) return;
 
-            if (selectedBiddingProject === 'none') return;
+            if (selectedBiddingProject === 'none') {
+                profitEl.textContent = '';
+                return;
+            }
+            
             const proj = projects[selectedBiddingProject];
             const reqLabor = proj.labor;
             const currentLabor = players[myPlayerIndex].employees * laborConfig.fulltimeP;
@@ -937,7 +942,7 @@
             if (shortageLabor === 0) {
                 // パターン②
                 const profit = amount - costCurrent;
-                tooltipText = `予想収益: ${profit}Y`;
+                tooltipText = `(予想収益: ${profit}Y)`;
             } else {
                 // パターン①
                 const reqFull = Math.ceil(shortageLabor / laborConfig.fulltimeP);
@@ -946,21 +951,11 @@
                 const costTemp = reqTemp * tCost;
                 const profitTemp = amount - costCurrent - costTemp;
                 const profitFull = amount - costCurrent - costFull;
-                tooltipText = `予想収益: ${profitTemp}Y ～ ${profitFull}Y`;
+                tooltipText = `(予想収益: ${profitTemp}Y ～ ${profitFull}Y)`;
             }
             
-            tooltip.textContent = tooltipText;
-            const maxVal = parseInt(bidAmountInput.max, 10) || 400;
-            const percent = maxVal > 0 ? (amount / maxVal) * 100 : 0;
-            tooltip.style.left = `calc(${percent}% + (${8 - percent * 0.16}px))`;
+            profitEl.textContent = tooltipText;
         };
-
-        const showBidTooltip = () => { document.getElementById('bid-slider-tooltip').classList.remove('opacity-0'); };
-        const hideBidTooltip = () => { document.getElementById('bid-slider-tooltip').classList.add('opacity-0'); };
-        bidAmountInput.addEventListener('mouseenter', showBidTooltip);
-        bidAmountInput.addEventListener('mouseleave', hideBidTooltip);
-        bidAmountInput.addEventListener('touchstart', showBidTooltip);
-        bidAmountInput.addEventListener('touchend', hideBidTooltip);
 
         function renderPlayers() {
             playersContainer.innerHTML = '';
@@ -996,11 +991,11 @@
 
             const ecoBar = document.getElementById('economy-status');
             if (currentEconomy === 'A') { 
-                ecoBar.innerHTML = `🪙 景気：<span class="text-pink-200 mx-1">好景気</span><span class="text-[10px] sm:text-xs ml-1 text-pink-100 font-bold border border-pink-400 bg-pink-700/50 px-1.5 py-0.5 rounded whitespace-nowrap">正社員${fCost}Y / 発注${tCost}Y</span>`; 
+                ecoBar.innerHTML = `🪙 景気：<span class="text-pink-200 mx-1">好景気</span><span class="text-[10px] sm:text-xs ml-1 text-pink-100 font-bold border border-pink-400 bg-pink-700/50 px-1.5 py-0.5 rounded whitespace-nowrap">正社員${fCost}Y /発注${tCost}Y</span>`; 
                 ecoBar.className = 'px-3 py-1.5 rounded-lg font-black text-sm sm:text-base bg-pink-600 text-white shadow-md border border-pink-700 flex items-center whitespace-nowrap shrink-0'; 
             } 
             else if(currentEconomy === 'B') { 
-                ecoBar.innerHTML = `🪙 景気：<span class="text-blue-200 mx-1">不景気</span><span class="text-[10px] sm:text-xs ml-1 text-blue-100 font-bold border border-blue-400 bg-blue-700/50 px-1.5 py-0.5 rounded whitespace-nowrap">正社員${fCost}Y / 発注${tCost}Y</span>`; 
+                ecoBar.innerHTML = `🪙 景気：<span class="text-blue-200 mx-1">不景気</span><span class="text-[10px] sm:text-xs ml-1 text-blue-100 font-bold border border-blue-400 bg-blue-700/50 px-1.5 py-0.5 rounded whitespace-nowrap">正社員${fCost}Y /発注${tCost}Y</span>`; 
                 ecoBar.className = 'px-3 py-1.5 rounded-lg font-black text-sm sm:text-base bg-blue-600 text-white shadow-md border border-blue-700 flex items-center whitespace-nowrap shrink-0'; 
             }
         }
@@ -1034,7 +1029,7 @@
             const nextEconomy = Math.random() < 0.5 ? 'A' : 'B';
 
             if (isOnlineMode && onlineChannel) {
-                onlineChannel.send({ type: 'broadcast', event: 'start_coin_toss', payload: { economy: nextEconomy, turn: currentTurn } });
+                await onlineChannel.send({ type: 'broadcast', event: 'start_coin_toss', payload: { economy: nextEconomy, turn: currentTurn } });
             }
 
             await playCoinTossAnimation(nextEconomy);
@@ -1105,10 +1100,10 @@
                         return;
                     }
                 }
-                submitBidBtn.disabled = true; submitBidBtn.textContent = '処理中...'; isBiddingPhase = false; bidForm.classList.add('hidden');
+                submitBidBtn.disabled = true; submitBidBtn.innerHTML = '<span>処理中...</span>'; isBiddingPhase = false; bidForm.classList.add('hidden');
                 await executeTurnAfterMyBid({ project: proj === 'none' ? 'none' : proj, amount: proj === 'none' ? 0 : amount });
             } catch (error) { console.error('入札処理エラー:', error); alert('入札処理中にエラーが発生しました。\n' + error.message); isBiddingPhase = true; bidForm.classList.remove('hidden'); } 
-            finally { submitBidBtn.disabled = false; submitBidBtn.innerHTML = '入札を確定する'; }
+            finally { submitBidBtn.disabled = false; }
         });
 
         async function executeTurnAfterMyBid(myBid) {
@@ -1116,12 +1111,12 @@
 
             if (isOnlineMode) {
                 if (onlineChannel) {
-                    onlineChannel.send({ type: 'broadcast', event: 'player_bid', payload: { playerIndex: myPlayerIndex, bid: myBid, turn: currentTurn } });
+                    await onlineChannel.send({ type: 'broadcast', event: 'player_bid', payload: { playerIndex: myPlayerIndex, bid: myBid, turn: currentTurn } });
                 }
                 showCalculatingModal('処理中...', '他のプレイヤーの入力を待機しています。');
                 
                 if (myPlayerIndex === 0) {
-                    checkAndTriggerProcessBids();
+                    await checkAndTriggerProcessBids();
                 }
                 return;
             }
@@ -1613,7 +1608,7 @@
         };
 
         // ★ ホスト側の同期管理関数群
-        function handleResultConfirmed(playerIndex) {
+        async function handleResultConfirmed(playerIndex) {
             resultConfirmations[playerIndex] = true;
             let allReady = true;
             for(let i=0; i<4; i++) {
@@ -1624,7 +1619,7 @@
             if (allReady) {
                 resultConfirmations = {}; 
                 if (onlineChannel) {
-                    onlineChannel.send({ type: 'broadcast', event: 'start_hiring_phase', payload: {} });
+                    await onlineChannel.send({ type: 'broadcast', event: 'start_hiring_phase', payload: {} });
                 }
                 startHiringPhase();
             }
@@ -1635,7 +1630,7 @@
             proceedToHiring();
         }
 
-        function handleHiringCompleted(playerIndex, hire) {
+        async function handleHiringCompleted(playerIndex, hire) {
             hiringInputs[playerIndex] = hire;
             
             if (isProcessingHiring) return; 
@@ -1664,7 +1659,7 @@
                 }
 
                 if (onlineChannel) {
-                    onlineChannel.send({ type: 'broadcast', event: 'all_hiring_completed', payload: { hiringInputs: hiringInputs } });
+                    await onlineChannel.send({ type: 'broadcast', event: 'all_hiring_completed', payload: { hiringInputs: hiringInputs } });
                 }
                 
                 hideCalculatingModal();
@@ -1730,9 +1725,9 @@
             if (isOnlineMode) {
                 showCalculatingModal('待機中...', '他のプレイヤーの確認を待っています。');
                 if (myPlayerIndex !== 0) {
-                    onlineChannel.send({ type: 'broadcast', event: 'result_confirmed', payload: { playerIndex: myPlayerIndex } });
+                    await onlineChannel.send({ type: 'broadcast', event: 'result_confirmed', payload: { playerIndex: myPlayerIndex } });
                 } else {
-                    handleResultConfirmed(0);
+                    await handleResultConfirmed(0);
                 }
             } else {
                 await proceedToHiring();
@@ -1842,9 +1837,9 @@
                 showCalculatingModal('待機中...', '他のプレイヤーの操作を待っています。');
                 
                 if (myPlayerIndex !== 0) {
-                    onlineChannel.send({ type: 'broadcast', event: 'hiring_completed', payload: { playerIndex: myPlayerIndex, hire: myHire } });
+                    await onlineChannel.send({ type: 'broadcast', event: 'hiring_completed', payload: { playerIndex: myPlayerIndex, hire: myHire } });
                 } else {
-                    handleHiringCompleted(0, myHire);
+                    await handleHiringCompleted(0, myHire);
                 }
             } else {
                 players[myPlayerIndex].employees += myHire.f; 
@@ -2125,7 +2120,7 @@
                     const btn = document.getElementById('join-btn-text');
                     if (btn) btn.textContent = 'ルームに参加';
                 })
-                .on('broadcast', { event: 'player_left' }, payload => {
+                .on('broadcast', { event: 'player_left' }, async payload => {
                     if (myPlayerIndex === 0) {
                         const { playerIndex } = payload.payload;
                         players[playerIndex].name = `競合CPU (代行)`;
@@ -2133,14 +2128,14 @@
                         activeRoomMembers = players.filter(p => !p.isCPU).length;
                         updateMemberCountDisplay(activeRoomMembers);
                         renderPlayers();
-                        onlineChannel.send({ type: 'broadcast', event: 'state_sync', payload: { snapshot: players } });
+                        await onlineChannel.send({ type: 'broadcast', event: 'state_sync', payload: { snapshot: players } });
 
                         checkAndTriggerProcessBids();
-                        handleResultConfirmed(playerIndex);
-                        handleHiringCompleted(playerIndex, {f:0, t:0});
+                        await handleResultConfirmed(playerIndex);
+                        await handleHiringCompleted(playerIndex, {f:0, t:0});
                     }
                 })
-                .on('broadcast', { event: 'request_join' }, payload => {
+                .on('broadcast', { event: 'request_join' }, async payload => {
                     if (isOnlineMode && myPlayerIndex === 0) {
                         const { tempId, name } = payload.payload;
                         
@@ -2160,13 +2155,13 @@
                             updateMemberCountDisplay(activeRoomMembers);
                             renderPlayers();
 
-                            onlineChannel.send({
+                            await onlineChannel.send({
                                 type: 'broadcast',
                                 event: 'join_accepted',
                                 payload: { tempId, slot, snapshot: players }
                             });
                         } else {
-                            onlineChannel.send({
+                            await onlineChannel.send({
                                 type: 'broadcast',
                                 event: 'join_rejected',
                                 payload: { tempId, reason: 'ルームは満員です。' }
@@ -2229,11 +2224,11 @@
                         initCharts();
                     }
                 })
-                .on('broadcast', { event: 'player_bid' }, payload => {
+                .on('broadcast', { event: 'player_bid' }, async payload => {
                     const { playerIndex, bid } = payload.payload;
                     bidInputs[playerIndex] = bid;
                     if (myPlayerIndex === 0) {
-                        checkAndTriggerProcessBids();
+                        await checkAndTriggerProcessBids();
                     }
                 })
                 .on('broadcast', { event: 'all_bids_determined' }, payload => {
@@ -2244,9 +2239,9 @@
                         processBids();
                     }
                 })
-                .on('broadcast', { event: 'result_confirmed' }, payload => {
+                .on('broadcast', { event: 'result_confirmed' }, async payload => {
                     if (myPlayerIndex === 0) {
-                        handleResultConfirmed(payload.payload.playerIndex);
+                        await handleResultConfirmed(payload.payload.playerIndex);
                     }
                 })
                 .on('broadcast', { event: 'start_hiring_phase' }, payload => {
@@ -2254,9 +2249,9 @@
                         startHiringPhase();
                     }
                 })
-                .on('broadcast', { event: 'hiring_completed' }, payload => {
+                .on('broadcast', { event: 'hiring_completed' }, async payload => {
                     if (myPlayerIndex === 0) {
-                        handleHiringCompleted(payload.payload.playerIndex, payload.payload.hire);
+                        await handleHiringCompleted(payload.payload.playerIndex, payload.payload.hire);
                     }
                 })
                 .on('broadcast', { event: 'all_hiring_completed' }, payload => {
@@ -2294,9 +2289,9 @@
 
         function startPeriodicSync() {
             if (periodicSyncTimer) clearInterval(periodicSyncTimer);
-            periodicSyncTimer = setInterval(() => {
+            periodicSyncTimer = setInterval(async () => {
                 if (isOnlineMode && onlineChannel && myPlayerIndex === 0) {
-                    onlineChannel.send({
+                    await onlineChannel.send({
                         type: 'broadcast',
                         event: 'state_sync',
                         payload: { snapshot: players }
@@ -2305,15 +2300,15 @@
             }, 3000);
         }
 
-        window.startOnlineGameHost = function() {
+        window.startOnlineGameHost = async function() {
             if (onlineChannel) {
-                onlineChannel.send({ type: 'broadcast', event: 'start_game', payload: {} });
+                await onlineChannel.send({ type: 'broadcast', event: 'start_game', payload: {} });
             }
             document.getElementById('lobby-modal').classList.add('hidden');
             renderPlayers();
         };
 
-        function checkAndTriggerProcessBids() {
+        async function checkAndTriggerProcessBids() {
             if (myPlayerIndex !== 0) return; 
             if (isProcessingBids) return; 
 
@@ -2345,7 +2340,7 @@
                 currentTieBreaker = Math.random();
                 
                 if (onlineChannel) {
-                    onlineChannel.send({
+                    await onlineChannel.send({
                         type: 'broadcast',
                         event: 'all_bids_determined',
                         payload: { bids: bidInputs, tieBreaker: currentTieBreaker }
