@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>入札ゲーム ver.92</title>
+    <title>入札ゲーム ver.95</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -91,7 +91,7 @@
 
     <header class="bg-slate-800 text-white p-3 shadow-md flex justify-between items-center z-[85] shrink-0">
         <div class="flex items-center gap-3">
-            <h1 class="text-xl font-bold">入札 ver.92 <span class="text-sm font-normal ml-2">第 <span id="turn-display" class="text-yellow-400 font-bold text-2xl">1</span> / <span id="total-turn-display">10</span> ターン</span></h1>
+            <h1 class="text-xl font-bold">入札 ver.95 <span class="text-sm font-normal ml-2">第 <span id="turn-display" class="text-yellow-400 font-bold text-2xl">1</span> / <span id="total-turn-display">10</span> ターン</span></h1>
             <button id="room-badge" class="hidden px-2 py-0.5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 rounded text-xs font-bold text-white shadow border border-indigo-500 transition-colors" onclick="if(myPlayerIndex === 0) document.getElementById('lobby-modal').classList.remove('hidden')">🏠 ルーム: <span id="current-room-id-display">---</span></button>
             <div id="ai-status" class="hidden px-2 py-1 bg-emerald-500 rounded text-xs font-bold shadow animate-pulse">🤖 データ学習済</div>
             
@@ -276,7 +276,7 @@
                 </section>
 
                 <section>
-                    <h3 class="text-lg font-bold text-fuchsia-700 border-b-2 border-fuchsia-200 pb-1 mb-3 flex items-center gap-2"><span>🏗️️</span> 工事カード設定</h3>
+                    <h3 class="text-lg font-bold text-fuchsia-700 border-b-2 border-fuchsia-200 pb-1 mb-3 flex items-center gap-2"><span>🏗️</span> 工事カード設定</h3>
                     <div class="space-y-4">
                         <div class="bg-red-50 p-3 rounded-lg border border-red-200">
                             <h4 class="font-bold text-red-700 mb-2">大工事</h4>
@@ -1152,6 +1152,8 @@
 
         async function executeTurnAfterMyBid(myBid) {
             bidInputs[myPlayerIndex] = myBid;
+            
+            currentTieBreaker = Math.random();
 
             if (isOnlineMode) {
                 if (onlineChannel) {
@@ -1186,18 +1188,43 @@
             const enemy = state.players[enemyId];
             let actionCounts = {};
             
-            logs.forEach(log => {
-                if (log.profit <= 0 || !log.is_winner) return;
-                
-                let moneyDiff = log.money_before - enemy.money;
-                let empDiff = log.employees_before - enemy.employees;
-                let distance = Math.sqrt(moneyDiff * moneyDiff + (empDiff * 50) * (empDiff * 50)); 
-                
-                if (distance < 500) { 
-                    let key = `${log.construction_mode}:${log.bid_amount}`;
-                    actionCounts[key] = (actionCounts[key] || 0) + (500 - distance);
-                }
+            const currentMoneys = state.players.map(p => p.money).sort((a,b)=>b-a);
+            const currentEmps = state.players.map(p => p.employees).sort((a,b)=>b-a);
+
+            const turnGroups = {};
+            logs.forEach(l => {
+                const key = l.game_id + '_' + l.turn;
+                if(!turnGroups[key]) turnGroups[key] = [];
+                turnGroups[key].push(l);
             });
+
+            for (const key in turnGroups) {
+                const group = turnGroups[key];
+                const groupMoneys = group.map(g => g.money_before).sort((a,b)=>b-a);
+                const groupEmps = group.map(g => g.employees_before).sort((a,b)=>b-a);
+
+                let boardDist = 0;
+                let compareCount = Math.min(currentMoneys.length, groupMoneys.length);
+                if(compareCount === 0) continue;
+                
+                for(let i=0; i<compareCount; i++) {
+                    boardDist += Math.pow(currentMoneys[i] - groupMoneys[i], 2);
+                    boardDist += Math.pow((currentEmps[i] - groupEmps[i])*50, 2);
+                }
+                boardDist = Math.sqrt(boardDist);
+
+                if (boardDist < 1500) {
+                    group.forEach(log => {
+                        if (log.profit <= 0 || !log.is_winner || log.final_rank !== 1) return;
+                        
+                        let myDist = Math.sqrt(Math.pow(log.money_before - enemy.money, 2) + Math.pow((log.employees_before - enemy.employees)*50, 2));
+                        if (myDist < 500) {
+                            let actKey = `${log.construction_mode}:${log.bid_amount}`;
+                            actionCounts[actKey] = (actionCounts[actKey] || 0) + (1500 - boardDist) + (500 - myDist);
+                        }
+                    });
+                }
+            }
 
             let sortedActions = Object.entries(actionCounts).sort((a, b) => b[1] - a[1]);
             
@@ -1206,24 +1233,44 @@
                 if (enemy.money >= 300) fallbackProj = 'large';
                 if (enemy.money < 150) fallbackProj = 'small';
                 return [
-                    { project: fallbackProj, amount: projects[fallbackProj].maxBid - 20, prob: 0.6 },
+                    { project: fallbackProj, amount: projects[fallbackProj].maxBid - 20, prob: 0.3 },
+                    { project: fallbackProj, amount: projects[fallbackProj].maxBid - 30, prob: 0.2 },
+                    { project: fallbackProj, amount: projects[fallbackProj].maxBid - 40, prob: 0.1 },
                     { project: 'none', amount: 0, prob: 0.4 }
                 ];
             }
             
             let top1 = sortedActions[0][0].split(':');
-            let act1 = { project: top1[0], amount: parseInt(top1[1]), prob: 0.6 };
+            let baseAct1 = { project: top1[0], amount: parseInt(top1[1]) };
             
-            let act2 = act1; 
+            let baseAct2 = baseAct1; 
             if (sortedActions.length > 1) {
                 let top2 = sortedActions[1][0].split(':');
-                act2 = { project: top2[0], amount: parseInt(top2[1]), prob: 0.4 };
-            } else {
-                act1.prob = 1.0; 
-                act2 = { project: 'none', amount: 0, prob: 0.0 };
+                baseAct2 = { project: top2[0], amount: parseInt(top2[1]) };
+            }
+
+            let finalActions = [];
+            function expandAction(baseAct, baseProb) {
+                if (baseAct.project === 'none') {
+                    finalActions.push({ project: 'none', amount: 0, prob: baseProb });
+                    return;
+                }
+                finalActions.push({ project: baseAct.project, amount: baseAct.amount, prob: baseProb * 0.5 });
+                if (baseAct.amount >= 10) finalActions.push({ project: baseAct.project, amount: baseAct.amount - 10, prob: baseProb * 0.3 });
+                else finalActions[0].prob += baseProb * 0.3;
+                
+                if (baseAct.amount >= 20) finalActions.push({ project: baseAct.project, amount: baseAct.amount - 20, prob: baseProb * 0.2 });
+                else finalActions[0].prob += baseProb * 0.2;
             }
             
-            return [act1, act2];
+            if (sortedActions.length > 1) {
+                expandAction(baseAct1, 0.6);
+                expandAction(baseAct2, 0.4);
+            } else {
+                expandAction(baseAct1, 1.0);
+            }
+            
+            return finalActions;
         }
 
         function cpuDecideBid(state, playerId, rng) {
@@ -1234,31 +1281,34 @@
             const fixedCost = p.employees * fCost;
             const strategy = p.strat || aiStrategies[playerId];
 
-            let enemies = [];
+            const currentLogs = pendingGameLogs.filter(log => log.turn < state.turn);
+            const combinedLogs = [...allHistoricalLogs, ...currentLogs];
+
+            let enemiesData = [];
             for (let i = 0; i < state.players.length; i++) {
                 if (i !== playerId && !state.players[i].bankrupt) {
-                    enemies.push(predictEnemyActions(state, i, allHistoricalLogs));
+                    enemiesData.push({ id: i, actions: predictEnemyActions(state, i, combinedLogs) });
                 }
             }
 
             let scenarios = [];
             function generateScenarios(currentIndex, currentScenario, currentProb) {
-                if (currentIndex === enemies.length) {
+                if (currentIndex === enemiesData.length) {
                     scenarios.push({ prob: currentProb, actions: [...currentScenario] });
                     return;
                 }
-                const enemyActions = enemies[currentIndex];
-                enemyActions.forEach(act => {
-                    currentScenario.push(act);
+                const enemy = enemiesData[currentIndex];
+                enemy.actions.forEach(act => {
+                    currentScenario.push({ enemyId: enemy.id, ...act });
                     generateScenarios(currentIndex + 1, currentScenario, currentProb * act.prob);
                     currentScenario.pop();
                 });
             }
             generateScenarios(0, [], 1.0);
 
-            let bestAction = { project: 'none', amount: 0 };
-            let maxExpectedValue = -99999; 
-            
+            // ★ 有効な入札候補をストックするリスト
+            let candidateActions = [];
+
             ['large', 'medium', 'small'].forEach(projKey => {
                 const maxBid = projects[projKey].maxBid;
                 
@@ -1278,7 +1328,8 @@
                         if (act.project === projKey) {
                             candidateAmounts.add(act.amount);
                             if (act.amount >= 10) candidateAmounts.add(act.amount - 10);
-                            if (act.amount <= maxBid - 10) candidateAmounts.add(act.amount + 10);
+                            if (act.amount >= 20) candidateAmounts.add(act.amount - 20);
+                            if (act.amount >= 30) candidateAmounts.add(act.amount - 30);
                         }
                     });
                 });
@@ -1287,30 +1338,47 @@
                     myBid = Math.max(0, Math.min(maxBid, Math.round(myBid / 10) * 10));
 
                     let winProbability = 0;
+                    let assassinationBonus = 0;
+                    let remainingTurns = totalTurns - state.turn;
 
                     scenarios.forEach(sc => {
                         let rivalsInSameProject = sc.actions.filter(act => act.project === projKey);
+                        let minRivalBid = rivalsInSameProject.length > 0 ? Math.min(...rivalsInSameProject.map(a => a.amount)) : Infinity;
                         
-                        if (rivalsInSameProject.length === 0) {
+                        let iWin = false;
+                        let winRateInTie = 1.0;
+
+                        if (myBid < minRivalBid) {
                             winProbability += sc.prob;
-                        } else {
-                            let minRivalBid = Math.min(...rivalsInSameProject.map(a => a.amount));
-                            if (myBid < minRivalBid) {
-                                winProbability += sc.prob;
-                            } else if (myBid === minRivalBid) {
-                                let tieCount = rivalsInSameProject.filter(a => a.amount === minRivalBid).length;
-                                winProbability += sc.prob * (1 / (1 + tieCount));
-                            }
+                            iWin = true;
+                        } else if (myBid === minRivalBid) {
+                            let tieCount = rivalsInSameProject.filter(a => a.amount === minRivalBid).length;
+                            winRateInTie = 1 / (1 + tieCount);
+                            winProbability += sc.prob * winRateInTie;
+                            iWin = true;
+                        }
+
+                        if (iWin && remainingTurns > 0) {
+                            rivalsInSameProject.forEach(rivalAct => {
+                                let enemy = state.players[rivalAct.enemyId];
+                                let eFCost = state.economy === 'B' ? laborConfig.fulltimeCostB : laborConfig.fulltimeCostA;
+                                let eFixedCost = enemy.employees * eFCost;
+                                
+                                if (enemy.money - eFixedCost < 0) {
+                                    assassinationBonus += sc.prob * winRateInTie * (remainingTurns * 50);
+                                }
+                            });
                         }
                     });
 
                     let profitIfWin = myBid - additionalCost; 
                     let expectedValue = profitIfWin * winProbability;
                     
-                    let adjustedEV = expectedValue + (rng() * 0.1); 
+                    let adjustedEV = expectedValue + assassinationBonus + (rng() * 0.1); 
 
                     let totalCost = fixedCost + additionalCost;
                     let netProfit = myBid - totalCost;
+                    
                     if (netProfit < 0 && profitIfWin > 0) {
                         if (p.money > fixedCost * 3) {
                             adjustedEV -= 50; 
@@ -1319,18 +1387,36 @@
                         }
                     }
 
-                    if (profitIfWin > 0 && adjustedEV > maxExpectedValue) {
-                        maxExpectedValue = adjustedEV;
-                        bestAction = { project: projKey, amount: myBid };
+                    // 期待値がプラスならリストに追加
+                    if ((profitIfWin > 0 || assassinationBonus > 0) && adjustedEV > 0) {
+                        candidateActions.push({ project: projKey, amount: myBid, ev: adjustedEV });
                     }
                 });
             });
 
-            if (maxExpectedValue <= 0) {
+            if (candidateActions.length === 0) {
                 return { project: 'none', amount: 0 };
             }
 
-            return bestAction;
+            // ★ 確率分布（ルーレット選択）による決定
+            let totalWeight = 0;
+            candidateActions.forEach(a => {
+                // 期待値の2乗を重みとして使い、最適解の選択率を高めつつ不確実性を残す
+                a.weight = Math.pow(a.ev, 2);
+                totalWeight += a.weight;
+            });
+
+            let threshold = rng() * totalWeight;
+            let currentSum = 0;
+            
+            for (let i = 0; i < candidateActions.length; i++) {
+                currentSum += candidateActions[i].weight;
+                if (currentSum >= threshold) {
+                    return { project: candidateActions[i].project, amount: candidateActions[i].amount };
+                }
+            }
+
+            return { project: 'none', amount: 0 };
         }
 
         function cpuHiring(state, winnerId, project, remainingTurns, rng) {
@@ -1845,7 +1931,7 @@
 
             sorted.forEach((p, index) => {
                 const isMe = p.id === myPlayerIndex, isBankrupt = p.money < 0; const bg = index === 0 ? 'bg-gradient-to-r from-yellow-100 to-amber-50 border-2 border-yellow-300 shadow-md scale-105 z-10' : 'bg-slate-50 border border-slate-200'; const rankText = index === 0 ? '🏆 1位' : (index === 1 ? '🥈 2位' : (index === 2 ? '🥉 3位' : '4位'));
-                container.innerHTML += `<div class="flex justify-between items-center p-4 rounded-xl ${bg} ${isMe ? 'ring-2 ring-blue-400' : ''} ${isBankrupt ? 'opacity-60' : ''}"><div class="text-xl font-black flex items-center gap-2"><span>${rankText}</span><span class="text-lg ${isMe ? 'text-blue-700' : 'text-slate-700'} ${isBankrupt ? 'opacity-60' : ''}">${p.name}</span>${isBankrupt ? '<span class="text-[10px] bg-red-600 text-white px-2 py-1 rounded-full font-bold ml-1">破産</span>' : ''}</div><div class="text-3xl font-black font-mono tracking-tighter ${p.money < 0 ? 'text-red-600' : 'text-slate-800'}">${p.money}<span class="text-lg">Y</span></div></div>`;
+                container.innerHTML += `<div class="flex justify-between items-center p-4 rounded-xl ${bg} ${isMe ? 'ring-2 ring-blue-400' : ''} ${isBankrupt ? 'opacity-60' : ''}"><div class="text-xl font-black flex items-center gap-2"><span>${rankText}</span><span class="text-lg ${isMe ? 'text-blue-700' : 'text-slate-700'}">${p.name}</span>${isBankrupt ? '<span class="text-[10px] bg-red-600 text-white px-2 py-1 rounded-full font-bold ml-1">破産</span>' : ''}</div><div class="text-3xl font-black font-mono tracking-tighter ${p.money < 0 ? 'text-red-600' : 'text-slate-800'}">${p.money}<span class="text-lg">Y</span></div></div>`;
             });
 
             if (isOnlineMode) {
