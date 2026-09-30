@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>入札ゲーム</title>
+    <title>入札ゲーム ver.92</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -33,11 +33,36 @@
         .custom-scroll::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
         .custom-scroll::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 4px; }
         .custom-scroll::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
+
+        input[type=range].custom-color-slider {
+            -webkit-appearance: none;
+            appearance: none;
+            background: #e2e8f0;
+        }
+        input[type=range].custom-color-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: #ffffff;
+            border: 3px solid #3b82f6;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        }
+        input[type=range].custom-color-slider::-moz-range-thumb {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: #ffffff;
+            border: 3px solid #3b82f6;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        }
     </style>
 </head>
 <body class="text-gray-800 h-screen flex flex-col overflow-hidden">
 
-    <!-- ★ スタート時ウェルカムポップアップ -->
     <div id="welcome-modal" class="fixed inset-0 modal-bg flex justify-center items-center z-[100] p-4 slide-in">
         <div class="bg-white p-6 md:p-8 rounded-2xl shadow-2xl w-full max-w-lg relative border-t-8 border-blue-600 flex flex-col">
             <div class="text-center mb-6 shrink-0">
@@ -64,10 +89,9 @@
         </div>
     </div>
 
-    <!-- ヘッダー -->
     <header class="bg-slate-800 text-white p-3 shadow-md flex justify-between items-center z-[85] shrink-0">
         <div class="flex items-center gap-3">
-            <h1 class="text-xl font-bold">入札 ver.75 <span class="text-sm font-normal ml-2">第 <span id="turn-display" class="text-yellow-400 font-bold text-2xl">1</span> / <span id="total-turn-display">10</span> ターン</span></h1>
+            <h1 class="text-xl font-bold">入札 ver.92 <span class="text-sm font-normal ml-2">第 <span id="turn-display" class="text-yellow-400 font-bold text-2xl">1</span> / <span id="total-turn-display">10</span> ターン</span></h1>
             <button id="room-badge" class="hidden px-2 py-0.5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 rounded text-xs font-bold text-white shadow border border-indigo-500 transition-colors" onclick="if(myPlayerIndex === 0) document.getElementById('lobby-modal').classList.remove('hidden')">🏠 ルーム: <span id="current-room-id-display">---</span></button>
             <div id="ai-status" class="hidden px-2 py-1 bg-emerald-500 rounded text-xs font-bold shadow animate-pulse">🤖 データ学習済</div>
             
@@ -85,7 +109,7 @@
                     <span>❓</span> ヘルプ
                 </button>
                 <button id="auto-sim-btn" class="bg-slate-600 hover:bg-slate-700 active:scale-95 text-white font-bold py-1.5 px-3 rounded-lg shadow transition-colors flex items-center gap-1 text-sm border border-slate-500" onclick="openSimConfigModal()">
-                    <span>⚙️</span> CPU設定 / 自動収集
+                    <span>⚙️</span> CPU設定
                 </button>
             </div>
         </div>
@@ -95,8 +119,6 @@
     </header>
 
     <main class="flex-1 flex overflow-hidden">
-        
-        <!-- ★ 左側パネル -->
         <section class="w-2/3 p-3 flex flex-col gap-3 bg-gray-100 overflow-hidden">
             <div class="bg-white p-3 rounded-xl shadow border border-gray-200 shrink-0">
                 <h2 class="text-base font-bold border-b border-gray-300 mb-2 pb-1 flex items-center gap-2"><span>🏗️</span> 場の工事カード</h2>
@@ -131,7 +153,6 @@
             </div>
         </section>
 
-        <!-- ★ 右側パネル -->
         <section class="w-1/3 flex flex-col border-l border-gray-300 bg-slate-50 shadow-xl z-10 overflow-hidden">
             <div class="shrink-0 p-3 border-b border-slate-200 bg-slate-50" id="charts-buttons-area">
                 <div class="bg-white p-2 rounded-xl shadow-sm border border-slate-200">
@@ -153,7 +174,6 @@
                 </div>
             </div>
 
-            <!-- ★ アクションエリア -->
             <div class="flex-1 p-4 bg-white flex flex-col justify-center overflow-y-auto custom-scroll" id="action-area">
                 
                 <div id="start-game-container" class="hidden slide-in w-full text-center my-auto">
@@ -195,12 +215,12 @@
                     
                     <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 relative mt-2 shadow-sm">
                         <div class="flex justify-between text-[11px] sm:text-xs font-bold mb-3">
-                            <span class="text-blue-800 bg-blue-100 px-2 py-1 rounded shadow-sm">◀ 全て正社員</span>
-                            <span class="text-orange-800 bg-orange-100 px-2 py-1 rounded shadow-sm">全て発注 ▶</span>
+                            <span class="text-orange-800 bg-orange-100 px-2 py-1 rounded shadow-sm">◀ 全て発注</span>
+                            <span class="text-blue-800 bg-blue-100 px-2 py-1 rounded shadow-sm">全て正社員 ▶</span>
                         </div>
                         
                         <div class="w-full pt-2 pb-2">
-                            <input type="range" id="hire-slider" class="w-full h-3 bg-slate-300 rounded-lg cursor-pointer accent-indigo-600 shadow-inner" min="0" max="100" value="0">
+                            <input type="range" id="hire-slider" class="w-full h-4 rounded-lg cursor-pointer custom-color-slider shadow-inner" min="0" max="100" value="0">
                         </div>
                         
                         <div class="flex justify-between items-center mt-4 text-sm font-black gap-1">
@@ -221,7 +241,6 @@
         </section>
     </main>
 
-    <!-- ★ 収益結果ポップアップ -->
     <div id="turn-profit-modal" class="fixed inset-0 modal-bg hidden flex justify-center items-center z-[110] p-4">
         <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-sm text-center border-t-8 border-yellow-400 flex flex-col slide-in">
             <h2 id="tp-title" class="text-xl font-black text-slate-800 mb-4">第 <span id="tp-turn"></span> ターン 収益結果</h2>
@@ -230,7 +249,6 @@
         </div>
     </div>
 
-    <!-- ★ 設定モーダル -->
     <div id="game-settings-modal" class="fixed inset-0 modal-bg hidden flex justify-center items-center z-[90] p-4">
         <div class="bg-white p-6 md:p-8 rounded-2xl shadow-2xl w-full max-w-3xl slide-in relative border-t-8 border-fuchsia-600 flex flex-col max-h-[90vh]">
             <button onclick="document.getElementById('game-settings-modal').classList.add('hidden')" class="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 font-bold transition-colors z-10">✕</button>
@@ -241,7 +259,6 @@
             </div>
             
             <div class="flex-1 overflow-y-auto custom-scroll pr-2 space-y-6 text-slate-700 text-sm">
-                <!-- 初期設定 -->
                 <section>
                     <h3 class="text-lg font-bold text-fuchsia-700 border-b-2 border-fuchsia-200 pb-1 mb-3 flex items-center gap-2"><span>💰</span> 初期状態設定</h3>
                     <div class="grid grid-cols-2 gap-4">
@@ -258,9 +275,8 @@
                     </div>
                 </section>
 
-                <!-- 工事設定 -->
                 <section>
-                    <h3 class="text-lg font-bold text-fuchsia-700 border-b-2 border-fuchsia-200 pb-1 mb-3 flex items-center gap-2"><span>🏗️</span> 工事カード設定</h3>
+                    <h3 class="text-lg font-bold text-fuchsia-700 border-b-2 border-fuchsia-200 pb-1 mb-3 flex items-center gap-2"><span>🏗️️</span> 工事カード設定</h3>
                     <div class="space-y-4">
                         <div class="bg-red-50 p-3 rounded-lg border border-red-200">
                             <h4 class="font-bold text-red-700 mb-2">大工事</h4>
@@ -286,7 +302,6 @@
                     </div>
                 </section>
                 
-                <!-- 労働力設定 -->
                 <section>
                     <h3 class="text-lg font-bold text-fuchsia-700 border-b-2 border-fuchsia-200 pb-1 mb-3 flex items-center gap-2"><span>👷</span> 人数（コスト）設定</h3>
                     <div class="grid grid-cols-2 gap-4">
@@ -309,7 +324,6 @@
                     </div>
                 </section>
                 
-                <!-- 全体設定（ターン数） -->
                 <section>
                     <h3 class="text-lg font-bold text-fuchsia-700 border-b-2 border-fuchsia-200 pb-1 mb-3 flex items-center gap-2"><span>🔄</span> 全体設定</h3>
                     <div class="bg-slate-50 p-3 rounded-lg border border-slate-200">
@@ -328,7 +342,6 @@
         </div>
     </div>
 
-    <!-- ★ ヘルプモーダル -->
     <div id="help-modal" class="fixed inset-0 modal-bg hidden flex justify-center items-center z-[90] p-4">
         <div class="bg-white p-6 md:p-8 rounded-2xl shadow-2xl w-full max-w-3xl slide-in relative border-t-8 border-teal-500 flex flex-col max-h-[90vh]">
             <button onclick="document.getElementById('help-modal').classList.add('hidden')" class="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 font-bold transition-colors z-10">✕</button>
@@ -411,7 +424,6 @@
         </div>
     </div>
 
-    <!-- オンラインロビー モーダル -->
     <div id="lobby-modal" class="fixed inset-0 modal-bg hidden flex justify-center items-center z-[90] p-4">
         <div class="bg-white p-6 md:p-8 rounded-2xl shadow-2xl w-full max-w-md slide-in relative border-t-8 border-indigo-600">
             <button onclick="document.getElementById('lobby-modal').classList.add('hidden')" class="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 font-bold transition-colors">✕</button>
@@ -451,20 +463,18 @@
         </div>
     </div>
 
-    <!-- CPU設定モーダル -->
     <div id="sim-config-modal" class="fixed inset-0 modal-bg hidden flex justify-center items-center z-[90] p-4">
         <div class="bg-white p-6 md:p-8 rounded-2xl shadow-2xl w-full max-w-md slide-in relative border-t-8 border-slate-600">
             <button onclick="closeConfigModal()" class="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 font-bold transition-colors">✕</button>
             <div class="text-center mb-6">
-                <span class="text-4xl mb-2 block">⚙️</span>
+                <span class="text-4xl mb-2 block">⚙</span>
                 <h2 class="text-2xl font-black text-slate-800">CPU戦略設定</h2>
-                <p class="text-sm font-bold text-slate-500 mt-1">手初プレイ・自動収集でAIが使用する戦略</p>
+                <p class="text-sm font-bold text-slate-500 mt-1">AIが使用する戦略を設定します</p>
             </div>
             <div class="space-y-3 mb-6" id="cpu-strat-settings-container">
             </div>
             <div class="flex flex-col gap-3">
-                <button onclick="closeConfigModal()" class="w-full bg-slate-200 hover:bg-slate-300 active:scale-95 text-slate-800 font-bold py-3 rounded-xl shadow-sm transition-all flex justify-center items-center gap-2"><span>🎮</span> 設定を保存して手動プレイに戻る</button>
-                <button onclick="executeSimulationWithPassword()" class="w-full bg-slate-700 hover:bg-slate-800 active:scale-[0.98] text-white font-bold py-3 rounded-xl shadow-lg transition-all border-b-4 border-slate-900 flex justify-center items-center gap-2"><span>▶️</span> 50ゲーム自動収集を実行</button>
+                <button onclick="closeConfigModal()" class="w-full bg-slate-200 hover:bg-slate-300 active:scale-95 text-slate-800 font-bold py-3 rounded-xl shadow-sm transition-all flex justify-center items-center gap-2"><span>🎮</span> 設定を保存して閉じる</button>
             </div>
         </div>
     </div>
@@ -514,52 +524,6 @@
         </div>
     </div>
     
-    <div id="sim-result-modal" class="fixed inset-0 modal-bg hidden flex justify-center items-center z-50 p-4">
-        <div class="bg-white p-6 md:p-8 rounded-2xl shadow-2xl w-full max-w-5xl slide-in relative border-t-8 border-indigo-600">
-            <button onclick="document.getElementById('sim-result-modal').classList.add('hidden')" class="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 font-bold transition-colors">✕</button>
-            <div class="text-center mb-6">
-                <span class="text-4xl mb-2 block">📊</span>
-                <h2 class="text-2xl font-black text-slate-800">シミュレーション結果</h2>
-                <p class="text-sm font-bold text-slate-500 mt-1">50ゲーム自動対戦結果</p>
-            </div>
-            <div class="overflow-x-auto rounded-lg border border-slate-200 shadow-sm mb-6 custom-scroll">
-                <table class="w-full text-left text-sm min-w-[750px]">
-                    <thead class="bg-slate-100 text-slate-700">
-                        <tr>
-                            <th class="p-3 font-black border-b border-slate-200">AIプレイヤー＆戦略</th>
-                            <th class="p-3 font-black border-b border-slate-200 text-right">破産率 (回数)</th>
-                            <th class="p-3 font-black border-b border-slate-200 text-right">1位終了</th>
-                            <th class="p-3 font-black border-b border-slate-200 text-right">＋収益 (≧初期資金)</th>
-                            <th class="p-3 font-black border-b border-slate-200 text-right">最終平均Y</th>
-                            <th class="p-3 font-black border-b border-slate-200 text-right">最高Y</th>
-                        </tr>
-                    </thead>
-                    <tbody id="sim-result-tbody" class="divide-y divide-slate-100"></tbody>
-                </table>
-            </div>
-            <div class="flex gap-4">
-                <button onclick="openSimDetailsList()" class="w-1/2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold py-4 rounded-xl shadow-lg transition-all border-b-4 border-blue-800 flex justify-center items-center gap-2"><span>📋</span> 詳細データを見る</button>
-                <button onclick="document.getElementById('sim-result-modal').classList.add('hidden')" class="w-1/2 bg-slate-600 hover:bg-slate-700 active:scale-95 text-white font-bold py-4 rounded-xl shadow-lg transition-all border-b-4 border-slate-800 flex justify-center items-center gap-2">確認して閉じる</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="sim-details-list-modal" class="fixed inset-0 modal-bg hidden flex justify-center items-center z-50 p-4">
-        <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-4xl slide-in relative border-t-8 border-blue-600 flex flex-col max-h-[90vh]">
-            <button onclick="document.getElementById('sim-details-list-modal').classList.add('hidden')" class="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 font-bold transition-colors">✕</button>
-            <div class="text-center mb-4 shrink-0"><h2 class="text-2xl font-black text-slate-800">シミュレーション詳細データ</h2><p class="text-sm font-bold text-slate-500 mt-1">グラフを確認したいゲームを選択してください</p></div>
-            <div class="flex-1 overflow-y-auto custom-scroll p-2 grid grid-cols-5 sm:grid-cols-10 gap-2" id="sim-details-grid"></div>
-        </div>
-    </div>
-
-    <div id="sim-game-chart-modal" class="fixed inset-0 modal-bg hidden flex justify-center items-center z-50 p-4">
-        <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-4xl slide-in relative border-t-8 border-indigo-600 flex flex-col h-[75vh]">
-            <button onclick="document.getElementById('sim-game-chart-modal').classList.add('hidden')" class="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 font-bold transition-colors z-10">✕</button>
-            <div class="text-center mb-4 shrink-0"><h2 id="sim-game-chart-title" class="text-2xl font-black text-slate-800">Game X の推移</h2></div>
-            <div class="flex-1 relative w-full h-full min-h-[300px] bg-slate-50 border border-slate-200 rounded-xl p-4"><canvas id="sim-game-chart"></canvas></div>
-        </div>
-    </div>
-
     <div id="history-modal" class="fixed inset-0 modal-bg hidden flex justify-center items-center z-50 p-4">
         <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-5xl slide-in relative flex flex-col max-h-[90vh]">
             <button onclick="closeHistoryModal()" class="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 font-bold z-10">✕</button>
@@ -569,13 +533,6 @@
                 <div class="w-full md:w-1/2 bg-slate-50 rounded-xl border border-slate-200 p-4 relative flex flex-col"><h3 class="text-center font-bold text-slate-600 mb-2">所持チップ推移</h3><div class="flex-1 relative w-full h-full"><canvas id="history-chart"></canvas></div></div>
             </div>
             <div class="mt-4 pt-4 border-t border-slate-200"><button onclick="closeHistoryModal()" class="w-full bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold py-3 rounded-xl">閉じる</button></div>
-        </div>
-    </div>
-    
-    <div id="calc-modal" class="fixed inset-0 modal-bg hidden flex justify-center items-center z-50 p-4">
-        <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-sm slide-in relative border-t-4 border-indigo-500">
-            <button onclick="document.getElementById('calc-modal').classList.add('hidden')" class="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 font-bold z-10">✕</button>
-            <h3 class="text-xl font-black text-slate-800 mb-4 flex items-center gap-2"><span>🧮</span> 収益シミュレーション</h3><div id="calc-content" class="space-y-3 text-slate-700"></div><div class="mt-6 pt-4 border-t border-slate-200"><button onclick="document.getElementById('calc-modal').classList.add('hidden')" class="w-full bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold py-3 rounded-xl">閉じる</button></div>
         </div>
     </div>
     
@@ -594,6 +551,7 @@
         const supabaseClient = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 
         let pendingGameLogs = [];
+        let allHistoricalLogs = [];
 
         let isOnlineMode = false;
         let onlineRoomId = null;
@@ -624,9 +582,6 @@
         const players = [];
         let charts = {}; 
 
-        const CPU_LOOKAHEAD = 3, CPU_ROLLOUTS = 30, CPU_ACTION_LIMIT = 8, CPU_BR_ROUNDS = 2; 
-        const cpuActionMemo = new Map();
-
         let initialMoney = 300;
         let initialEmployees = 1;
 
@@ -638,9 +593,6 @@
         let winningResults = {}; 
         let isBiddingPhase = false; 
         let selectedBiddingProject = 'none';
-
-        window.simGamesHistory = [];
-        let simGameChartInstance = null;
 
         let projects = { 
             large: { name: '大工事', maxBid: 500, labor: 10, color: 'rgb(239, 68, 68)' }, 
@@ -891,7 +843,7 @@
                         <select id="strat-cpu-${i}" onchange="updateStrategies()" class="border border-slate-300 rounded p-1.5 text-sm font-bold text-slate-700 bg-white">
                             <option value="adaptive" ${aiStrategies[i]==='adaptive'?'selected':''}>自律適応型</option>
                             <option value="outsource" ${aiStrategies[i]==='outsource'?'selected':''}>完全外注特化</option>
-                            <option value="fulltime" ${aiStrategies[i]==='fulltime'?'selected':''}>完全正社員特化</option>
+                            <option value="fulltime" ${aiStrategies[i]==='fulltime'?'selected':''}>完全正社員</option>
                         </select>
                     </div>`;
             }
@@ -911,22 +863,32 @@
 
         async function loadHistoricalData() {
             const welcomeStartBtn = document.getElementById('welcome-start-btn');
-            const simBtn = document.getElementById('auto-sim-btn');
             if(welcomeStartBtn) { welcomeStartBtn.disabled = true; welcomeStartBtn.innerHTML = '🤖 過去データを学習中...'; welcomeStartBtn.classList.add('opacity-75', 'cursor-not-allowed'); }
-            if(simBtn) simBtn.disabled = true;
+            allHistoricalLogs = [];
             try {
                 if(!supabaseClient) throw new Error("Supabase is not initialized");
                 const { data, error } = await supabaseClient.from('game_logs').select('*');
                 if (error) throw error;
-                ['A', 'B'].forEach(eco => { ['large', 'medium', 'small'].forEach(proj => { marketStats[eco][proj] = { sum: 0, count: 0, avg: null }; playerStats[eco][proj] = { sum: 0, count: 0, avg: null }; }); });
+                
+                ['A', 'B'].forEach(eco => { 
+                    ['large', 'medium', 'small'].forEach(proj => { 
+                        marketStats[eco][proj] = { sum: 0, count: 0, avg: null }; 
+                        playerStats[eco][proj] = { sum: 0, count: 0, avg: null }; 
+                        goldenStats[eco][proj] = { sum: 0, count: 0, avg: null }; 
+                    }); 
+                });
+                
                 data.forEach(log => {
                     if (log.is_winner && log.bid_amount > 0) {
                         let reqLabor = projects[log.construction_mode].labor;
                         let minCost = Math.min(Math.ceil(reqLabor / log.fulltime_unit_labor) * log.fulltime_unit_cost, Math.ceil(reqLabor / log.temp_unit_labor) * log.temp_unit_cost);
                         if (log.bid_amount >= minCost) {
+                            allHistoricalLogs.push(log);
+                            
                             let mStat = marketStats[log.economy]?.[log.construction_mode];
                             if (mStat) { mStat.sum += log.bid_amount; mStat.count++; mStat.avg = Math.round(mStat.sum / mStat.count); }
                             if (log.player_id === 0) { let pStat = playerStats[log.economy]?.[log.construction_mode]; if (pStat) { pStat.sum += log.bid_amount; pStat.count++; pStat.avg = Math.round(pStat.sum / pStat.count); } }
+                            if (log.final_rank === 1) { let gStat = goldenStats[log.economy]?.[log.construction_mode]; if (gStat) { gStat.sum += log.bid_amount; gStat.count++; gStat.avg = Math.round(gStat.sum / gStat.count); } }
                         }
                     }
                 });
@@ -940,7 +902,6 @@
                     welcomeStartBtn.innerHTML = 'ゲームを始める'; 
                     welcomeStartBtn.classList.remove('opacity-75', 'cursor-not-allowed');
                 }
-                if(simBtn) simBtn.disabled = false;
             }
         }
 
@@ -950,16 +911,6 @@
                 const { error } = await supabaseClient.from('game_logs').insert(logPayload);
                 if (error) throw error;
             } catch (error) { console.error('Supabase詳細ログ保存エラー:', error.message); }
-        }
-        
-        async function saveGameResultsToSupabase(resultsPayload) {
-            try {
-                if(!supabaseClient) return;
-                const { error } = await supabaseClient.from('game_results').insert(resultsPayload);
-                if (error) throw error;
-            } catch (error) {
-                console.error('Supabase最終結果保存エラー:', error.message);
-            }
         }
 
         function initCharts() {
@@ -1218,8 +1169,6 @@
             await processBids();
         }
 
-        function cpuCloneState() { return { turn: currentTurn, economy: currentEconomy, isSim: false, players: players.map(p => ({ money: p.money, employees: p.employees, bankrupt: p.isDefaulter || p.money < 0 })) }; }
-        function cpuStateKey(s) { return `${s.turn}|${s.economy}|${s.players.map(p => `${Math.round(p.money)}:${p.employees}:${p.bankrupt ? 1 : 0}`).join('|')}`; }
         function cpuReq(project) { return projects[project].labor; }
         
         function cpuLabourCost(state, playerId, project) { 
@@ -1228,210 +1177,207 @@
             const shortageP = Math.max(0, reqP - currentP);
             const reqFull = Math.ceil(shortageP / laborConfig.fulltimeP);
             const reqTemp = Math.ceil(shortageP / laborConfig.tempP);
-            
             const fCost = state.economy === 'B' ? laborConfig.fulltimeCostB : laborConfig.fulltimeCostA;
             const tCost = state.economy === 'B' ? laborConfig.tempCostB : laborConfig.tempCostA;
-            
-            return { 
-                shortage: reqFull, 
-                full: reqFull * fCost, 
-                temp: reqTemp * tCost 
-            }; 
-        }
-        
-        function cpuCandidateActions(state, playerId) {
-            const key = `${cpuStateKey(state)}|${playerId}`; if (cpuActionMemo.has(key)) return cpuActionMemo.get(key);
-            if (state.players[playerId].bankrupt) return [{project:'none', amount:0}];
-            const out = new Map(); const add = (project, amount) => { if (project === 'none') { out.set('none:0',{project:'none',amount:0}); return; } const maxB = projects[project].maxBid; amount = Math.max(0, Math.min(maxB, Math.round(amount / 10) * 10)); out.set(`${project}:${amount}`, {project, amount}); };
-            add('none',0);
-            for (const k of ['large','medium','small']) {
-                const own = cpuLabourCost(state, playerId, k);
-                const maxB = projects[k].maxBid;
-                [0, maxB, Math.round(maxB*.4), Math.round(maxB*.6), own.full-10, own.full, own.full+10, own.temp-10, own.temp, own.temp+10].forEach(x => add(k,x));
-                for (let j=0;j<state.players.length;j++) { if (j===playerId || state.players[j].bankrupt) continue; const rival = cpuLabourCost(state,j,k); [rival.full-10,rival.full,rival.full+10, rival.temp-10,rival.temp,rival.temp+10].forEach(x => add(k,x)); }
-                const mAvg = marketStats[state.economy]?.[k]?.avg; if (mAvg) { add(k, Math.round(mAvg / 10) * 10); add(k, Math.round((mAvg - 10) / 10) * 10); }
-                const pAvg = playerStats[state.economy]?.[k]?.avg; if (pAvg) add(k, Math.round((pAvg - 10) / 10) * 10);
-            }
-            let actions = [...out.values()];
-            if (actions.length > CPU_ACTION_LIMIT) {
-                const scored = actions.filter(a => a.project !== 'none').map(a => { const c = cpuLabourCost(state,playerId,a.project); const maxB = projects[a.project].maxBid; return {a, score: (a.amount-Math.min(c.full,c.temp)) - 0.12*Math.abs(a.amount-maxB*.55)}; }).sort((a,b)=>b.score-a.score);
-                actions = [{project:'none',amount:0}, ...scored.slice(0,CPU_ACTION_LIMIT-1).map(x=>x.a)];
-            }
-            cpuActionMemo.set(key, actions); return actions;
+            return { shortage: reqFull, full: reqFull * fCost, temp: reqTemp * tCost }; 
         }
 
-        function cpuWinner(actionProfile, project, rng) {
-            const bids = actionProfile.map((a,i) => ({i, b:a.amount})).filter((x,i) => actionProfile[i].project === project);
-            if(!bids.length) return null; const min = Math.min(...bids.map(x=>x.b)); const tied = bids.filter(x=>x.b===min); return tied[Math.floor(rng()*tied.length)];
+        function predictEnemyActions(state, enemyId, logs) {
+            const enemy = state.players[enemyId];
+            let actionCounts = {};
+            
+            logs.forEach(log => {
+                if (log.profit <= 0 || !log.is_winner) return;
+                
+                let moneyDiff = log.money_before - enemy.money;
+                let empDiff = log.employees_before - enemy.employees;
+                let distance = Math.sqrt(moneyDiff * moneyDiff + (empDiff * 50) * (empDiff * 50)); 
+                
+                if (distance < 500) { 
+                    let key = `${log.construction_mode}:${log.bid_amount}`;
+                    actionCounts[key] = (actionCounts[key] || 0) + (500 - distance);
+                }
+            });
+
+            let sortedActions = Object.entries(actionCounts).sort((a, b) => b[1] - a[1]);
+            
+            if (sortedActions.length === 0) {
+                let fallbackProj = 'medium';
+                if (enemy.money >= 300) fallbackProj = 'large';
+                if (enemy.money < 150) fallbackProj = 'small';
+                return [
+                    { project: fallbackProj, amount: projects[fallbackProj].maxBid - 20, prob: 0.6 },
+                    { project: 'none', amount: 0, prob: 0.4 }
+                ];
+            }
+            
+            let top1 = sortedActions[0][0].split(':');
+            let act1 = { project: top1[0], amount: parseInt(top1[1]), prob: 0.6 };
+            
+            let act2 = act1; 
+            if (sortedActions.length > 1) {
+                let top2 = sortedActions[1][0].split(':');
+                act2 = { project: top2[0], amount: parseInt(top2[1]), prob: 0.4 };
+            } else {
+                act1.prob = 1.0; 
+                act2 = { project: 'none', amount: 0, prob: 0.0 };
+            }
+            
+            return [act1, act2];
         }
-        
+
+        function cpuDecideBid(state, playerId, rng) {
+            const p = state.players[playerId];
+            if (p.bankrupt) return { project: 'none', amount: 0 };
+            
+            const fCost = state.economy === 'B' ? laborConfig.fulltimeCostB : laborConfig.fulltimeCostA;
+            const fixedCost = p.employees * fCost;
+            const strategy = p.strat || aiStrategies[playerId];
+
+            let enemies = [];
+            for (let i = 0; i < state.players.length; i++) {
+                if (i !== playerId && !state.players[i].bankrupt) {
+                    enemies.push(predictEnemyActions(state, i, allHistoricalLogs));
+                }
+            }
+
+            let scenarios = [];
+            function generateScenarios(currentIndex, currentScenario, currentProb) {
+                if (currentIndex === enemies.length) {
+                    scenarios.push({ prob: currentProb, actions: [...currentScenario] });
+                    return;
+                }
+                const enemyActions = enemies[currentIndex];
+                enemyActions.forEach(act => {
+                    currentScenario.push(act);
+                    generateScenarios(currentIndex + 1, currentScenario, currentProb * act.prob);
+                    currentScenario.pop();
+                });
+            }
+            generateScenarios(0, [], 1.0);
+
+            let bestAction = { project: 'none', amount: 0 };
+            let maxExpectedValue = -99999; 
+            
+            ['large', 'medium', 'small'].forEach(projKey => {
+                const maxBid = projects[projKey].maxBid;
+                
+                const c = cpuLabourCost(state, playerId, projKey);
+                let additionalCost = 0;
+                if (strategy === 'outsource') {
+                    additionalCost = c.temp;
+                } else if (strategy === 'fulltime') {
+                    additionalCost = c.full;
+                } else {
+                    additionalCost = Math.min(c.full, c.temp); 
+                }
+                
+                let candidateAmounts = new Set([maxBid]);
+                scenarios.forEach(sc => {
+                    sc.actions.forEach(act => {
+                        if (act.project === projKey) {
+                            candidateAmounts.add(act.amount);
+                            if (act.amount >= 10) candidateAmounts.add(act.amount - 10);
+                            if (act.amount <= maxBid - 10) candidateAmounts.add(act.amount + 10);
+                        }
+                    });
+                });
+
+                candidateAmounts.forEach(myBid => {
+                    myBid = Math.max(0, Math.min(maxBid, Math.round(myBid / 10) * 10));
+
+                    let winProbability = 0;
+
+                    scenarios.forEach(sc => {
+                        let rivalsInSameProject = sc.actions.filter(act => act.project === projKey);
+                        
+                        if (rivalsInSameProject.length === 0) {
+                            winProbability += sc.prob;
+                        } else {
+                            let minRivalBid = Math.min(...rivalsInSameProject.map(a => a.amount));
+                            if (myBid < minRivalBid) {
+                                winProbability += sc.prob;
+                            } else if (myBid === minRivalBid) {
+                                let tieCount = rivalsInSameProject.filter(a => a.amount === minRivalBid).length;
+                                winProbability += sc.prob * (1 / (1 + tieCount));
+                            }
+                        }
+                    });
+
+                    let profitIfWin = myBid - additionalCost; 
+                    let expectedValue = profitIfWin * winProbability;
+                    
+                    let adjustedEV = expectedValue + (rng() * 0.1); 
+
+                    let totalCost = fixedCost + additionalCost;
+                    let netProfit = myBid - totalCost;
+                    if (netProfit < 0 && profitIfWin > 0) {
+                        if (p.money > fixedCost * 3) {
+                            adjustedEV -= 50; 
+                        } else {
+                            adjustedEV -= 10; 
+                        }
+                    }
+
+                    if (profitIfWin > 0 && adjustedEV > maxExpectedValue) {
+                        maxExpectedValue = adjustedEV;
+                        bestAction = { project: projKey, amount: myBid };
+                    }
+                });
+            });
+
+            if (maxExpectedValue <= 0) {
+                return { project: 'none', amount: 0 };
+            }
+
+            return bestAction;
+        }
+
         function cpuHiring(state, winnerId, project, remainingTurns, rng) {
             const p = state.players[winnerId];
-            const reqP = cpuReq(project);
+            const reqP = projects[project].labor;
             const currentP = p.employees * laborConfig.fulltimeP;
             const shortageP = Math.max(0, reqP - currentP);
-            if(shortageP === 0) return {f:0, t:0};
-
+            
+            if (shortageP === 0) return {f:0, t:0};
             const reqFull = Math.ceil(shortageP / laborConfig.fulltimeP);
             const reqTemp = Math.ceil(shortageP / laborConfig.tempP);
-
-            if(remainingTurns <= 2) return {f:0, t:reqTemp}; 
-            const strategy = aiStrategies[winnerId];
+            if (remainingTurns <= 2) return {f:0, t:reqTemp}; 
+            const strategy = p.strat || aiStrategies[winnerId];
             
             if (strategy === 'outsource') return {f:0, t:reqTemp};
             else if (strategy === 'fulltime') return {f:reqFull, t:0};
             else { 
-                let rivalEmployees = 0; let activeRivals = 0;
-                for(let i=0; i<4; i++) { 
-                    if(i !== winnerId && !state.players[i].bankrupt) {
-                        rivalEmployees += state.players[i].employees;
-                        activeRivals++;
-                    }
-                }
-                const avgRivalEmp = activeRivals > 0 ? rivalEmployees / activeRivals : 0;
-                
-                if (remainingTurns <= 3) return {f:0, t:reqTemp}; 
-                if (avgRivalEmp >= 2) return {f:0, t:reqTemp}; 
                 const fCost = state.economy === 'B' ? laborConfig.fulltimeCostB : laborConfig.fulltimeCostA;
-                const nextFixedCost = (p.employees + reqFull) * fCost;
-                if (p.money >= nextFixedCost * 3.5) return {f:reqFull, t:0}; 
-                return rng() < 0.3 ? {f:reqFull, t:0} : {f:0, t:reqTemp};
-            }
-        }
-
-        function cpuTurnAction(state, playerId, rng, forcedActions) {
-            const actions = cpuCandidateActions(state,playerId);
-            if(forcedActions && forcedActions[0] && playerId === 0 && !state.isSim) return forcedActions[0] || {project:'none',amount:0};
-            let best=null, bestScore=-Infinity;
-            const rollouts = CPU_ROLLOUTS;
-            for(const a of actions) {
-                const profile=state.players.map((_,i)=>{
-                    if(i===playerId) return a; let ba={project:'none',amount:0}, bv=-Infinity;
-                    for(const r of cpuCandidateActions(state,i)) { const c=cpuLabourCost(state,i,r.project==='none'?'small':r.project); const v=(r.project==='none'?0:r.amount-Math.min(c.full,c.temp)) + (state.players[i].money<100?-Math.abs(r.amount-c.temp)*0.15:0) + rng()*0.001; if(v>bv){bv=v;ba=r;} } return ba;
-                });
-                let score = 0; for(let r=0;r<rollouts;r++) score += cpuRollout(state,playerId,profile,CPU_LOOKAHEAD,rng);
-                if(score/rollouts > bestScore){bestScore=score/rollouts; best=a;}
-            } return best || {project:'none',amount:0};
-        }
-
-        function cpuTurnActionFast(state,playerId,rng) {
-            let best={project:'none',amount:0}, bestValue=-Infinity;
-            const p = state.players[playerId];
-            const fCost = state.economy === 'B' ? laborConfig.fulltimeCostB : laborConfig.fulltimeCostA;
-            const fixedCost = p.employees * fCost;
-            const strategy = (state.isSim || playerId !== 0) ? aiStrategies[playerId] : 'adaptive';
-
-            for(const a of cpuCandidateActions(state,playerId)) {
-                let value=0;
-                if(a.project!=='none') {
-                    const k = a.project;
-                    const c = cpuLabourCost(state,playerId,k);
-                    const currentMaxBid = projects[k].maxBid;
-                    
-                    let realAdditionalCost = 0;
-                    if (strategy === 'outsource') {
-                        realAdditionalCost = c.temp;
-                    } else if (strategy === 'fulltime') {
-                        realAdditionalCost = c.full;
-                    } else {
-                        const remainingTurns = totalTurns - state.turn + 1;
-                        let activeRivals = 0, rivalEmployees = 0;
-                        state.players.forEach((rp, j) => {
-                            if(j !== playerId && !rp.bankrupt) {
-                                activeRivals++;
-                                rivalEmployees += rp.employees;
-                            }
-                        });
-                        const avgRivalEmp = activeRivals > 0 ? rivalEmployees / activeRivals : 0;
-                        const nextFixedCost = (p.employees + c.shortage) * fCost;
-                        
-                        if (remainingTurns <= 3 || avgRivalEmp >= 2) {
-                            realAdditionalCost = c.temp;
-                        } else if (p.money >= nextFixedCost * 3.5) {
-                            realAdditionalCost = c.full;
-                        } else {
-                            realAdditionalCost = (c.full * 0.3) + (c.temp * 0.7);
-                        }
+                const tCost = state.economy === 'B' ? laborConfig.tempCostB : laborConfig.tempCostA;
+                let activeRivals = 0; let hasVulnerableRival = false;
+                for(let i=0; i<4; i++) {
+                    if (i !== winnerId && !state.players[i].bankrupt) {
+                        activeRivals++;
+                        const rivalFCost = state.players[i].employees * fCost;
+                        if (rivalFCost > 0 && state.players[i].money < rivalFCost * 2) hasVulnerableRival = true;
                     }
-
-                    const totalCost = fixedCost + realAdditionalCost;
-                    const profit = a.amount - totalCost;
-                    const marginalProfit = a.amount - realAdditionalCost;
-
-                    let targetProfit = Math.round(currentMaxBid * 0.15);
-
-                    if(marginalProfit <= 0) {
-                        value = -9999;
-                    } else {
-                        value = profit;
-                        if (strategy === 'adaptive') {
-                            if(profit >= targetProfit) { value += profit * 2.0; } 
-                            else if(marginalProfit > 0) { value += marginalProfit * 1.5; } 
-                            else { value -= 20; }
-                            
-                            let activeRivals = 0; let poorRivals = 0;
-                            state.players.forEach((rp, j) => {
-                                if (j !== playerId && !rp.bankrupt) {
-                                    activeRivals++;
-                                    if (rp.money < 100) poorRivals++;
-                                }
-                            });
-                            if (activeRivals <= 1 || poorRivals >= activeRivals - 0.1) {
-                                value += a.amount * 0.5; 
-                            }
-                        } else {
-                            if(profit >= targetProfit) { value += profit * 1.5; } 
-                            else if(marginalProfit > 0) { value += marginalProfit * 1.0; } 
-                            else { value -= 20; }
-                        }
-
-                        const winPressure = state.players.reduce((x,rp,j)=>(j!==playerId&&!rp.bankrupt)?x+Math.max(0,Math.min(1,(a.amount-(cpuLabourCost(state,j,k).temp-10))/(currentMaxBid*0.2))):x,0);
-                        let dataBias = 0; 
-                        
-                        const gAvg = goldenStats[state.economy]?.[k]?.avg;
-                        if (strategy === 'adaptive' && gAvg) {
-                            if (a.amount === Math.round(gAvg/10)*10) dataBias += 25; 
-                            if (a.amount === Math.round(gAvg/10)*10 + 10) dataBias += 10;
-                            if (a.amount < gAvg) dataBias -= (gAvg - a.amount) * 0.5; 
-                        } else {
-                            const mAvg = marketStats[state.economy]?.[k]?.avg; 
-                            if (mAvg) { 
-                                if (strategy === 'adaptive') {
-                                    if (a.amount > mAvg + 10) dataBias -= (a.amount - mAvg) * 0.1; 
-                                    if (a.amount === Math.round(mAvg/10)*10 || a.amount === Math.round(mAvg/10)*10 + 10) dataBias += 10; 
-                                } else {
-                                    if (a.amount > mAvg) dataBias -= (a.amount - mAvg) * 0.1; 
-                                    if (a.amount === Math.round(mAvg/10)*10) dataBias += 5; 
-                                }
-                            }
-                        }
-                        const pAvg = playerStats[state.economy]?.[k]?.avg; 
-                        if (pAvg && (playerId !== 0 || state.isSim)) { 
-                            if (a.amount === Math.round(pAvg/10)*10) dataBias += 5; 
-                        }
-                        if (strategy === 'adaptive') { value += 0.5 * winPressure + dataBias; } 
-                        else { value += 1 * winPressure + dataBias; }
-                    }
-                } else {
-                    value = -fixedCost;
-                    if (strategy === 'adaptive' && p.money < fixedCost * 2) { value += 15; }
                 }
-                value += rng()*3; 
-                if(value>bestValue){bestValue=value;best=a;}
-            } 
-            return best;
+                if (hasVulnerableRival) return {f:0, t:reqTemp};
+
+                const expectedWinRate = Math.min(0.8, 1.0 / Math.max(1, activeRivals) + 0.3);
+                const totalTempCost = reqTemp * tCost * (remainingTurns * expectedWinRate);
+                const totalFullCost = reqFull * fCost * remainingTurns;
+                const nextFixedCost = (p.employees + reqFull) * fCost;
+                if (totalFullCost <= totalTempCost && p.money >= nextFixedCost * 2.2) return {f:reqFull, t:0};
+                else return {f:0, t:reqTemp};
+            }
         }
 
         async function decideCPUBids() {
             showCalculatingModal('処理中...', '競合AIの思考、または他プレイヤーの入力を待機しています。');
             try {
                 await new Promise(resolve => setTimeout(resolve, 100));
-                const state = cpuCloneState(); const rng = Math.random; 
+                const state = { turn: currentTurn, economy: currentEconomy, players: players }; const rng = Math.random; 
                 for (let i = 0; i < 4; i++) {
                     if (players[i].isCPU && !players[i].isDefaulter) {
                         let action = { project: 'none', amount: 0 };
-                        try { action = cpuTurnActionFast(state, i, rng) || action; } catch (fastError) { console.error(`CPU${i} 高速入札計算エラー:`, fastError); }
-                        try { const advanced = cpuTurnAction(state, i, rng, [bidInputs[0], action]); if (advanced && advanced.project !== undefined && Number.isFinite(Number(advanced.amount))) { action = advanced; } } catch (advancedError) { console.warn(`CPU${i} 高度計算をスキップ:`, advancedError); }
+                        try { action = cpuDecideBid(state, i, rng) || action; } catch (e) { console.error(`CPU${i} 高速入札計算エラー:`, e); }
                         if (!action || !['none', 'large', 'medium', 'small'].includes(action.project)) { action = { project: 'none', amount: 0 }; }
                         if (action.project !== 'none') {
                             const currentMaxBid = projects[action.project].maxBid;
@@ -1444,262 +1390,6 @@
             } finally { hideCalculatingModal(); }
         }
 
-        function executeSimulationWithPassword() {
-            const pass = prompt("管理者パスワードを入力してください:");
-            if (pass !== "2409") { alert("パスワードが異なります。実行をキャンセルしました。"); return; }
-            updateStrategies();
-            document.getElementById('sim-config-modal').classList.add('hidden');
-            runAutoSimulation(50);
-        }
-
-        async function runAutoSimulation(numGames = 50) {
-            const btn = document.getElementById('auto-sim-btn');
-            if (btn) { btn.disabled = true; btn.innerHTML = '<span>⏳</span> バックグラウンドで実行中...'; }
-
-            let allDetailedLogs = []; 
-            let allGameResults = [];
-            const rng = Math.random;
-            let bankruptcyCounts = { 0: 0, 1: 0, 2: 0, 3: 0 }; let winCounts = { 0: 0, 1: 0, 2: 0, 3: 0 }; let plusCounts = { 0: 0, 1: 0, 2: 0, 3: 0 };
-            let moneySums = { 0: 0, 1: 0, 2: 0, 3: 0 }; let moneyMaxes = { 0: -Infinity, 1: -Infinity, 2: -Infinity, 3: -Infinity };
-            window.simGamesHistory = []; 
-
-            for (let g = 0; g < numGames; g++) {
-                if (btn) { btn.innerHTML = `<span>⏳</span> 自動収集 ${g + 1} / ${numGames} 実行中...`; }
-                await new Promise(r => setTimeout(r, 10));
-
-                let simGameId = Math.random().toString(36).substring(2, 10);
-                let simState = { turn: 1, economy: '', isSim: true, players: Array.from({length: 4}, () => ({ money: initialMoney, employees: initialEmployees, temps: 0, bankrupt: false })) };
-                let gameHistory = { 0: [{ turn: 0, money: initialMoney, emp: initialEmployees }], 1: [{ turn: 0, money: initialMoney, emp: initialEmployees }], 2: [{ turn: 0, money: initialMoney, emp: initialEmployees }], 3: [{ turn: 0, money: initialMoney, emp: initialEmployees }], economy: ['-'] };
-                let currentGameDetailedLogs = []; 
-
-                for (let t = 1; t <= totalTurns; t++) {
-                    simState.turn = t; simState.economy = rng() < 0.5 ? 'A' : 'B'; gameHistory.economy.push(simState.economy); 
-                    if (simState.players.every(p => p.bankrupt)) { for (let i = 0; i < 4; i++) { gameHistory[i].push({ turn: t, money: simState.players[i].money, emp: simState.players[i].employees }); } break; }
-                    let profile = simState.players.map((_, i) => cpuTurnActionFast(simState, i, rng));
-                    for(let round=0; round<CPU_BR_ROUNDS; round++) { for(let i=0; i<4; i++) { if (!simState.players[i].bankrupt) profile[i] = cpuTurnAction(simState, i, rng, profile); else profile[i] = {project: 'none', amount: 0}; } }
-                    
-                    let projBids = { large: [], medium: [], small: [] };
-                    for (let i = 0; i < 4; i++) { if (profile[i].project !== 'none') projBids[profile[i].project].push({ playerId: i, amount: profile[i].amount }); }
-                    
-                    let winners = {};
-                    let tieCounts = {};
-                    for (const pKey of ['large', 'medium', 'small']) {
-                        const bids = projBids[pKey];
-                        if (bids.length > 0) {
-                            const minBid = Math.min(...bids.map(b => b.amount)); 
-                            const minBidders = bids.filter(b => b.amount === minBid);
-                            const winnerId = minBidders[Math.floor(rng() * minBidders.length)].playerId;
-                            winners[pKey] = { winnerId, amount: minBid }; 
-                            minBidders.forEach(b => { tieCounts[b.playerId] = minBidders.length; });
-                        }
-                    }
-
-                    for (let i = 0; i < 4; i++) {
-                        const p = simState.players[i]; 
-                        let moneyBefore = p.money;
-                        let empBefore = p.employees;
-                        let tempBefore = p.temps;
-                        let bidObj = profile[i];
-                        let wProj = null; 
-                        let isWinner = false;
-                        for (const k of ['large','medium','small']) { if (winners[k] && winners[k].winnerId === i) { wProj = k; isWinner = true; } }
-
-                        let revenue = isWinner ? winners[wProj].amount : 0;
-                        let hireAction = { f: 0, t: 0 };
-                        if (isWinner) {
-                            hireAction = cpuHiring(simState, i, wProj, totalTurns - t + 1, rng);
-                            p.employees += hireAction.f; 
-                            p.temps += hireAction.t;
-                        }
-
-                        let fCost = simState.economy === 'B' ? laborConfig.fulltimeCostB : laborConfig.fulltimeCostA;
-                        let tCost = simState.economy === 'B' ? laborConfig.tempCostB : laborConfig.tempCostA;
-                        let laborCost = (p.employees * fCost) + (p.temps * tCost);
-
-                        let profit = revenue - laborCost;
-                        p.money += revenue - laborCost; 
-                        p.temps = 0; 
-                        if (p.money < 0) p.bankrupt = true;
-
-                        let myBidProject = bidObj.project !== 'none' ? bidObj.project : null;
-                        let currentWinnerId = null;
-                        let currentWinningBid = null;
-
-                        if (myBidProject && winners[myBidProject]) {
-                            currentWinnerId = winners[myBidProject].winnerId;
-                            currentWinningBid = winners[myBidProject].amount;
-                        }
-
-                        let detailedLog = {
-                            game_id: simGameId,
-                            room_id: null,
-                            mode: 'simulation',
-                            player_id: i,
-                            
-                            turn: simState.turn,
-                            economy: simState.economy,
-                            project_type: myBidProject,
-                            winner_id: currentWinnerId,
-                            winning_bid: currentWinningBid,
-                            
-                            player_name: i === 0 ? 'あなた (代行AI)' : `競合 CPU ${i}`,
-                            is_cpu: true,
-                            strategy: aiStrategies[i],
-                            bid_amount: bidObj.project !== 'none' ? bidObj.amount : 0,
-                            is_winner: isWinner,
-                            tie_count: tieCounts[i] || 1,
-                            required_labor: bidObj.project !== 'none' ? projects[bidObj.project].labor : 0,
-                            bid_limit: bidObj.project !== 'none' ? projects[bidObj.project].maxBid : 0,
-                            employees_before: empBefore,
-                            temps_before: tempBefore,
-                            hire_fulltime: hireAction.f,
-                            hire_temp: hireAction.t,
-                            construction_mode: bidObj.project,
-                            money_before: moneyBefore,
-                            revenue: revenue,
-                            labor_cost: laborCost,
-                            profit: profit,
-                            money_after: p.money,
-                            employees_after: p.employees,
-                            bankrupt_after: p.bankrupt,
-                            fulltime_unit_cost: fCost,
-                            temp_unit_cost: tCost,
-                            fulltime_unit_labor: laborConfig.fulltimeP,
-                            temp_unit_labor: laborConfig.tempP
-                        };
-                        currentGameDetailedLogs.push(detailedLog);
-                    }
-                    for (let i = 0; i < 4; i++) { gameHistory[i].push({ turn: t, money: simState.players[i].money, emp: simState.players[i].employees }); }
-                }
-                window.simGamesHistory.push(gameHistory);
-
-                let currentMax = -Infinity;
-                let topPlayer = -1;
-                for (let i = 0; i < 4; i++) { 
-                    if (simState.players[i].money > currentMax) { 
-                        currentMax = simState.players[i].money; 
-                        topPlayer = i;
-                    } 
-                }
-                
-                if (currentMax >= initialMoney && topPlayer !== -1) {
-                    currentGameDetailedLogs.forEach(log => {
-                        if (log.player_id === topPlayer && log.is_winner) {
-                            let gStat = goldenStats[simState.economy][log.construction_mode];
-                            gStat.sum += log.bid_amount;
-                            gStat.count++;
-                            gStat.avg = Math.round(gStat.sum / gStat.count);
-                        }
-                    });
-                }
-
-                let simSorted = [...simState.players].map((p, idx) => ({...p, id: idx})).sort((a, b) => b.money - a.money);
-                let rankMap = {};
-                simSorted.forEach((p, index) => { rankMap[p.id] = index + 1; });
-
-                currentGameDetailedLogs.forEach(log => {
-                    log.final_rank = rankMap[log.player_id];
-                });
-                
-                allDetailedLogs.push(...currentGameDetailedLogs);
-
-                let gameResultsBatch = simSorted.map((p, index) => ({
-                    game_id: simGameId,
-                    mode: 'simulation',
-                    player_id: p.id,
-                    player_name: p.id === 0 ? 'あなた (代行AI)' : `競合 CPU ${p.id}`,
-                    is_cpu: true,
-                    strategy: aiStrategies[p.id],
-                    final_money: p.money,
-                    rank: index + 1,
-                    is_bankrupt: p.bankrupt
-                }));
-                allGameResults.push(...gameResultsBatch);
-
-                for (let i = 0; i < 4; i++) {
-                    if (simState.players[i].bankrupt) bankruptcyCounts[i]++;
-                    if (simState.players[i].money === currentMax) winCounts[i]++;
-                    moneySums[i] += simState.players[i].money;
-                    if (simState.players[i].money > moneyMaxes[i]) moneyMaxes[i] = simState.players[i].money;
-                    if (simState.players[i].money >= initialMoney) plusCounts[i]++;
-                }
-            }
-            if (supabaseClient && allDetailedLogs.length > 0) {
-                if(btn) btn.innerHTML = `<span>📤</span> ${allDetailedLogs.length}件送信中...`;
-                try { for (let i = 0; i < allDetailedLogs.length; i += 500) await supabaseClient.from('game_logs').insert(allDetailedLogs.slice(i, i + 500)); } catch (e) { console.error("詳細ログバルクインサートエラー:", e); }
-            }
-            if (supabaseClient && allGameResults.length > 0) {
-                try { for (let i = 0; i < allGameResults.length; i += 200) await supabaseClient.from('game_results').insert(allGameResults.slice(i, i + 200)); } catch (e) { console.error("最終結果バルクインサートエラー:", e); }
-            }
-            
-            if(btn) btn.innerHTML = '<span>🔄</span> 学習データ更新中...';
-            await loadHistoricalData();
-            
-            const tbody = document.getElementById('sim-result-tbody'); tbody.innerHTML = '';
-            for (let i = 0; i < 4; i++) {
-                let bankruptcyRate = (bankruptcyCounts[i] / numGames) * 100; let avgMoney = Math.round(moneySums[i] / numGames);
-                let maxMoney = moneyMaxes[i] === -Infinity ? 0 : moneyMaxes[i]; let winCount = winCounts[i]; let plusCount = plusCounts[i];
-                let rowColor = bankruptcyRate < 25 ? 'bg-emerald-50 text-emerald-900' : (bankruptcyRate > 50 ? 'bg-rose-50 text-rose-900' : 'bg-white');
-                let numColor = bankruptcyRate < 25 ? 'text-emerald-600' : (bankruptcyRate > 50 ? 'text-rose-600' : 'text-slate-800');
-                let stratLabel = strategyLabels[aiStrategies[i]];
-                tbody.innerHTML += `
-                    <tr class="${rowColor}">
-                        <td class="p-3 font-bold border-b border-slate-100 flex flex-col"><span class="text-xs text-slate-500 mb-0.5">${i === 0 ? 'あなた (代行AI)' : '競合 CPU ' + i}</span><span>${stratLabel}</span></td>
-                        <td class="p-3 font-black text-right border-b border-slate-100 text-lg ${numColor}">${bankruptcyRate.toFixed(1)}% <span class="text-xs font-normal text-slate-500">(${bankruptcyCounts[i]}回)</span></td>
-                        <td class="p-3 font-black text-right border-b border-slate-100 text-lg text-amber-600">${winCount}回</td>
-                        <td class="p-3 font-black text-right border-b border-slate-100 text-lg text-emerald-600">${plusCount}回</td>
-                        <td class="p-3 font-black text-right border-b border-slate-100 text-lg text-slate-700">${avgMoney}Y</td>
-                        <td class="p-3 font-black text-right border-b border-slate-100 text-lg text-blue-600">${maxMoney}Y</td>
-                    </tr>`;
-            }
-            document.getElementById('sim-result-modal').classList.remove('hidden');
-            if(btn) {
-                btn.innerHTML = '<span>✅</span> 完了';
-                setTimeout(() => { btn.disabled = false; btn.innerHTML = '<span>⚙️</span> CPU設定 / 自動収集'; }, 3000);
-            }
-        }
-
-        window.openSimDetailsList = function() {
-            const grid = document.getElementById('sim-details-grid'); grid.innerHTML = '';
-            window.simGamesHistory.forEach((history, idx) => {
-                const btn = document.createElement('button');
-                btn.className = 'bg-slate-50 hover:bg-indigo-100 active:scale-95 text-slate-700 font-bold py-3 rounded-lg shadow-sm border border-slate-200 transition-all text-xs';
-                btn.textContent = `Game ${idx + 1}`; btn.onclick = () => openSimGameChart(idx); grid.appendChild(btn);
-            });
-            document.getElementById('sim-details-list-modal').classList.remove('hidden');
-        };
-
-        window.openSimGameChart = function(gameIdx) {
-            const history = window.simGamesHistory[gameIdx]; const modal = document.getElementById('sim-game-chart-modal');
-            document.getElementById('sim-game-chart-title').textContent = `Game ${gameIdx + 1} 所持Y推移`;
-            const labels = Array.from({length: history.economy.length}, (_, i) => { if (i === 0) return 'Turn 0'; return `Turn ${i} (${history.economy[i] === 'A' ? '好' : '不'})`; });
-            const datasets = []; const colors = ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b'];
-            for (let i = 0; i < 4; i++) {
-                datasets.push({ label: players[i].name, data: history[i].map(h => ({ x: h.turn, y: h.money, emp: h.emp })), borderColor: colors[i], backgroundColor: colors[i], tension: 0.1, pointRadius: 4, pointHoverRadius: 7 });
-            }
-            datasets.push({ label: `初期Y (${initialMoney})`, data: Array.from({length: history.economy.length}, (_, i) => ({ x: i, y: initialMoney, emp: '-' })), borderColor: '#ef4444', borderWidth: 2, borderDash: [5, 5], pointRadius: 0, pointHoverRadius: 0, fill: false, order: 10 });
-            const ctx = document.getElementById('sim-game-chart').getContext('2d');
-            if (simGameChartInstance) { simGameChartInstance.destroy(); }
-            const economyBackgroundPlugin = {
-                id: 'economyBackground',
-                beforeDraw: (chart) => {
-                    const ctx = chart.ctx; const xAxis = chart.scales.x; const yAxis = chart.scales.y; ctx.save();
-                    for (let i = 1; i < history.economy.length; i++) {
-                        const eco = history.economy[i]; if (eco !== 'A' && eco !== 'B') continue;
-                        const left = Math.max(xAxis.left, xAxis.getPixelForValue(i - 0.5)); const right = Math.min(xAxis.right, xAxis.getPixelForValue(i + 0.5));
-                        ctx.fillStyle = eco === 'A' ? 'rgba(252, 165, 165, 0.2)' : 'rgba(147, 197, 253, 0.2)'; ctx.fillRect(left, yAxis.top, right - left, yAxis.bottom - yAxis.top);
-                        ctx.fillStyle = eco === 'A' ? 'rgba(220, 38, 38, 0.5)' : 'rgba(37, 99, 235, 0.5)'; ctx.font = 'bold 12px sans-serif'; ctx.textAlign = 'center'; ctx.fillText(eco === 'A' ? '好' : '不', (left + right) / 2, yAxis.top + 20);
-                    } ctx.restore();
-                }
-            };
-            simGameChartInstance = new Chart(ctx, {
-                type: 'line', data: { labels: labels, datasets: datasets }, plugins: [economyBackgroundPlugin],
-                options: { responsive: true, maintainAspectRatio: false, parsing: { xAxisKey: 'x', yAxisKey: 'y' }, plugins: { legend: { labels: { filter: function(item, chart) { return !item.text.includes('初期Y'); } } }, tooltip: { callbacks: { label: function(context) { if (context.dataset.label.includes('初期Y')) return null; return `${context.dataset.label}: ${context.raw.y}Y (正社員: ${context.raw.emp}人)`; } } } }, scales: { x: { title: { display: true, text: 'ターン (景気)', font: { weight: 'bold' } } }, y: { title: { display: true, text: '所持Y', font: { weight: 'bold' } } } } }
-            });
-            modal.classList.remove('hidden');
-        };
-
-        // ★ ホスト側の同期管理関数群
         async function handleResultConfirmed(playerIndex) {
             resultConfirmations[playerIndex] = true;
             let allReady = true;
@@ -1877,6 +1567,7 @@
                     slider.value = 0;
                     slider.min = 0;
                     slider.max = 0;
+                    slider.style.background = '#e2e8f0';
                     valFull.innerHTML = `👨‍💼 正社員: 0`;
                     valTemp.innerHTML = `👷 発注: 0`;
                     profitDisplay.textContent = `${p.amount - (players[myPlayerIndex].employees * fCost)}Y`;
@@ -1889,14 +1580,17 @@
 
                     const updateSlider = () => {
                         const v = parseInt(slider.value);
-                        const tAdd = Math.ceil(v / laborConfig.tempP);
-                        const fAdd = Math.ceil((shortageLabor - v) / laborConfig.fulltimeP);
+                        const fAdd = Math.ceil(v / laborConfig.fulltimeP);
+                        const tAdd = Math.ceil((shortageLabor - v) / laborConfig.tempP);
                         
                         valFull.innerHTML = `👨‍💼 正社員: <span class="text-lg">${fAdd}</span>`;
                         valTemp.innerHTML = `👷 発注: <span class="text-lg">${tAdd}</span>`;
                         
                         const estProfit = p.amount - ((players[myPlayerIndex].employees + fAdd) * fCost) - (tAdd * tCost);
                         profitDisplay.textContent = `${estProfit}Y`;
+                        
+                        const percentage = shortageLabor === 0 ? 0 : (v / shortageLabor) * 100;
+                        slider.style.background = `linear-gradient(to right, #f97316 ${100 - percentage}%, #3b82f6 ${100 - percentage}%)`;
                         
                         btn.disabled = false;
                     };
@@ -1909,8 +1603,8 @@
                     const handler = () => { 
                         if (shortageLabor > 0) {
                             const v = parseInt(slider.value);
-                            myHire.f = Math.ceil((shortageLabor - v) / laborConfig.fulltimeP);
-                            myHire.t = Math.ceil(v / laborConfig.tempP);
+                            myHire.f = Math.ceil(v / laborConfig.fulltimeP);
+                            myHire.t = Math.ceil((shortageLabor - v) / laborConfig.tempP);
                         } else {
                             myHire.f = 0;
                             myHire.t = 0;
@@ -1949,7 +1643,14 @@
         async function processRewardsAndPayments() {
             let tieCounts = {};
             const projBids = { large: [], medium: [], small: [] };
-            for (let i = 0; i < 4; i++) { const b = bidInputs[i]; if (b && b.project !== 'none') projBids[b.project].push({ playerId: i, amount: b.amount }); }
+            
+            for (let i = 0; i < 4; i++) { 
+                const b = bidInputs[i]; 
+                if (b && b.project !== 'none') {
+                    projBids[b.project].push({ playerId: i, amount: b.amount }); 
+                }
+            }
+
             for (const pKey of ['large', 'medium', 'small']) {
                 const bids = projBids[pKey];
                 if (bids.length > 0) {
@@ -2037,7 +1738,8 @@
                     fulltime_unit_cost: fCost,
                     temp_unit_cost: tCost,
                     fulltime_unit_labor: laborConfig.fulltimeP,
-                    temp_unit_labor: laborConfig.tempP
+                    temp_unit_labor: laborConfig.tempP,
+                    final_rank: null // endGameで確定して上書きします
                 };
                 pendingGameLogs.push(detailedLog);
             }
@@ -2113,37 +1815,37 @@
         function endGame() {
             const modal = document.getElementById('ranking-modal'), container = document.getElementById('ranking-container');
             const rankingButtonsContainer = document.getElementById('ranking-buttons');
-            const sorted = [...players].sort((a, b) => b.money - a.money); 
-            container.innerHTML = '';
             
-            if (!isOnlineMode || myPlayerIndex === 0) {
-                const rankMap = {};
-                sorted.forEach((p, index) => { rankMap[p.id] = index + 1; });
+            // シミュレーション側と同様の破産優先・所持金順位ソートロジック
+            const sortedRank = [...players].map(p => ({
+                id: p.id,
+                money: p.money,
+                bankrupt: p.isDefaulter || p.money < 0
+            })).sort((a, b) => {
+                if (a.bankrupt !== b.bankrupt) return a.bankrupt ? 1 : -1;
+                return b.money - a.money;
+            });
 
+            const rankMap = {};
+            sortedRank.forEach((item, index) => {
+                rankMap[item.id] = index + 1;
+            });
+
+            if (!isOnlineMode || myPlayerIndex === 0) {
                 const finalLogsToSave = pendingGameLogs.map(log => ({
                     ...log,
-                    final_rank: rankMap[log.player_id]
-                }));
-
-                const finalResults = sorted.map((p, index) => ({
-                    game_id: currentGameId,
-                    mode: isOnlineMode ? 'online' : 'single',
-                    player_id: p.id,
-                    player_name: p.name,
-                    is_cpu: p.isCPU,
-                    strategy: aiStrategies[p.id],
-                    final_money: p.money,
-                    rank: index + 1,
-                    is_bankrupt: p.money < 0
+                    final_rank: rankMap[log.player_id] // 必ず1〜4の数値として設定
                 }));
 
                 if (finalLogsToSave.length > 0) saveDetailedLogToSupabase(finalLogsToSave);
-                if (finalResults.length > 0) saveGameResultsToSupabase(finalResults);
             }
+
+            const sorted = [...players].sort((a, b) => b.money - a.money); 
+            container.innerHTML = '';
 
             sorted.forEach((p, index) => {
                 const isMe = p.id === myPlayerIndex, isBankrupt = p.money < 0; const bg = index === 0 ? 'bg-gradient-to-r from-yellow-100 to-amber-50 border-2 border-yellow-300 shadow-md scale-105 z-10' : 'bg-slate-50 border border-slate-200'; const rankText = index === 0 ? '🏆 1位' : (index === 1 ? '🥈 2位' : (index === 2 ? '🥉 3位' : '4位'));
-                container.innerHTML += `<div class="flex justify-between items-center p-4 rounded-xl ${bg} ${isMe ? 'ring-2 ring-blue-400' : ''} ${isBankrupt ? 'opacity-60' : ''}"><div class="text-xl font-black flex items-center gap-2"><span>${rankText}</span><span class="text-lg ${isMe ? 'text-blue-700' : 'text-slate-700'}">${p.name}</span>${isBankrupt ? '<span class="text-[10px] bg-red-600 text-white px-2 py-1 rounded-full font-bold ml-1">破産</span>' : ''}</div><div class="text-3xl font-black font-mono tracking-tighter ${p.money < 0 ? 'text-red-600' : 'text-slate-800'}">${p.money}<span class="text-lg">Y</span></div></div>`;
+                container.innerHTML += `<div class="flex justify-between items-center p-4 rounded-xl ${bg} ${isMe ? 'ring-2 ring-blue-400' : ''} ${isBankrupt ? 'opacity-60' : ''}"><div class="text-xl font-black flex items-center gap-2"><span>${rankText}</span><span class="text-lg ${isMe ? 'text-blue-700' : 'text-slate-700'} ${isBankrupt ? 'opacity-60' : ''}">${p.name}</span>${isBankrupt ? '<span class="text-[10px] bg-red-600 text-white px-2 py-1 rounded-full font-bold ml-1">破産</span>' : ''}</div><div class="text-3xl font-black font-mono tracking-tighter ${p.money < 0 ? 'text-red-600' : 'text-slate-800'}">${p.money}<span class="text-lg">Y</span></div></div>`;
             });
 
             if (isOnlineMode) {
@@ -2406,7 +2108,7 @@
                         projects = payload.payload.projects;
                         laborConfig = payload.payload.laborConfig;
                         if(payload.payload.initialMoney !== undefined) initialMoney = payload.payload.initialMoney;
-                        if(payload.payload.initialEmployees !== undefined) initialEmployees = payload.payload.initialEmployees;
+                        if(payload.payload.initialEmployees !== undefined) initialEmployees = payload.payload.settings.initialEmployees;
                         
                         if(payload.payload.totalTurns) {
                             totalTurns = payload.payload.totalTurns;
@@ -2542,8 +2244,7 @@
                 for (let i = 0; i < 4; i++) {
                     if (players[i].isCPU && !players[i].isDefaulter) {
                         let action = { project: 'none', amount: 0 };
-                        try { action = cpuTurnActionFast(state, i, Math.random) || action; } catch (e) { }
-                        try { const advanced = cpuTurnAction(state, i, Math.random, [bidInputs[0], action]); if (advanced && advanced.project !== undefined && Number.isFinite(Number(advanced.amount))) { action = advanced; } } catch (e) { }
+                        try { action = cpuDecideBid(state, i, Math.random) || action; } catch (e) { }
                         if (!action || !['none', 'large', 'medium', 'small'].includes(action.project)) { action = { project: 'none', amount: 0 }; }
                         if (action.project !== 'none') {
                             const currentMaxBid = projects[action.project].maxBid;
