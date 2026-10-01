@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>入札ゲーム ver.109</title>
+    <title>入札ゲーム ver.110</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -59,6 +59,39 @@
             cursor: pointer;
             box-shadow: 0 2px 5px rgba(0,0,0,0.3);
         }
+
+        /* 景気確率設定スライダー用カスタムスタイル */
+        input[type=range].economy-slider {
+            -webkit-appearance: none;
+            appearance: none;
+            height: 12px;
+            border-radius: 6px;
+            outline: none;
+        }
+        input[type=range].economy-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: #ffffff;
+            border: 3px solid #475569;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+            transition: transform 0.1s;
+        }
+        input[type=range].economy-slider::-webkit-slider-thumb:hover {
+            transform: scale(1.1);
+        }
+        input[type=range].economy-slider::-moz-range-thumb {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: #ffffff;
+            border: 3px solid #475569;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+        }
     </style>
 </head>
 <body class="text-gray-800 h-screen flex flex-col overflow-hidden">
@@ -74,7 +107,7 @@
                 <div class="bg-blue-50 p-4 rounded-xl border border-blue-100 shadow-sm">
                     <h3 class="font-black text-blue-800 mb-2 border-b border-blue-200 pb-1">📌 基本ルール</h3>
                     <ul class="list-disc list-inside space-y-2 font-medium">
-                        <li>他社よりも<strong>安い価格</strong>で入札すると工事を落札できます。（入札参加費がかかります）</li>
+                        <li>他社よりも<strong>安い価格</strong> for 入札すると工事を落札できます。（入札参加費がかかります）</li>
                         <li>しかし、利益を出すためには<strong>できるだけ高い価格</strong>で落札する必要があります。</li>
                         <li>落札後は、工事に必要な人数を「正社員」か「発注（外注）」で確保します。</li>
                         <li>全ターン終了時、最も多くの資金を持っていた企業が勝利です！</li>
@@ -91,7 +124,7 @@
 
     <header class="bg-slate-800 text-white p-3 shadow-md flex justify-between items-center z-[85] shrink-0">
         <div class="flex items-center gap-3">
-            <h1 class="text-xl font-bold">入札 ver.109 <span class="text-sm font-normal ml-2">第 <span id="turn-display" class="text-yellow-400 font-bold text-2xl">1</span> / <span id="total-turn-display">10</span> ターン</span></h1>
+            <h1 class="text-xl font-bold">入札 ver.110 <span class="text-sm font-normal ml-2">第 <span id="turn-display" class="text-yellow-400 font-bold text-2xl">1</span> / <span id="total-turn-display">10</span> ターン</span></h1>
             <button id="room-badge" class="hidden px-2 py-0.5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 rounded text-xs font-bold text-white shadow border border-indigo-500 transition-colors" onclick="if(myPlayerIndex === 0) document.getElementById('lobby-modal').classList.remove('hidden')">🏠 ルーム: <span id="current-room-id-display">---</span></button>
             <div id="ai-status" class="hidden px-2 py-1 bg-emerald-500 rounded text-xs font-bold shadow animate-pulse">🤖 データ学習済</div>
             
@@ -258,16 +291,38 @@
         </div>
     </div>
 
+    <!-- 数値設定モーダル -->
     <div id="game-settings-modal" class="fixed inset-0 modal-bg hidden flex justify-center items-center z-[90] p-4">
         <div class="bg-white p-6 md:p-8 rounded-2xl shadow-2xl w-full max-w-3xl slide-in relative border-t-8 border-fuchsia-600 flex flex-col max-h-[90vh]">
             <button onclick="document.getElementById('game-settings-modal').classList.add('hidden')" class="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 font-bold transition-colors z-10">✕</button>
             <div class="text-center mb-6 shrink-0">
                 <span class="text-4xl mb-2 block">🛠</span>
                 <h2 class="text-2xl font-black text-slate-800">ゲーム数値設定</h2>
-                <p class="text-sm text-slate-500 mt-1">工事内容や雇用コストを自由に変更できます</p>
+                <p class="text-sm text-slate-500 mt-1">工事内容や雇用コスト、景気変動確率を自由に変更できます</p>
             </div>
             
             <div class="flex-1 overflow-y-auto custom-scroll pr-2 space-y-6 text-slate-700 text-sm">
+                <!-- 景気変動確率設定セクション（新規追加） -->
+                <section class="bg-slate-50 p-4 rounded-xl border border-slate-200 shadow-sm">
+                    <h3 class="text-lg font-bold text-fuchsia-700 border-b-2 border-fuchsia-200 pb-1 mb-3 flex items-center gap-2"><span>📊</span> 景気変動確率の設定</h3>
+                    <p class="text-xs text-slate-600 mb-4">スライドバーで好景気と不景気の発生確率（5%刻みステップ）を調整できます。ドットにカーソルを合わせると確率が表示されます。</p>
+                    
+                    <div class="flex flex-col gap-2 bg-white p-4 rounded-xl border border-slate-200 shadow-inner">
+                        <div class="flex justify-between items-center text-xs font-bold text-slate-700 mb-1">
+                            <span class="text-pink-600 bg-pink-50 px-2 py-1 rounded border border-pink-200">左端：好景気 (<span id="prob-boom-val">50</span>%)</span>
+                            <span class="text-blue-600 bg-blue-50 px-2 py-1 rounded border border-blue-200">右端：不景気 (<span id="prob-recession-val">50</span>%)</span>
+                        </div>
+                        
+                        <div class="relative py-3">
+                            <input type="range" id="economy-prob-slider" class="w-full economy-slider cursor-pointer shadow-inner" min="0" max="100" step="5" value="50">
+                        </div>
+                        
+                        <div class="text-center text-xs font-bold text-slate-500 mt-1">
+                            現在の設定： 好景気 <span id="label-boom-p" class="text-pink-600 font-black">50%</span> ｜ 不景気 <span id="label-recession-p" class="text-blue-600 font-black">50%</span>
+                        </div>
+                    </div>
+                </section>
+
                 <section>
                     <h3 class="text-lg font-bold text-fuchsia-700 border-b-2 border-fuchsia-200 pb-1 mb-3 flex items-center gap-2"><span>💰</span> 初期状態設定</h3>
                     <div class="grid grid-cols-2 gap-4">
@@ -285,7 +340,7 @@
                 </section>
 
                 <section>
-                    <h3 class="text-lg font-bold text-fuchsia-700 border-b-2 border-fuchsia-200 pb-1 mb-3 flex items-center gap-2"><span>🏗️</span> 工事カード設定</h3>
+                    <h3 class="text-lg font-bold text-fuchsia-700 border-b-2 border-fuchsia-200 pb-1 mb-3 flex items-center gap-2"><span>🏗️️</span> 工事カード設定</h3>
                     <div class="space-y-4">
                         <div class="bg-red-50 p-3 rounded-lg border border-red-200">
                             <h4 class="font-bold text-red-700 mb-2">大工事</h4>
@@ -371,7 +426,7 @@
                 <section>
                     <h3 class="text-lg font-bold text-teal-700 border-b-2 border-teal-200 pb-1 mb-2 flex items-center gap-2"><span>🔄</span> ターンの流れ</h3>
                     <ol class="list-decimal list-inside space-y-2 ml-1">
-                        <li><strong>景気決定：</strong> コイントスにより「好景気」か「不景気」が決まります。<strong>景気により人件費が変動します。不景気時はコストが高騰します。</strong></li>
+                        <li><strong>景気決定：</strong> 抽選により「好景気」か「不景気」が決まります。数値設定で確率をカスタマイズ可能です。<strong>景気により人件費が変動します。不景気時はコストが高騰します。</strong></li>
                         <li><strong>入札フェイズ：</strong> 大・中・小いずれかの工事を選び、5Y単位で入札します。一番<strong>安い金額（最安値）</strong>を提示した1社のみが落札（受注）できます。同額の場合は抽選になります。<br><span class="text-rose-600 font-bold">※また、入札するだけで設定された「入札参加費」が消費されます（パスした場合はかかりません）。</span></li>
                         <li><strong>雇用フェイズ：</strong> 落札できた場合、工事に必要な人数を満たすように人を雇います。</li>
                         <li><strong>清算：</strong> 獲得した入札額から、人件費と参加費を引いた額が資金に反映されます。</li>
@@ -382,7 +437,7 @@
                     <h3 class="text-lg font-bold text-teal-700 border-b-2 border-teal-200 pb-1 mb-2 flex items-center gap-2"><span>👷</span> 雇用とコストについて</h3>
                     <p id="help-labor-text" class="mb-2">人数は 正社員:1人 / 発注・派遣:1人 として計算されます。</p>
                     <ul class="list-disc list-inside space-y-2 ml-1 bg-slate-50 p-3 rounded-lg border border-slate-200">
-                        <li><strong id="help-fulltime-cost">👨💼 正社員（好景気20Y / 不景気30Y）：</strong> 一度雇うと解雇できません。毎ターン固定費としてかかりますが、長期的に見るとコストパフォーマンスに優れます。</li>
+                        <li><strong id="help-fulltime-cost">👨‍💼 正社員（好景気20Y / 不景気30Y）：</strong> 一度雇うと解雇できません。毎ターン固定費としてかかりますが、長期的に見るとコストパフォーマンスに優れます。</li>
                         <li><strong id="help-temp-cost">👷 発注・派遣（好景気30Y / 不景気45Y）：</strong> そのターン限りの人員です。正社員より割高ですが、次ターン以降の固定費にはなりません。</li>
                     </ul>
                 </section>
@@ -508,7 +563,7 @@
 
     <div id="coin-modal" class="fixed inset-0 modal-bg hidden flex justify-center items-center z-[90]">
         <div class="bg-white p-8 rounded-2xl shadow-2xl text-center max-w-sm w-full">
-            <h2 class="text-2xl font-black text-slate-800 mb-8" id="coin-toss-title">景気決定コイントス</h2>
+            <h2 class="text-2xl font-black text-slate-800 mb-8" id="coin-toss-title">景気決定抽選</h2>
             <div id="coin-visual" class="w-32 h-32 mx-auto rounded-full bg-yellow-400 border-8 border-yellow-500 flex items-center justify-center shadow-lg text-4xl font-bold text-yellow-800 mb-8">?</div>
             <p id="coin-result-text" class="text-xl font-bold h-8 text-slate-600"></p>
         </div>
@@ -608,6 +663,9 @@
         let winningResults = {}; 
         let isBiddingPhase = false; 
         let selectedBiddingProject = 'none';
+
+        // 景気変動確率設定 (初期値: 好景気50%, 不景気50% → スライダーステップ 0〜100、中央50)
+        let economyProbability = 50; // 好景気の発生確率(%)。不景気は (100 - economyProbability)%
 
         let projects = { 
             large: { name: '大工事', maxBid: 500, labor: 10, color: 'rgb(239, 68, 68)', entryFee: 20 }, 
@@ -757,6 +815,32 @@
             renderPlayers();
         }
 
+        // --- 景気スライダーの動的描画・更新イベント処理 ---
+        const economySlider = document.getElementById('economy-slider') || document.getElementById('economy-prob-slider');
+        if (economySlider) {
+            economySlider.addEventListener('input', (e) => {
+                const val = parseInt(e.target.value, 10);
+                economyProbability = val; // スライダー値 = 好景気発生確率(%)
+                const recessionProb = 100 - val; // 不景気発生確率(%)
+                
+                // UI更新
+                document.getElementById('prob-boom-val').textContent = val;
+                document.getElementById('prob-recession-val').textContent = recessionProb;
+                document.getElementById('label-boom-p').textContent = val + '%';
+                document.getElementById('label-recession-p').textContent = recessionProb + '%';
+
+                // スライダーの背景色を動的に塗る（左端からドットまで青、右端からドットまでピンク）
+                // ※要望：「スライドの左端からドットまでを青色、右端からドットまでをピンクに塗る」（左端=好景気/青、右端=不景気/ピンク等。ここでは明確に左からドットまで青 `#3b82f6`、ドットから右端までピンク `#ec4899`）
+                e.target.style.background = `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${val}%, #ec4899 ${val}%, #ec4899 100%)`;
+                
+                // ホバー表示用ツールチップタイトル
+                e.target.title = `好景気発生確率: ${val}% / 不景気発生確率: ${recessionProb}%`;
+            });
+            // 初期状態の反映
+            economySlider.value = economyProbability;
+            economySlider.dispatchEvent(new Event('input'));
+        }
+
         function openSettingsModal() {
             if (isOnlineMode && myPlayerIndex !== 0) {
                 alert('数値の変更はホストのみ実行できます。');
@@ -764,6 +848,13 @@
             }
             document.getElementById('set-init-money').value = initialMoney;
             document.getElementById('set-init-emp').value = initialEmployees;
+
+            // 景気確率スライダー値の同期
+            const slider = document.getElementById('economy-prob-slider');
+            if (slider) {
+                slider.value = economyProbability;
+                slider.dispatchEvent(new Event('input'));
+            }
 
             ['large', 'medium', 'small'].forEach(k => {
                 document.getElementById(`set-${k[0]}-max`).value = projects[k].maxBid;
@@ -801,6 +892,11 @@
                 initialMoney = parseInt(document.getElementById('set-init-money').value) || 0;
                 initialEmployees = parseInt(document.getElementById('set-init-emp').value) || 0;
 
+                const slider = document.getElementById('economy-prob-slider');
+                if (slider) {
+                    economyProbability = parseInt(slider.value, 10) || 50;
+                }
+
                 ['large', 'medium', 'small'].forEach(k => {
                     projects[k].maxBid = parseInt(document.getElementById(`set-${k[0]}-max`).value) || 0;
                     projects[k].labor = parseInt(document.getElementById(`set-${k[0]}-labor`).value) || 0;
@@ -833,7 +929,7 @@
                 initCharts(); 
 
                 if (isOnlineMode && onlineChannel && myPlayerIndex === 0) {
-                    await onlineChannel.send({ type: 'broadcast', event: 'game_settings_updated', payload: { projects, laborConfig, totalTurns, initialMoney, initialEmployees } });
+                    await onlineChannel.send({ type: 'broadcast', event: 'game_settings_updated', payload: { projects, laborConfig, totalTurns, initialMoney, initialEmployees, economyProbability } });
                 }
 
                 alert('設定を反映しました。');
@@ -864,7 +960,7 @@
             });
             
             document.getElementById('help-labor-text').textContent = `人数は 正社員:${laborConfig.fulltimeP}人 / 発注・派遣:${laborConfig.tempP}人 として計算されます。`;
-            document.getElementById('help-fulltime-cost').textContent = `👨‍‍💼 正社員（好景気${laborConfig.fulltimeCostA}Y / 不景気${laborConfig.fulltimeCostB}Y）：`;
+            document.getElementById('help-fulltime-cost').textContent = `👨‍💼 正社員（好景気${laborConfig.fulltimeCostA}Y / 不景気${laborConfig.fulltimeCostB}Y）：`;
             document.getElementById('help-temp-cost').textContent = `👷 発注・派遣（好景気${laborConfig.tempCostA}Y / 不景気${laborConfig.tempCostB}Y）：`;
             
             updateEconomyHighlight();
@@ -1123,12 +1219,15 @@
         };
 
         async function startAutoCoinToss() {
-            const nextEconomy = Math.random() < 0.5 ? 'A' : 'B';
+            // 景気発生確率に基づいた抽選 (economyProbability% の確率で好景気 'A'、それ以外で不景気 'B')
+            const rand = Math.random() * 100;
+            const nextEconomy = rand < economyProbability ? 'A' : 'B';
             await playCoinTossAnimation(nextEconomy);
         }
 
         async function startAutoCoinTossOnline() {
-            const nextEconomy = Math.random() < 0.5 ? 'A' : 'B';
+            const rand = Math.random() * 100;
+            const nextEconomy = rand < economyProbability ? 'A' : 'B';
             await onlineChannel.send({ type: 'broadcast', event: 'start_coin_toss', payload: { economy: nextEconomy, turn: currentTurn } });
             await playCoinTossAnimation(nextEconomy);
         }
@@ -1140,16 +1239,16 @@
             isBiddingPhase = false;
 
             if (currentTurn === totalTurns) {
-                document.getElementById('coin-toss-title').innerHTML = `<span class="text-red-600">最終ターン</span><br>景気決定コイントス`;
+                document.getElementById('coin-toss-title').innerHTML = `<span class="text-red-600">最終ターン</span><br>景気決定抽選`;
             } else {
-                document.getElementById('coin-toss-title').innerHTML = `第 ${currentTurn} ターン<br>景気決定コイントス`;
+                document.getElementById('coin-toss-title').innerHTML = `第 ${currentTurn} ターン<br>景気決定抽選`;
             }
 
             coinModal.classList.remove('hidden'); 
             coinVisual.classList.add('coin-flip'); 
             coinVisual.textContent = ''; 
             coinVisual.className = 'w-32 h-32 mx-auto rounded-full bg-yellow-400 border-8 border-yellow-500 flex items-center justify-center shadow-lg text-4xl font-bold text-yellow-800 mb-8 coin-flip';
-            coinText.textContent = 'コイントス中...';
+            coinText.textContent = '景気を決定中...';
             
             await new Promise(r => setTimeout(r, 1500));
             
@@ -1158,7 +1257,7 @@
             
             coinVisual.textContent = currentEconomy; 
             coinVisual.className = `w-32 h-32 mx-auto rounded-full flex items-center justify-center shadow-2xl text-6xl font-black text-white mb-6 border-8 ${currentEconomy === 'A' ? 'bg-pink-400 border-pink-500 shadow-pink-500/40' : 'bg-blue-400 border-blue-500 shadow-blue-500/40'}`;
-            coinText.textContent = currentEconomy === 'A' ? '表：好景気' : '裏：不景気';
+            coinText.textContent = currentEconomy === 'A' ? '好景気' : '不景気';
             
             await new Promise(r => setTimeout(r, 1500)); 
             coinModal.classList.add('hidden');
@@ -1243,7 +1342,6 @@
             return { shortage: reqFull, full: reqFull * fCost, temp: reqTemp * tCost }; 
         }
 
-        // ====== 各戦略に応じた勝利プレイヤーの過去ログデータを参照する予測モデル ======
         function predictEnemyActions(state, enemyId, logs) {
             const enemy = state.players[enemyId];
             const enemyStrategy = enemy.strat || aiStrategies[enemyId] || 'adaptive';
@@ -1252,7 +1350,6 @@
             const currentMoneys = state.players.map(p => p.money).sort((a,b)=>b-a);
             const currentEmps = state.players.map(p => p.employees).sort((a,b)=>b-a);
 
-            // 現在の景気と一致するログのみを抽出
             const filteredLogs = logs.filter(l => l.economy === state.economy);
 
             const targetPlayerKeys = new Set();
@@ -1264,20 +1361,16 @@
                 if (l.hire_temp > 0) pActivity[k].temp = true;
             });
 
-            // 戦略ごとのデータ参照フィルター条件の適用
             for (const k in pActivity) {
                 if (enemyStrategy === 'fulltime') {
-                    // 完全正社員型：正社員雇用のみしかしない勝利プレイヤーのデータのみ参照
                     if (pActivity[k].full && !pActivity[k].temp) {
                         targetPlayerKeys.add(k);
                     }
                 } else if (enemyStrategy === 'outsource') {
-                    // 完全外注型：外注しかしない勝利プレイヤーのデータのみ参照
                     if (!pActivity[k].full && pActivity[k].temp) {
                         targetPlayerKeys.add(k);
                     }
                 } else {
-                    // 自律適応型：正社員・外注のどちらも使った勝利プレイヤーのデータのみ参照
                     if (pActivity[k].full && pActivity[k].temp) {
                         targetPlayerKeys.add(k);
                     }
@@ -2162,7 +2255,6 @@
                     temp_unit_labor: laborConfig.tempP,
                     final_rank: null,
                     
-                    // --- 追加項目 ---
                     action_type: action_type,
                     is_pass: is_pass,
                     entry_cost_paid: entry_cost_paid,
@@ -2470,7 +2562,7 @@
                                     tempId, 
                                     slot, 
                                     snapshot: players,
-                                    settings: { projects, laborConfig, totalTurns, initialMoney, initialEmployees } 
+                                    settings: { projects, laborConfig, totalTurns, initialMoney, initialEmployees, economyProbability } 
                                 }
                             });
                         } else {
@@ -2503,6 +2595,7 @@
                             totalTurns = payload.payload.settings.totalTurns;
                             if (payload.payload.settings.initialMoney !== undefined) initialMoney = payload.payload.settings.initialMoney;
                             if (payload.payload.settings.initialEmployees !== undefined) initialEmployees = payload.payload.settings.initialEmployees;
+                            if (payload.payload.settings.economyProbability !== undefined) economyProbability = payload.payload.settings.economyProbability;
                             
                             const totalTurnDisplayNode = document.getElementById('total-turn-display');
                             if (totalTurnDisplayNode) totalTurnDisplayNode.textContent = totalTurns;
@@ -2548,6 +2641,7 @@
                         laborConfig = payload.payload.laborConfig;
                         if(payload.payload.initialMoney !== undefined) initialMoney = payload.payload.initialMoney;
                         if(payload.payload.initialEmployees !== undefined) initialEmployees = payload.payload.initialEmployees;
+                        if(payload.payload.economyProbability !== undefined) economyProbability = payload.payload.settings.economyProbability;
                         
                         if(payload.payload.totalTurns) {
                             totalTurns = payload.payload.totalTurns;
@@ -2659,7 +2753,8 @@
             document.getElementById('lobby-modal').classList.add('hidden');
             renderPlayers();
             if (onlineChannel) {
-                const nextEconomy = Math.random() < 0.5 ? 'A' : 'B';
+                const rand = Math.random() * 100;
+                const nextEconomy = rand < economyProbability ? 'A' : 'B';
                 await onlineChannel.send({ type: 'broadcast', event: 'start_game', payload: { economy: nextEconomy } });
                 await playCoinTossAnimation(nextEconomy);
             }
