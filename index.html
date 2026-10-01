@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>入札ゲーム ver.105</title>
+    <title>入札ゲーム ver.107</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -74,7 +74,7 @@
                 <div class="bg-blue-50 p-4 rounded-xl border border-blue-100 shadow-sm">
                     <h3 class="font-black text-blue-800 mb-2 border-b border-blue-200 pb-1">📌 基本ルール</h3>
                     <ul class="list-disc list-inside space-y-2 font-medium">
-                        <li>他社よりも<strong>安い価格</strong>で入札すると工事を落札できます。</li>
+                        <li>他社よりも<strong>安い価格</strong>で入札すると工事を落札できます。（入札参加費がかかります）</li>
                         <li>しかし、利益を出すためには<strong>できるだけ高い価格</strong>で落札する必要があります。</li>
                         <li>落札後は、工事に必要な人数を「正社員」か「発注（外注）」で確保します。</li>
                         <li>全ターン終了時、最も多くの資金を持っていた企業が勝利です！</li>
@@ -91,7 +91,7 @@
 
     <header class="bg-slate-800 text-white p-3 shadow-md flex justify-between items-center z-[85] shrink-0">
         <div class="flex items-center gap-3">
-            <h1 class="text-xl font-bold">入札 ver.105 <span class="text-sm font-normal ml-2">第 <span id="turn-display" class="text-yellow-400 font-bold text-2xl">1</span> / <span id="total-turn-display">10</span> ターン</span></h1>
+            <h1 class="text-xl font-bold">入札 ver.107 <span class="text-sm font-normal ml-2">第 <span id="turn-display" class="text-yellow-400 font-bold text-2xl">1</span> / <span id="total-turn-display">10</span> ターン</span></h1>
             <button id="room-badge" class="hidden px-2 py-0.5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 rounded text-xs font-bold text-white shadow border border-indigo-500 transition-colors" onclick="if(myPlayerIndex === 0) document.getElementById('lobby-modal').classList.remove('hidden')">🏠 ルーム: <span id="current-room-id-display">---</span></button>
             <div id="ai-status" class="hidden px-2 py-1 bg-emerald-500 rounded text-xs font-bold shadow animate-pulse">🤖 データ学習済</div>
             
@@ -119,37 +119,46 @@
     </header>
 
     <main class="flex-1 flex overflow-hidden">
-        <section class="w-2/3 p-3 flex flex-col gap-3 bg-gray-100 overflow-hidden">
-            <div class="bg-white p-3 rounded-xl shadow border border-gray-200 shrink-0">
-                <h2 class="text-base font-bold border-b border-gray-300 mb-2 pb-1 flex items-center gap-2"><span>🏗️</span> 場の工事カード</h2>
-                <div class="grid grid-cols-3 gap-3">
-                    <div id="card-large" class="border-2 border-red-500 rounded-lg p-3 bg-red-50 relative shadow-sm transition-all" onclick="selectProject('large')">
-                        <h3 class="text-red-700 font-bold text-center mb-1 text-base">大工事</h3>
-                        <div class="text-xs space-y-1 bg-white p-2 rounded border border-red-100 pointer-events-none">
-                            <p class="text-gray-600 font-bold mb-1 border-b border-red-100 pb-1">必要人数: <span id="labor-large">10</span>人</p>
-                            <p id="maxbid-large" class="text-gray-700 font-black">入札上限: 500Y</p>
+        <section class="w-2/3 p-2 flex flex-col gap-2 bg-gray-100 overflow-hidden">
+            <div class="bg-white p-2 rounded-xl shadow border border-gray-200 shrink-0">
+                <h2 class="text-sm font-bold border-b border-gray-300 mb-1.5 pb-1 flex items-center gap-2"><span>🏗️</span> 場の工事カード</h2>
+                <div class="grid grid-cols-3 gap-2">
+                    <div id="card-large" class="border-2 border-red-500 rounded-lg p-2 bg-red-50 relative shadow-sm transition-all cursor-pointer hover:bg-red-100" onclick="selectProject('large')">
+                        <h3 class="text-red-700 font-bold text-center mb-1 text-sm">大工事</h3>
+                        <div class="text-[10px] sm:text-xs space-y-1 bg-white p-1.5 rounded border border-red-100 pointer-events-none">
+                            <p class="text-gray-600 font-bold border-b border-red-100 pb-0.5 mb-0.5 flex justify-between"><span>必要人数:</span> <span><span id="labor-large">10</span>人</span></p>
+                            <div class="flex justify-between items-center">
+                                <span id="maxbid-large" class="text-gray-700 font-black">上限:500Y</span>
+                                <span id="entryfee-large" class="text-rose-600 font-bold">参加:20Y</span>
+                            </div>
                         </div>
                     </div>
-                    <div id="card-medium" class="border-2 border-blue-500 rounded-lg p-3 bg-blue-50 relative shadow-sm transition-all" onclick="selectProject('medium')">
-                        <h3 class="text-blue-700 font-bold text-center mb-1 text-base">中工事</h3>
-                        <div class="text-xs space-y-1 bg-white p-2 rounded border border-blue-100 pointer-events-none">
-                            <p class="text-gray-600 font-bold mb-1 border-b border-blue-100 pb-1">必要人数: <span id="labor-medium">7</span>人</p>
-                            <p id="maxbid-medium" class="text-gray-700 font-black">入札上限: 350Y</p>
+                    <div id="card-medium" class="border-2 border-blue-500 rounded-lg p-2 bg-blue-50 relative shadow-sm transition-all cursor-pointer hover:bg-blue-100" onclick="selectProject('medium')">
+                        <h3 class="text-blue-700 font-bold text-center mb-1 text-sm">中工事</h3>
+                        <div class="text-[10px] sm:text-xs space-y-1 bg-white p-1.5 rounded border border-blue-100 pointer-events-none">
+                            <p class="text-gray-600 font-bold border-b border-blue-100 pb-0.5 mb-0.5 flex justify-between"><span>必要人数:</span> <span><span id="labor-medium">7</span>人</span></p>
+                            <div class="flex justify-between items-center">
+                                <span id="maxbid-medium" class="text-gray-700 font-black">上限:350Y</span>
+                                <span id="entryfee-medium" class="text-rose-600 font-bold">参加:10Y</span>
+                            </div>
                         </div>
                     </div>
-                    <div id="card-small" class="border-2 border-green-500 rounded-lg p-3 bg-green-50 relative shadow-sm transition-all" onclick="selectProject('small')">
-                        <h3 class="text-green-700 font-bold text-center mb-1 text-base">小工事</h3>
-                        <div class="text-xs space-y-1 bg-white p-2 rounded border border-green-100 pointer-events-none">
-                            <p class="text-gray-600 font-bold mb-1 border-b border-green-100 pb-1">必要人数: <span id="labor-small">4</span>人</p>
-                            <p id="maxbid-small" class="text-gray-700 font-black">入札上限: 200Y</p>
+                    <div id="card-small" class="border-2 border-green-500 rounded-lg p-2 bg-green-50 relative shadow-sm transition-all cursor-pointer hover:bg-green-100" onclick="selectProject('small')">
+                        <h3 class="text-green-700 font-bold text-center mb-1 text-sm">小工事</h3>
+                        <div class="text-[10px] sm:text-xs space-y-1 bg-white p-1.5 rounded border border-green-100 pointer-events-none">
+                            <p class="text-gray-600 font-bold border-b border-green-100 pb-0.5 mb-0.5 flex justify-between"><span>必要人数:</span> <span><span id="labor-small">4</span>人</span></p>
+                            <div class="flex justify-between items-center">
+                                <span id="maxbid-small" class="text-gray-700 font-black">上限:200Y</span>
+                                <span id="entryfee-small" class="text-rose-600 font-bold">参加:5Y</span>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div class="bg-white p-3 rounded-xl shadow border border-gray-200 flex-1 flex flex-col overflow-hidden">
-                <h2 class="text-base font-bold border-b border-gray-300 mb-2 pb-1 flex items-center gap-2"><span>🏢</span> 各社の状況</h2>
-                <div class="grid grid-cols-2 gap-3 overflow-y-auto custom-scroll pr-1" id="players-container"></div>
+            <div class="bg-white p-2 rounded-xl shadow border border-gray-200 flex-1 flex flex-col overflow-hidden">
+                <h2 class="text-sm font-bold border-b border-gray-300 mb-1 pb-1 flex items-center gap-2"><span>🏢</span> 各社の状況</h2>
+                <div class="grid grid-cols-2 gap-2 overflow-y-auto custom-scroll pr-1" id="players-container"></div>
             </div>
         </section>
 
@@ -195,9 +204,9 @@
                         </div>
                         
                         <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 shadow-inner mt-1 flex flex-col justify-between">
-                            <label class="block text-sm font-bold mb-2 text-slate-700 text-center">入札価格（10Y単位）: <span id="bid-amount-display" class="text-2xl text-blue-700 font-black">0</span> Y</label>
+                            <label class="block text-sm font-bold mb-2 text-slate-700 text-center">入札価格（5Y単位）: <span id="bid-amount-display" class="text-2xl text-blue-700 font-black">0</span> Y</label>
                             <div class="w-full py-2">
-                                <input type="range" id="bid-amount" class="w-full h-3 bg-slate-300 rounded-lg cursor-pointer accent-blue-600 shadow-inner" step="10" min="0" max="500" value="0">
+                                <input type="range" id="bid-amount" class="w-full h-3 bg-slate-300 rounded-lg cursor-pointer accent-blue-600 shadow-inner" step="5" min="0" max="500" value="0">
                             </div>
                             <div class="text-sm font-bold text-slate-700 text-center mt-2 h-5 flex items-center justify-center">
                                 <span id="submit-bid-profit"></span>
@@ -280,23 +289,26 @@
                     <div class="space-y-4">
                         <div class="bg-red-50 p-3 rounded-lg border border-red-200">
                             <h4 class="font-bold text-red-700 mb-2">大工事</h4>
-                            <div class="grid grid-cols-2 gap-2">
-                                <label class="flex flex-col text-xs font-bold text-red-800">入札上限 (Y) <input type="number" id="set-l-max" class="mt-1 border border-red-300 p-1.5 rounded font-mono font-bold" min="0"></label>
+                            <div class="grid grid-cols-3 gap-2">
+                                <label class="flex flex-col text-xs font-bold text-red-800">入札上限(Y) <input type="number" id="set-l-max" class="mt-1 border border-red-300 p-1.5 rounded font-mono font-bold" min="0"></label>
                                 <label class="flex flex-col text-xs font-bold text-red-800">必要人数 <input type="number" id="set-l-labor" class="mt-1 border border-red-300 p-1.5 rounded font-mono font-bold" min="0"></label>
+                                <label class="flex flex-col text-xs font-bold text-red-800">参加費(Y) <input type="number" id="set-l-entry" class="mt-1 border border-red-300 p-1.5 rounded font-mono font-bold" min="0"></label>
                             </div>
                         </div>
                         <div class="bg-blue-50 p-3 rounded-lg border border-blue-200">
                             <h4 class="font-bold text-blue-700 mb-2">中工事</h4>
-                            <div class="grid grid-cols-2 gap-2">
-                                <label class="flex flex-col text-xs font-bold text-blue-800">入札上限 (Y) <input type="number" id="set-m-max" class="mt-1 border border-blue-300 p-1.5 rounded font-mono font-bold" min="0"></label>
+                            <div class="grid grid-cols-3 gap-2">
+                                <label class="flex flex-col text-xs font-bold text-blue-800">入札上限(Y) <input type="number" id="set-m-max" class="mt-1 border border-blue-300 p-1.5 rounded font-mono font-bold" min="0"></label>
                                 <label class="flex flex-col text-xs font-bold text-blue-800">必要人数 <input type="number" id="set-m-labor" class="mt-1 border border-blue-300 p-1.5 rounded font-mono font-bold" min="0"></label>
+                                <label class="flex flex-col text-xs font-bold text-blue-800">参加費(Y) <input type="number" id="set-m-entry" class="mt-1 border border-blue-300 p-1.5 rounded font-mono font-bold" min="0"></label>
                             </div>
                         </div>
                         <div class="bg-green-50 p-3 rounded-lg border border-green-200">
                             <h4 class="font-bold text-green-700 mb-2">小工事</h4>
-                            <div class="grid grid-cols-2 gap-2">
-                                <label class="flex flex-col text-xs font-bold text-green-800">入札上限 (Y) <input type="number" id="set-s-max" class="mt-1 border border-green-300 p-1.5 rounded font-mono font-bold" min="0"></label>
+                            <div class="grid grid-cols-3 gap-2">
+                                <label class="flex flex-col text-xs font-bold text-green-800">入札上限(Y) <input type="number" id="set-s-max" class="mt-1 border border-green-300 p-1.5 rounded font-mono font-bold" min="0"></label>
                                 <label class="flex flex-col text-xs font-bold text-green-800">必要人数 <input type="number" id="set-s-labor" class="mt-1 border border-green-300 p-1.5 rounded font-mono font-bold" min="0"></label>
+                                <label class="flex flex-col text-xs font-bold text-green-800">参加費(Y) <input type="number" id="set-s-entry" class="mt-1 border border-green-300 p-1.5 rounded font-mono font-bold" min="0"></label>
                             </div>
                         </div>
                     </div>
@@ -360,9 +372,9 @@
                     <h3 class="text-lg font-bold text-teal-700 border-b-2 border-teal-200 pb-1 mb-2 flex items-center gap-2"><span>🔄</span> ターンの流れ</h3>
                     <ol class="list-decimal list-inside space-y-2 ml-1">
                         <li><strong>景気決定：</strong> コイントスにより「好景気」か「不景気」が決まります。<strong>景気により人件費が変動します。不景気時はコストが高騰します。</strong></li>
-                        <li><strong>入札フェイズ：</strong> 大・中・小いずれかの工事を選び、10Y単位で入札します。一番<strong>安い金額（最安値）</strong>を提示した1社のみが落札（受注）できます。同額の場合は抽選になります。利益が出ない場合は「パス」も重要です。</li>
+                        <li><strong>入札フェイズ：</strong> 大・中・小いずれかの工事を選び、5Y単位で入札します。一番<strong>安い金額（最安値）</strong>を提示した1社のみが落札（受注）できます。同額の場合は抽選になります。<br><span class="text-rose-600 font-bold">※また、入札するだけで設定された「入札参加費」が消費されます（パスした場合はかかりません）。</span></li>
                         <li><strong>雇用フェイズ：</strong> 落札できた場合、工事に必要な人数を満たすように人を雇います。</li>
-                        <li><strong>清算：</strong> 獲得した入札額から、人件費を引いた額が資金に反映されます。</li>
+                        <li><strong>清算：</strong> 獲得した入札額から、人件費と参加費を引いた額が資金に反映されます。</li>
                     </ol>
                 </section>
 
@@ -370,7 +382,7 @@
                     <h3 class="text-lg font-bold text-teal-700 border-b-2 border-teal-200 pb-1 mb-2 flex items-center gap-2"><span>👷</span> 雇用とコストについて</h3>
                     <p id="help-labor-text" class="mb-2">人数は 正社員:1人 / 発注・派遣:1人 として計算されます。</p>
                     <ul class="list-disc list-inside space-y-2 ml-1 bg-slate-50 p-3 rounded-lg border border-slate-200">
-                        <li><strong id="help-fulltime-cost">👨‍💼 正社員（好景気20Y / 不景気30Y）：</strong> 一度雇うと解雇できません。毎ターン固定費としてかかりますが、長期的に見るとコストパフォーマンスに優れます。</li>
+                        <li><strong id="help-fulltime-cost">👨‍‍💼 正社員（好景気20Y / 不景気30Y）：</strong> 一度雇うと解雇できません。毎ターン固定費としてかかりますが、長期的に見るとコストパフォーマンスに優れます。</li>
                         <li><strong id="help-temp-cost">👷 発注・派遣（好景気30Y / 不景気45Y）：</strong> そのターン限りの人員です。正社員より割高ですが、次ターン以降の固定費にはなりません。</li>
                     </ul>
                 </section>
@@ -384,6 +396,7 @@
                             <ul class="text-xs space-y-0.5 font-bold">
                                 <li id="help-large-labor" class="text-gray-700">必要人数: 10人</li>
                                 <li id="help-large-max" class="text-pink-600">入札上限: 500Y</li>
+                                <li id="help-large-entry" class="text-rose-600">参加費: 20Y</li>
                             </ul>
                         </div>
                         <div class="bg-blue-50 p-3 rounded border border-blue-200">
@@ -392,6 +405,7 @@
                             <ul class="text-xs space-y-0.5 font-bold">
                                 <li id="help-medium-labor" class="text-gray-700">必要人数: 7人</li>
                                 <li id="help-medium-max" class="text-pink-600">入札上限: 350Y</li>
+                                <li id="help-medium-entry" class="text-rose-600">参加費: 10Y</li>
                             </ul>
                         </div>
                         <div class="bg-green-50 p-3 rounded border border-green-200">
@@ -400,6 +414,7 @@
                             <ul class="text-xs space-y-0.5 font-bold">
                                 <li id="help-small-labor" class="text-gray-700">必要人数: 4人</li>
                                 <li id="help-small-max" class="text-pink-600">入札上限: 200Y</li>
+                                <li id="help-small-entry" class="text-rose-600">参加費: 5Y</li>
                             </ul>
                         </div>
                     </div>
@@ -595,9 +610,9 @@
         let selectedBiddingProject = 'none';
 
         let projects = { 
-            large: { name: '大工事', maxBid: 500, labor: 10, color: 'rgb(239, 68, 68)' }, 
-            medium: { name: '中工事', maxBid: 350, labor: 7, color: 'rgb(59, 130, 246)' }, 
-            small: { name: '小工事', maxBid: 200, labor: 4, color: 'rgb(34, 197, 94)' } 
+            large: { name: '大工事', maxBid: 500, labor: 10, color: 'rgb(239, 68, 68)', entryFee: 20 }, 
+            medium: { name: '中工事', maxBid: 350, labor: 7, color: 'rgb(59, 130, 246)', entryFee: 10 }, 
+            small: { name: '小工事', maxBid: 200, labor: 4, color: 'rgb(34, 197, 94)', entryFee: 5 } 
         };
         
         let laborConfig = {
@@ -753,6 +768,7 @@
             ['large', 'medium', 'small'].forEach(k => {
                 document.getElementById(`set-${k[0]}-max`).value = projects[k].maxBid;
                 document.getElementById(`set-${k[0]}-labor`).value = projects[k].labor;
+                document.getElementById(`set-${k[0]}-entry`).value = projects[k].entryFee;
             });
             document.getElementById('set-full-p').value = laborConfig.fulltimeP;
             document.getElementById('set-full-cA').value = laborConfig.fulltimeCostA;
@@ -788,6 +804,7 @@
                 ['large', 'medium', 'small'].forEach(k => {
                     projects[k].maxBid = parseInt(document.getElementById(`set-${k[0]}-max`).value) || 0;
                     projects[k].labor = parseInt(document.getElementById(`set-${k[0]}-labor`).value) || 0;
+                    projects[k].entryFee = parseInt(document.getElementById(`set-${k[0]}-entry`).value) || 0;
                 });
                 laborConfig.fulltimeP = parseInt(document.getElementById('set-full-p').value) || 0;
                 laborConfig.fulltimeCostA = parseInt(document.getElementById('set-full-cA').value) || 0;
@@ -833,10 +850,12 @@
         function updateProjectCardsUI() {
             ['large', 'medium', 'small'].forEach(key => {
                 document.getElementById(`labor-${key}`).textContent = `${projects[key].labor}`;
-                document.getElementById(`maxbid-${key}`).textContent = `入札上限: ${projects[key].maxBid}Y`;
+                document.getElementById(`maxbid-${key}`).textContent = `上限:${projects[key].maxBid}Y`;
+                document.getElementById(`entryfee-${key}`).textContent = `参加:${projects[key].entryFee}Y`;
                 
                 document.getElementById(`help-${key}-max`).textContent = `入札上限: ${projects[key].maxBid}Y`;
                 document.getElementById(`help-${key}-labor`).textContent = `必要人数: ${projects[key].labor}人`;
+                document.getElementById(`help-${key}-entry`).textContent = `参加費: ${projects[key].entryFee}Y`;
                 
                 const bidAmountElement = document.getElementById('bid-amount');
                 if (selectedBiddingProject === key) {
@@ -845,7 +864,7 @@
             });
             
             document.getElementById('help-labor-text').textContent = `人数は 正社員:${laborConfig.fulltimeP}人 / 発注・派遣:${laborConfig.tempP}人 として計算されます。`;
-            document.getElementById('help-fulltime-cost').textContent = `👨‍💼 正社員（好景気${laborConfig.fulltimeCostA}Y / 不景気${laborConfig.fulltimeCostB}Y）：`;
+            document.getElementById('help-fulltime-cost').textContent = `👨‍‍💼 正社員（好景気${laborConfig.fulltimeCostA}Y / 不景気${laborConfig.fulltimeCostB}Y）：`;
             document.getElementById('help-temp-cost').textContent = `👷 発注・派遣（好景気${laborConfig.tempCostA}Y / 不景気${laborConfig.tempCostB}Y）：`;
             
             updateEconomyHighlight();
@@ -1007,6 +1026,7 @@
             
             const proj = projects[selectedBiddingProject];
             const reqLabor = proj.labor;
+            const entryFee = proj.entryFee || 0;
             const currentLabor = players[myPlayerIndex].employees * laborConfig.fulltimeP;
             const shortageLabor = Math.max(0, reqLabor - currentLabor);
             
@@ -1016,16 +1036,16 @@
             
             let tooltipText = '';
             if (shortageLabor === 0) {
-                const profit = amount - costCurrent;
-                tooltipText = `予想収益: ${profit}Y`;
+                const profit = amount - costCurrent - entryFee;
+                tooltipText = `予想収益: ${profit}Y (参加費-${entryFee}Y)`;
             } else {
                 const reqFull = Math.ceil(shortageLabor / laborConfig.fulltimeP);
                 const reqTemp = Math.ceil(shortageLabor / laborConfig.tempP);
                 const costFull = reqFull * fCost;
                 const costTemp = reqTemp * tCost;
-                const profitTemp = amount - costCurrent - costTemp;
-                const profitFull = amount - costCurrent - costFull;
-                tooltipText = `予想収益: ${profitTemp}Y ～ ${profitFull}Y`;
+                const profitTemp = amount - costCurrent - costTemp - entryFee;
+                const profitFull = amount - costCurrent - costFull - entryFee;
+                tooltipText = `予想収益: ${profitTemp}Y ～ ${profitFull}Y (参加費-${entryFee}Y)`;
             }
             
             profitEl.textContent = tooltipText;
@@ -1042,17 +1062,17 @@
                 const typeLabel = p.isCPU ? '<span class="text-[10px] font-bold text-slate-500 ml-1 border border-slate-300 px-1 rounded bg-white">' + strategyLabels[aiStrategies[p.id]] + '</span>' : '<span class="text-[10px] font-bold text-emerald-600 ml-1 border border-emerald-300 px-1 rounded bg-emerald-50">人間</span>';
                 
                 playersContainer.innerHTML += `
-                    <div class="border-2 rounded-xl p-2 ${bg} ${opacity} transition-all relative flex flex-col justify-between h-full">
-                        <div class="font-bold border-b border-slate-200 pb-1 mb-1 flex justify-between items-center">
-                            <div class="flex items-center text-slate-800 text-sm">
+                    <div class="border-2 rounded-xl p-1.5 sm:p-2 ${bg} ${opacity} transition-all relative flex flex-col justify-between h-full">
+                        <div class="font-bold border-b border-slate-200 pb-0.5 mb-1 flex justify-between items-center">
+                            <div class="flex items-center text-slate-800 text-xs sm:text-sm whitespace-nowrap overflow-hidden text-ellipsis mr-1">
                                 ${isMe ? '👤' : (p.isCPU ? '🤖' : '🧑‍💻')} ${p.name} ${typeLabel} ${roleBadge} ${defaultLabel}
                             </div>
-                            <button onclick="showPlayerHistory(${p.id})" class="text-[10px] bg-white border border-slate-300 text-slate-600 hover:bg-slate-100 px-2 py-1 rounded shadow-sm font-bold">📊 データ</button>
+                            <button onclick="showPlayerHistory(${p.id})" class="text-[9px] bg-white border border-slate-300 text-slate-600 hover:bg-slate-100 px-1.5 py-0.5 rounded shadow-sm font-bold shrink-0">📊</button>
                         </div>
-                        <div class="text-sm grid grid-cols-2 gap-y-1 gap-x-1 font-medium">
-                            <div class="text-slate-500">資金:<br><span class="font-black text-lg ${p.money < 0 ? 'text-red-600' : 'text-slate-800'}">${p.money} <span class="text-xs">Y</span></span></div>
-                            <div class="text-slate-500 text-right">人数:<br><span class="font-black text-lg text-slate-800">${(p.employees * laborConfig.fulltimeP) + (p.temps * laborConfig.tempP)} <span class="text-xs">人</span></span></div>
-                            <div class="col-span-2 text-xs font-bold text-blue-700 bg-blue-100/50 p-1 rounded text-center">👨‍‍💼 正社員: ${p.employees} 人</div>
+                        <div class="text-[10px] sm:text-xs grid grid-cols-2 gap-y-0.5 gap-x-1 font-medium">
+                            <div class="text-slate-500 leading-tight">資金:<br><span class="font-black text-sm sm:text-base ${p.money < 0 ? 'text-red-600' : 'text-slate-800'}">${p.money} <span class="text-[9px]">Y</span></span></div>
+                            <div class="text-slate-500 text-right leading-tight">人数:<br><span class="font-black text-sm sm:text-base text-slate-800">${(p.employees * laborConfig.fulltimeP) + (p.temps * laborConfig.tempP)} <span class="text-[9px]">人</span></span></div>
+                            <div class="col-span-2 text-[10px] font-bold text-blue-700 bg-blue-100/50 p-0.5 rounded text-center mt-0.5">👨‍💼 正社員: ${p.employees} 人</div>
                         </div>
                     </div>`;
             });
@@ -1176,10 +1196,10 @@
                 const proj = selectedBiddingProject; const amount = parseInt(bidAmountInput.value, 10) || 0;
                 if (proj !== 'none') {
                     const currentMaxBid = projects[proj].maxBid;
-                    if (amount % 10 !== 0) { alert('入札価格は10の倍数にしてください'); return; }
+                    if (amount % 5 !== 0) { alert('入札価格は5の倍数にしてください'); return; }
                     if (amount > currentMaxBid || amount < 0) { alert('入札価格が不正です'); return; }
                     
-                    if (!confirm(`${projects[proj].name} に ${amount}Y で入札しますか？`)) {
+                    if (!confirm(`${projects[proj].name} に ${amount}Y で入札しますか？\n(※入札参加費 ${projects[proj].entryFee}Y がかかります)`)) {
                         return;
                     }
                 }
@@ -1312,10 +1332,10 @@
                     return;
                 }
                 finalActions.push({ project: baseAct.project, amount: baseAct.amount, prob: baseProb * 0.5 });
-                if (baseAct.amount >= 10) finalActions.push({ project: baseAct.project, amount: baseAct.amount - 10, prob: baseProb * 0.3 });
+                if (baseAct.amount >= 5) finalActions.push({ project: baseAct.project, amount: baseAct.amount - 5, prob: baseProb * 0.3 });
                 else finalActions[0].prob += baseProb * 0.3;
                 
-                if (baseAct.amount >= 20) finalActions.push({ project: baseAct.project, amount: baseAct.amount - 20, prob: baseProb * 0.2 });
+                if (baseAct.amount >= 10) finalActions.push({ project: baseAct.project, amount: baseAct.amount - 10, prob: baseProb * 0.2 });
                 else finalActions[0].prob += baseProb * 0.2;
             }
             
@@ -1366,6 +1386,7 @@
 
             ['large', 'medium', 'small'].forEach(projKey => {
                 const maxBid = projects[projKey].maxBid;
+                const entryFee = projects[projKey].entryFee || 0;
                 
                 const c = cpuLabourCost(state, playerId, projKey);
                 let additionalCost = 0;
@@ -1382,15 +1403,16 @@
                     sc.actions.forEach(act => {
                         if (act.project === projKey) {
                             candidateAmounts.add(act.amount);
+                            if (act.amount >= 5) candidateAmounts.add(act.amount - 5);
                             if (act.amount >= 10) candidateAmounts.add(act.amount - 10);
+                            if (act.amount >= 15) candidateAmounts.add(act.amount - 15);
                             if (act.amount >= 20) candidateAmounts.add(act.amount - 20);
-                            if (act.amount >= 30) candidateAmounts.add(act.amount - 30);
                         }
                     });
                 });
 
                 candidateAmounts.forEach(myBid => {
-                    myBid = Math.max(0, Math.min(maxBid, Math.round(myBid / 10) * 10));
+                    myBid = Math.max(0, Math.min(maxBid, Math.round(myBid / 5) * 5));
 
                     let winProbability = 0;
                     let assassinationBonus = 0;
@@ -1426,12 +1448,12 @@
                         }
                     });
 
-                    let profitIfWin = myBid - additionalCost; 
+                    let profitIfWin = myBid - additionalCost - entryFee; 
                     let expectedValue = profitIfWin * winProbability;
                     
                     let adjustedEV = expectedValue + assassinationBonus + (rng() * 0.1); 
 
-                    let totalCost = fixedCost + additionalCost;
+                    let totalCost = fixedCost + additionalCost + entryFee;
                     let netProfit = myBid - totalCost;
                     
                     if (netProfit < 0 && profitIfWin > 0) {
@@ -1663,7 +1685,7 @@
                         if (!action || !['none', 'large', 'medium', 'small'].includes(action.project)) { action = { project: 'none', amount: 0 }; }
                         if (action.project !== 'none') {
                             const currentMaxBid = projects[action.project].maxBid;
-                            action.amount = Math.max(0, Math.min(currentMaxBid, Math.round(Number(action.amount) / 10) * 10));
+                            action.amount = Math.max(0, Math.min(currentMaxBid, Math.round(Number(action.amount) / 5) * 5));
                         } else { action.amount = 0; }
                         bidInputs[i] = action;
                         await new Promise(resolve => setTimeout(resolve, 20));
@@ -1843,6 +1865,7 @@
                 
                 const fCost = currentEconomy === 'B' ? laborConfig.fulltimeCostB : laborConfig.fulltimeCostA;
                 const tCost = currentEconomy === 'B' ? laborConfig.tempCostB : laborConfig.tempCostA;
+                const entryFee = proj.entryFee || 0;
 
                 if (shortageLabor === 0) {
                     slider.disabled = true;
@@ -1852,7 +1875,7 @@
                     slider.style.background = '#e2e8f0';
                     valFull.innerHTML = `👨‍💼 正社員: 0`;
                     valTemp.innerHTML = `👷 発注: 0`;
-                    profitDisplay.textContent = `${p.amount - (players[myPlayerIndex].employees * fCost)}Y`;
+                    profitDisplay.textContent = `${p.amount - (players[myPlayerIndex].employees * fCost) - entryFee}Y`;
                     btn.disabled = false;
                 } else {
                     slider.disabled = false;
@@ -1868,7 +1891,7 @@
                         valFull.innerHTML = `👨‍💼 正社員: <span class="text-lg">${fAdd}</span>`;
                         valTemp.innerHTML = `👷 発注: <span class="text-lg">${tAdd}</span>`;
                         
-                        const estProfit = p.amount - ((players[myPlayerIndex].employees + fAdd) * fCost) - (tAdd * tCost);
+                        const estProfit = p.amount - ((players[myPlayerIndex].employees + fAdd) * fCost) - (tAdd * tCost) - entryFee;
                         profitDisplay.textContent = `${estProfit}Y`;
                         
                         const percentage = shortageLabor === 0 ? 0 : (v / shortageLabor) * 100;
@@ -2015,13 +2038,19 @@
                 let bidObj = bidInputs[i] || { project: 'none', amount: 0 };
                 let hireAction = hiringInputs[i] || { f: 0, t: 0 };
                 
+                let entry_cost_paid = 0;
+                if (bidObj.project !== 'none') {
+                    entry_cost_paid = projects[bidObj.project].entryFee || 0;
+                }
+
                 let fCost = currentEconomy === 'B' ? laborConfig.fulltimeCostB : laborConfig.fulltimeCostA;
                 let tCost = currentEconomy === 'B' ? laborConfig.tempCostB : laborConfig.tempCostA;
                 let laborCost = (p.employees * fCost) + (p.temps * tCost);
-                let profit = revenue - laborCost;
+                let totalCost = laborCost + entry_cost_paid;
+                let profit = revenue - totalCost;
 
                 if (isWinner) p.money += revenue;
-                p.money -= laborCost; 
+                p.money -= totalCost; 
                 p.temps = 0; 
                 let bankruptAfter = false;
                 if (p.money < 0) { p.isDefaulter = true; bankruptAfter = true; }
@@ -2045,7 +2074,6 @@
 
                 let action_type = (bidObj.project !== 'none') ? 'bid' : 'pass';
                 let is_pass = (action_type === 'pass');
-                let entry_cost_paid = 0;
                 let is_single_bidder = (action_type === 'bid' && other_bidders === 0);
 
                 let emp_before = p.employees - (hireAction.f || 0);
@@ -2091,7 +2119,7 @@
                     hire_fulltime: hireAction.f || 0,
                     hire_temp: hireAction.t || 0,
                     construction_mode: bidObj.project || 'none',
-                    money_before: p.money - revenue + laborCost,
+                    money_before: p.money - revenue + totalCost,
                     revenue: revenue,
                     labor_cost: laborCost,
                     profit: profit,
@@ -2629,7 +2657,7 @@
                         if (!action || !['none', 'large', 'medium', 'small'].includes(action.project)) { action = { project: 'none', amount: 0 }; }
                         if (action.project !== 'none') {
                             const currentMaxBid = projects[action.project].maxBid;
-                            action.amount = Math.max(0, Math.min(currentMaxBid, Math.round(Number(action.amount) / 10) * 10));
+                            action.amount = Math.max(0, Math.min(currentMaxBid, Math.round(Number(action.amount) / 5) * 5));
                         } else { action.amount = 0; }
                         bidInputs[i] = action;
                     }
