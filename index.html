@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>入札ゲーム ver.108</title>
+    <title>入札ゲーム ver.109</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -91,7 +91,7 @@
 
     <header class="bg-slate-800 text-white p-3 shadow-md flex justify-between items-center z-[85] shrink-0">
         <div class="flex items-center gap-3">
-            <h1 class="text-xl font-bold">入札 ver.108 <span class="text-sm font-normal ml-2">第 <span id="turn-display" class="text-yellow-400 font-bold text-2xl">1</span> / <span id="total-turn-display">10</span> ターン</span></h1>
+            <h1 class="text-xl font-bold">入札 ver.109 <span class="text-sm font-normal ml-2">第 <span id="turn-display" class="text-yellow-400 font-bold text-2xl">1</span> / <span id="total-turn-display">10</span> ターン</span></h1>
             <button id="room-badge" class="hidden px-2 py-0.5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 rounded text-xs font-bold text-white shadow border border-indigo-500 transition-colors" onclick="if(myPlayerIndex === 0) document.getElementById('lobby-modal').classList.remove('hidden')">🏠 ルーム: <span id="current-room-id-display">---</span></button>
             <div id="ai-status" class="hidden px-2 py-1 bg-emerald-500 rounded text-xs font-bold shadow animate-pulse">🤖 データ学習済</div>
             
@@ -382,7 +382,7 @@
                     <h3 class="text-lg font-bold text-teal-700 border-b-2 border-teal-200 pb-1 mb-2 flex items-center gap-2"><span>👷</span> 雇用とコストについて</h3>
                     <p id="help-labor-text" class="mb-2">人数は 正社員:1人 / 発注・派遣:1人 として計算されます。</p>
                     <ul class="list-disc list-inside space-y-2 ml-1 bg-slate-50 p-3 rounded-lg border border-slate-200">
-                        <li><strong id="help-fulltime-cost">👨‍‍‍‍💼 正社員（好景気20Y / 不景気30Y）：</strong> 一度雇うと解雇できません。毎ターン固定費としてかかりますが、長期的に見るとコストパフォーマンスに優れます。</li>
+                        <li><strong id="help-fulltime-cost">👨💼 正社員（好景気20Y / 不景気30Y）：</strong> 一度雇うと解雇できません。毎ターン固定費としてかかりますが、長期的に見るとコストパフォーマンスに優れます。</li>
                         <li><strong id="help-temp-cost">👷 発注・派遣（好景気30Y / 不景気45Y）：</strong> そのターン限りの人員です。正社員より割高ですが、次ターン以降の固定費にはなりません。</li>
                     </ul>
                 </section>
@@ -1243,18 +1243,19 @@
             return { shortage: reqFull, full: reqFull * fCost, temp: reqTemp * tCost }; 
         }
 
-        // ====== 自律型：正社員雇用と発注の両方を経験したプレイヤーに限定した行動予測 ======
+        // ====== 各戦略に応じた勝利プレイヤーの過去ログデータを参照する予測モデル ======
         function predictEnemyActions(state, enemyId, logs) {
             const enemy = state.players[enemyId];
+            const enemyStrategy = enemy.strat || aiStrategies[enemyId] || 'adaptive';
             let actionCounts = {};
             
             const currentMoneys = state.players.map(p => p.money).sort((a,b)=>b-a);
             const currentEmps = state.players.map(p => p.employees).sort((a,b)=>b-a);
 
-            // 【修正④】現在の景気と一致するログのみを抽出
+            // 現在の景気と一致するログのみを抽出
             const filteredLogs = logs.filter(l => l.economy === state.economy);
 
-            const mixedPlayerKeys = new Set();
+            const targetPlayerKeys = new Set();
             const pActivity = {};
             filteredLogs.forEach(l => {
                 const k = l.game_id + '_' + l.player_id;
@@ -1262,22 +1263,36 @@
                 if (l.hire_fulltime > 0) pActivity[k].full = true;
                 if (l.hire_temp > 0) pActivity[k].temp = true;
             });
+
+            // 戦略ごとのデータ参照フィルター条件の適用
             for (const k in pActivity) {
-                if (pActivity[k].full && pActivity[k].temp) {
-                    mixedPlayerKeys.add(k);
+                if (enemyStrategy === 'fulltime') {
+                    // 完全正社員型：正社員雇用のみしかしない勝利プレイヤーのデータのみ参照
+                    if (pActivity[k].full && !pActivity[k].temp) {
+                        targetPlayerKeys.add(k);
+                    }
+                } else if (enemyStrategy === 'outsource') {
+                    // 完全外注型：外注しかしない勝利プレイヤーのデータのみ参照
+                    if (!pActivity[k].full && pActivity[k].temp) {
+                        targetPlayerKeys.add(k);
+                    }
+                } else {
+                    // 自律適応型：正社員・外注のどちらも使った勝利プレイヤーのデータのみ参照
+                    if (pActivity[k].full && pActivity[k].temp) {
+                        targetPlayerKeys.add(k);
+                    }
                 }
             }
 
             const turnGroups = {};
             filteredLogs.forEach(l => {
-                if (!mixedPlayerKeys.has(l.game_id + '_' + l.player_id)) return;
+                if (!targetPlayerKeys.has(l.game_id + '_' + l.player_id)) return;
 
                 const key = l.game_id + '_' + l.turn;
                 if(!turnGroups[key]) turnGroups[key] = [];
                 turnGroups[key].push(l);
             });
 
-            // 【修正①-A】残りターン数に応じて正社員1人あたりの重みを動的に変更
             let remainTurns = totalTurns - state.turn;
             let empWeight = Math.max(10, remainTurns * 10); 
 
@@ -1296,9 +1311,7 @@
                     boardDist += Math.pow((currentEmps[i] - groupEmps[i]) * empWeight, 2); 
                 }
                 
-                // 【修正①-B】ターン数のズレを第3の次元として距離に加算
                 boardDist += Math.pow((state.turn - logTurn) * 50, 2);
-                
                 boardDist = Math.sqrt(boardDist);
 
                 if (boardDist < 1500) {
