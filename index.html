@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>入札ゲーム ver.111</title>
+    <title>入札ゲーム ver.112</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -124,7 +124,7 @@
 
     <header class="bg-slate-800 text-white p-3 shadow-md flex justify-between items-center z-[85] shrink-0">
         <div class="flex items-center gap-3">
-            <h1 class="text-xl font-bold">入札 ver.111 <span class="text-sm font-normal ml-2">第 <span id="turn-display" class="text-yellow-400 font-bold text-2xl">1</span> / <span id="total-turn-display">10</span> ターン</span></h1>
+            <h1 class="text-xl font-bold">入札 ver.112 <span class="text-sm font-normal ml-2">第 <span id="turn-display" class="text-yellow-400 font-bold text-2xl">1</span> / <span id="total-turn-display">10</span> ターン</span></h1>
             <button id="room-badge" class="hidden px-2 py-0.5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 rounded text-xs font-bold text-white shadow border border-indigo-500 transition-colors" onclick="if(myPlayerIndex === 0) document.getElementById('lobby-modal').classList.remove('hidden')">🏠 ルーム: <span id="current-room-id-display">---</span></button>
             <div id="ai-status" class="hidden px-2 py-1 bg-emerald-500 rounded text-xs font-bold shadow animate-pulse">🤖 データ学習済</div>
             
@@ -262,7 +262,7 @@
                         </div>
                         
                         <div class="w-full pt-2 pb-2">
-                            <input type="range" id="hire-slider" class="w-full h-4 rounded-lg cursor-pointer custom-color-slider shadow-inner" min="0" max="100" value="0">
+                            <input type="range" id="hire-slider" class="w-full h-4 rounded-lg cursor-pointer custom-color-slider shadow-inner" min="0" max="100" step="0.1" value="0">
                         </div>
                         
                         <div class="flex justify-between items-center mt-4 text-sm font-black gap-1">
@@ -552,7 +552,13 @@
     <div id="chart-modal" class="fixed inset-0 modal-bg hidden flex justify-center items-center z-[100] p-4">
         <div id="chart-modal-content" class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-4xl slide-in relative border-t-8 flex flex-col h-[70vh]">
             <button onclick="closeChartModal()" class="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-800 font-bold transition-colors z-20">✕</button>
-            <div class="text-center mb-4 shrink-0"><h2 id="chart-modal-title" class="text-2xl font-black text-slate-800">落札価格推移</h2></div>
+            <div class="text-center mb-4 shrink-0">
+                <h2 id="chart-modal-title" class="text-2xl font-black text-slate-800">落札価格推移</h2>
+                <div class="flex justify-center items-center gap-4 mt-2 text-xs font-bold text-slate-600">
+                    <div class="flex items-center gap-1"><span class="w-3 h-3 rounded-full inline-block" id="legend-color-box"></span> 落札価格</div>
+                    <div class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-purple-500 inline-block"></span> 平均入札額</div>
+                </div>
+            </div>
             <div class="flex-1 relative w-full h-full min-h-[300px] bg-slate-50 rounded-xl border border-slate-200 p-4">
                 <div id="modal-chart-large" class="absolute inset-4 hidden"><canvas id="chart-large"></canvas></div>
                 <div id="modal-chart-medium" class="absolute inset-4 hidden"><canvas id="chart-medium"></canvas></div>
@@ -664,8 +670,8 @@
         let isBiddingPhase = false; 
         let selectedBiddingProject = 'none';
 
-        // 景気変動確率設定 (初期値: 好景気50%, 不景気50% → スライダーステップ 0〜100、中央50)
-        let economyProbability = 50; // 好景気の発生確率(%)。不景気は (100 - economyProbability)%
+        // 景気変動確率設定 (初期値: 好景気50%, 不景気50%)
+        let economyProbability = 50; 
 
         let projects = { 
             large: { name: '大工事', maxBid: 500, labor: 10, color: 'rgb(239, 68, 68)', entryFee: 20 }, 
@@ -778,6 +784,10 @@
                     if (charts[key] && charts[key].data && charts[key].data.datasets) {
                         charts[key].data.datasets[0].data = [];
                         charts[key].data.datasets[0].pointBackgroundColor = [];
+                        if (charts[key].data.datasets[1]) {
+                            charts[key].data.datasets[1].data = [];
+                            charts[key].data.datasets[1].pointBackgroundColor = [];
+                        }
                         charts[key].update();
                     }
                 });
@@ -829,10 +839,6 @@
                 document.getElementById('label-boom-p').textContent = val + '%';
                 document.getElementById('label-recession-p').textContent = recessionProb + '%';
 
-                // スライダーの背景色を動的に塗る
-                // val は好景気確率。左に不景気(青)、右に好景気(ピンク)。
-                // したがって、0%〜val%までをピンク(#ec4899)で塗り、残りを青(#3b82f6)で塗ることで、
-                // ツマミを右へ動かす(val増加)とピンクの領域が広がる＝好景気の割合が増える表現になります。
                 e.target.style.background = `linear-gradient(to right, #ec4899 0%, #ec4899 ${val}%, #3b82f6 ${val}%, #3b82f6 100%)`;
                 
                 // ホバー表示用ツールチップタイトル
@@ -923,6 +929,19 @@
                         players[i].money = initialMoney;
                         players[i].moneyHistory = [initialMoney];
                         players[i].employees = initialEmployees;
+                        players[i].history = [];
+                    }
+                    if (charts && Object.keys(charts).length > 0) {
+                        ['large', 'medium', 'small'].forEach(key => {
+                            if (charts[key]) {
+                                charts[key].data.datasets[0].data = [];
+                                charts[key].data.datasets[0].pointBackgroundColor = [];
+                                if (charts[key].data.datasets[1]) {
+                                    charts[key].data.datasets[1].data = [];
+                                    charts[key].data.datasets[1].pointBackgroundColor = [];
+                                }
+                            }
+                        });
                     }
                 }
 
@@ -1079,7 +1098,42 @@
                     return;
                 }
                 const ctx = document.getElementById(`chart-${key}`).getContext('2d');
-                charts[key] = new Chart(ctx, { type: 'line', data: { labels: Array.from({length: totalTurns}, (_, i) => i + 1), datasets: [{ label: projects[key].name + ' 落札価格', data: [], borderColor: projects[key].color, backgroundColor: projects[key].color, pointBackgroundColor: [], pointBorderColor: '#fff', pointRadius: 6, tension: 0.2, spanGaps: false }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, title: { display: false } }, scales: { y: { min: 0, max: projects[key].maxBid, ticks: { stepSize: 50 } }, x: { min: 1, max: totalTurns, ticks: { stepSize: 1 } } } } });
+                charts[key] = new Chart(ctx, { 
+                    type: 'line', 
+                    data: { 
+                        labels: Array.from({length: totalTurns}, (_, i) => i + 1), 
+                        datasets: [
+                            { 
+                                label: projects[key].name + ' 落札価格', 
+                                data: [], 
+                                borderColor: projects[key].color, 
+                                backgroundColor: projects[key].color, 
+                                pointBackgroundColor: [], 
+                                pointBorderColor: '#fff', 
+                                pointRadius: 6, 
+                                tension: 0.2, 
+                                spanGaps: false 
+                            },
+                            { 
+                                label: projects[key].name + ' 平均入札額', 
+                                data: [], 
+                                borderColor: '#a855f7', 
+                                backgroundColor: '#a855f7', 
+                                pointBackgroundColor: [], 
+                                pointBorderColor: '#fff', 
+                                pointRadius: 4, 
+                                tension: 0.2, 
+                                spanGaps: false 
+                            }
+                        ] 
+                    }, 
+                    options: { 
+                        responsive: true, 
+                        maintainAspectRatio: false, 
+                        plugins: { legend: { display: false }, title: { display: false } }, 
+                        scales: { y: { min: 0, max: projects[key].maxBid, ticks: { stepSize: 50 } }, x: { min: 1, max: totalTurns, ticks: { stepSize: 1 } } } 
+                    } 
+                });
             });
         }
 
@@ -1088,21 +1142,51 @@
             const title = document.getElementById('chart-modal-title');
             const content = document.getElementById('chart-modal-content');
             ['large', 'medium', 'small'].forEach(key => { document.getElementById(`modal-chart-${key}`).classList.add('hidden'); });
+            
             document.getElementById(`modal-chart-${projKey}`).classList.remove('hidden');
             title.textContent = `${projects[projKey].name} 落札価格推移`;
+            
+            const legendColorBox = document.getElementById('legend-color-box');
+            if(legendColorBox) legendColorBox.style.backgroundColor = projects[projKey].color;
+
             content.classList.remove('border-red-500', 'border-blue-500', 'border-green-500');
             if (projKey === 'large') content.classList.add('border-red-500');
             if (projKey === 'medium') content.classList.add('border-blue-500');
             if (projKey === 'small') content.classList.add('border-green-500');
+            
             modal.classList.remove('hidden');
             setTimeout(() => { if (charts[projKey]) { charts[projKey].resize(); charts[projKey].update(); } }, 50);
         };
         window.closeChartModal = function() { document.getElementById('chart-modal').classList.add('hidden'); };
 
-        function updateProjectChart(projKey, amount, eco) {
-            const dataArr = charts[projKey].data.datasets[0].data, colorArr = charts[projKey].data.datasets[0].pointBackgroundColor;
-            let len = dataArr.length; while(len < currentTurn - 1) { dataArr.push({x: len + 1, y: null, eco: null}); colorArr.push('transparent'); len++; }
-            if (amount !== null) { dataArr.push({x: currentTurn, y: amount, eco: eco}); colorArr.push(eco === 'A' ? 'rgb(236, 72, 153)' : 'rgb(59, 130, 246)'); } else { dataArr.push({x: currentTurn, y: null, eco: null}); colorArr.push('transparent'); }
+        function updateProjectChart(projKey, amount, eco, avgBid) {
+            const dataArr = charts[projKey].data.datasets[0].data;
+            const colorArr = charts[projKey].data.datasets[0].pointBackgroundColor;
+            const avgDataArr = charts[projKey].data.datasets[1].data;
+            const avgColorArr = charts[projKey].data.datasets[1].pointBackgroundColor;
+            
+            let len = dataArr.length; 
+            while(len < currentTurn - 1) { 
+                dataArr.push({x: len + 1, y: null}); colorArr.push('transparent'); 
+                avgDataArr.push({x: len + 1, y: null}); avgColorArr.push('transparent');
+                len++; 
+            }
+            if (amount !== null) { 
+                dataArr.push({x: currentTurn, y: amount}); 
+                colorArr.push(eco === 'A' ? 'rgb(236, 72, 153)' : 'rgb(59, 130, 246)'); 
+            } else { 
+                dataArr.push({x: currentTurn, y: null}); 
+                colorArr.push('transparent'); 
+            }
+
+            if (avgBid !== null && avgBid !== undefined) {
+                avgDataArr.push({x: currentTurn, y: avgBid});
+                avgColorArr.push('#a855f7');
+            } else {
+                avgDataArr.push({x: currentTurn, y: null});
+                avgColorArr.push('transparent');
+            }
+            
             charts[projKey].update();
         }
 
@@ -1133,7 +1217,7 @@
             const costCurrent = players[myPlayerIndex].employees * fCost;
             
             let tooltipText = '';
-            if (shortageLabor === 0) {
+            if (shortageLabor <= 0) {
                 const profit = amount - costCurrent - entryFee;
                 tooltipText = `予想収益: ${profit}Y (参加費-${entryFee}Y)`;
             } else {
@@ -1197,9 +1281,27 @@
             const player = players.find(p => p.id === playerId) || players[0];
             const modal = document.getElementById('history-modal'), title = document.getElementById('history-title'), content = document.getElementById('history-content');
             title.textContent = `${player.name} の履歴`; content.innerHTML = '';
+            
             for (let t = 1; t <= totalTurns; t++) {
                 let rowHtml = `<div class="flex items-center p-3 border-b border-slate-100 ${t % 2 === 0 ? 'bg-slate-50' : 'bg-white'} rounded-lg mb-1"><div class="w-1/3 font-black text-slate-500 text-sm">第${t}ターン</div>`;
-                if (t <= currentTurn && player.history.length >= t) { const r = player.history[t-1]; if (r && r.project) { rowHtml += `<div class="w-2/3 text-emerald-700 font-bold text-sm flex justify-between items-center bg-emerald-50 px-2 py-1 rounded"><span>${projects[r.project].name}</span><span class="font-black">${r.amount}Y</span></div>`; } else { rowHtml += `<div class="w-2/3 text-slate-400 font-bold text-sm bg-slate-100 px-2 py-1 rounded text-center">データなし</div>`; } } else { rowHtml += `<div class="w-2/3 text-slate-300 font-bold text-center">-</div>`; }
+                if (t <= currentTurn && player.history.length >= t) { 
+                    const r = player.history[t-1]; 
+                    if (r && r.project && r.project !== 'pass' && r.project !== 'none') {
+                        let isWin = r.isWinner !== undefined ? r.isWinner : (r.amount !== null && r.amount !== undefined);
+                        let bidAmt = r.bidAmount !== undefined ? r.bidAmount : r.amount;
+                        
+                        if (isWin) {
+                            rowHtml += `<div class="w-2/3 text-emerald-700 font-bold text-sm flex justify-between items-center bg-emerald-50 px-2 py-1 rounded border border-emerald-200"><span>${projects[r.project].name}</span><span class="font-black">${bidAmt}Y</span></div>`;
+                        } else {
+                            let winAmtText = r.winningAmount ? `(${r.winningAmount}Y)` : '(なし)';
+                            rowHtml += `<div class="w-2/3 text-rose-700 font-bold text-sm flex justify-between items-center bg-rose-50 px-2 py-1 rounded border border-rose-200"><span>${projects[r.project].name}</span><span class="font-black"><span class="text-[10px] font-normal text-rose-500 mr-1">${winAmtText}</span>${bidAmt}Y</span></div>`;
+                        }
+                    } else { 
+                        rowHtml += `<div class="w-2/3 text-slate-400 font-bold text-sm bg-slate-100 px-2 py-1 rounded text-center border border-slate-200">パス</div>`; 
+                    } 
+                } else { 
+                    rowHtml += `<div class="w-2/3 text-slate-300 font-bold text-center">-</div>`; 
+                }
                 content.innerHTML += rowHtml + `</div>`;
             }
             if (historyChartInstance) historyChartInstance.destroy();
@@ -1886,11 +1988,15 @@
             winningResults = {}; const projBids = { large: [], medium: [], small: [] };
             for (let i = 0; i < 4; i++) { const b = bidInputs[i]; if (b && b.project !== 'none') projBids[b.project].push({ playerId: i, amount: b.amount }); }
             const resultsData = { large: null, medium: null, small: null };
+            const avgData = { large: null, medium: null, small: null };
             
             let tieCounts = {};
             for (const pKey of ['large', 'medium', 'small']) {
                 const bids = projBids[pKey];
                 if (bids.length > 0) {
+                    const sum = bids.reduce((acc, curr) => acc + curr.amount, 0);
+                    avgData[pKey] = Math.round(sum / bids.length);
+                    
                     const minBid = Math.min(...bids.map(b => b.amount));
                     const minBidders = bids.filter(b => b.amount === minBid);
                     minBidders.forEach(b => { tieCounts[b.playerId] = minBidders.length; });
@@ -1901,20 +2007,41 @@
                 const bids = projBids[pKey]; let htmlContent = '';
                 if (bids.length === 0) { 
                     htmlContent = `<span class="text-slate-400 font-bold bg-slate-100 px-3 py-1 rounded text-sm">落札者なし</span>`; 
-                    resultsData[pKey] = { winnerId: -1 }; 
-                    updateProjectChart(pKey, null, currentEconomy); 
+                    resultsData[pKey] = { winnerId: -1, amount: null }; 
+                    updateProjectChart(pKey, null, currentEconomy, null); 
                 } 
                 else {
                     const minBid = Math.min(...bids.map(b => b.amount)), minBidders = bids.filter(b => b.amount === minBid);
                     let winnerId; let isRandom = false;
                     if (minBidders.length === 1) winnerId = minBidders[0].playerId; else { isRandom = true; winnerId = await playRoulette(pKey, minBidders, minBid); }
-                    resultsData[pKey] = { winnerId: winnerId, amount: minBid }; winningResults[winnerId] = { project: pKey, amount: minBid }; updateProjectChart(pKey, minBid, currentEconomy);
+                    resultsData[pKey] = { winnerId: winnerId, amount: minBid }; 
+                    winningResults[winnerId] = { project: pKey, amount: minBid }; 
+                    updateProjectChart(pKey, minBid, currentEconomy, avgData[pKey]);
+                    
                     const pName = players[winnerId].name, isMe = winnerId === myPlayerIndex;
                     htmlContent = `<div class="flex-1"><div class="${isMe ? 'text-blue-700 font-black' : 'text-slate-700 font-bold'}">${isMe ? '👤' : '🤖'} ${pName}</div>${isRandom ? '<div class="text-[10px] text-amber-600 bg-amber-50 inline-block px-1 rounded border border-amber-200 mt-0.5">🎲 抽選で決定</div>' : ''}</div><div class="font-black text-xl text-emerald-600 font-mono text-right shrink-0">${minBid}<span class="text-sm text-emerald-800">Y</span></div>`;
                 }
                 document.getElementById(`res-${pKey}-content`).innerHTML = htmlContent;
             }
-            for (let i = 0; i < 4; i++) { if (players[i].history.length < currentTurn) { if (winningResults[i]) players[i].history.push({ turn: currentTurn, project: winningResults[i].project, amount: winningResults[i].amount }); else players[i].history.push({ turn: currentTurn, project: null, amount: null }); } }
+            
+            for (let i = 0; i < 4; i++) { 
+                if (players[i].history.length < currentTurn) { 
+                    let b = bidInputs[i];
+                    if (b && b.project && b.project !== 'none') {
+                        let isWinner = winningResults[i] !== undefined;
+                        let winAmt = resultsData[b.project].amount;
+                        players[i].history.push({
+                            turn: currentTurn,
+                            project: b.project,
+                            bidAmount: b.amount,
+                            isWinner: isWinner,
+                            winningAmount: winAmt
+                        });
+                    } else {
+                        players[i].history.push({ turn: currentTurn, project: 'pass', bidAmount: 0, isWinner: false, winningAmount: null }); 
+                    }
+                } 
+            }
             
             const resModal = document.getElementById('result-modal'); const closeBtn = document.getElementById('close-result-btn'); const closeTopBtn = document.getElementById('close-result-top-btn');
             resModal.classList.remove('hidden');
@@ -1992,7 +2119,7 @@
                 const tCost = currentEconomy === 'B' ? laborConfig.tempCostB : laborConfig.tempCostA;
                 const entryFee = proj.entryFee || 0;
 
-                if (shortageLabor === 0) {
+                if (shortageLabor <= 0) {
                     slider.disabled = true;
                     slider.value = 0;
                     slider.min = 0;
@@ -2006,7 +2133,7 @@
                     slider.disabled = false;
                     slider.min = 0;
                     slider.max = shortageLabor;
-                    slider.step = 0.1; // 細かく動かすためですが、JS側の計算を優先
+                    slider.step = 0.1; 
                     slider.value = 0;
 
                     const updateSlider = () => {
@@ -2014,7 +2141,7 @@
                         const fAdd = Math.ceil(v / laborConfig.fulltimeP);
                         const tAdd = Math.ceil((shortageLabor - v) / laborConfig.tempP);
                         
-                        valFull.innerHTML = `👨‍‍💼 正社員: <span class="text-lg">${fAdd}</span>`;
+                        valFull.innerHTML = `👨‍💼 正社員: <span class="text-lg">${fAdd}</span>`;
                         valTemp.innerHTML = `👷 発注: <span class="text-lg">${tAdd}</span>`;
                         
                         const estProfit = p.amount - ((players[myPlayerIndex].employees + fAdd) * fCost) - (tAdd * tCost) - entryFee;
