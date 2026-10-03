@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>入札ゲーム ver.115</title>
+    <title>入札ゲーム ver.117</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -124,7 +124,7 @@
 
     <header class="bg-slate-800 text-white p-3 shadow-md flex justify-between items-center z-[85] shrink-0">
         <div class="flex items-center gap-3">
-            <h1 class="text-xl font-bold">入札 ver.115 <span class="text-sm font-normal ml-2">第 <span id="turn-display" class="text-yellow-400 font-bold text-2xl">1</span> / <span id="total-turn-display">10</span> ターン</span></h1>
+            <h1 class="text-xl font-bold">入札 ver.117 <span class="text-sm font-normal ml-2">第 <span id="turn-display" class="text-yellow-400 font-bold text-2xl">1</span> / <span id="total-turn-display">10</span> ターン</span></h1>
             <button id="room-badge" class="hidden px-2 py-0.5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 rounded text-xs font-bold text-white shadow border border-indigo-500 transition-colors" onclick="if(myPlayerIndex === 0) document.getElementById('lobby-modal').classList.remove('hidden')">🏠 ルーム: <span id="current-room-id-display">---</span></button>
             <div id="ai-status" class="hidden px-2 py-1 bg-emerald-500 rounded text-xs font-bold shadow animate-pulse">🤖 データ学習済</div>
             
@@ -1433,7 +1433,7 @@
             return { shortage: reqFull, full: reqFull * fCost, temp: reqTemp * tCost }; 
         }
 
-        function predictEnemyActions(state, enemyId, logs) {
+        function predictEnemyActions(state, enemyId, logs, currentGameId) {
             const enemy = state.players[enemyId];
             const enemyStrategy = enemy.strat || aiStrategies[enemyId] || 'adaptive';
             let actionCounts = {};
@@ -1510,7 +1510,8 @@
                         
                         if (myDist < 500) {
                             let actKey = `${log.construction_mode}:${log.bid_amount}`;
-                            actionCounts[actKey] = (actionCounts[actKey] || 0) + (1500 - boardDist) + (500 - myDist);
+                            let weight = (log.game_id === currentGameId) ? 20 : 1; 
+                            actionCounts[actKey] = (actionCounts[actKey] || 0) + ((1500 - boardDist) + (500 - myDist)) * weight;
                         }
                     });
                 }
@@ -1574,10 +1575,18 @@
             const currentLogs = pendingGameLogs.filter(log => log.turn < state.turn);
             const combinedLogs = [...allHistoricalLogs, ...currentLogs];
 
+            const marketTrend = { large: null, medium: null, small: null };
+            ['large', 'medium', 'small'].forEach(pk => {
+                const recent = currentLogs.filter(l => l.turn >= state.turn - 3 && l.is_winner && l.project_type === pk);
+                if (recent.length > 0) {
+                    marketTrend[pk] = Math.round(recent.reduce((sum, l) => sum + l.winning_bid, 0) / recent.length / 5) * 5;
+                }
+            });
+
             let enemiesData = [];
             for (let i = 0; i < state.players.length; i++) {
                 if (i !== playerId && !state.players[i].bankrupt) {
-                    enemiesData.push({ id: i, actions: predictEnemyActions(state, i, combinedLogs) });
+                    enemiesData.push({ id: i, actions: predictEnemyActions(state, i, combinedLogs, currentGameId) });
                 }
             }
 
@@ -1612,6 +1621,14 @@
                 }
                 
                 let candidateAmounts = new Set([maxBid]);
+                
+                if (marketTrend[projKey] !== null) {
+                    candidateAmounts.add(marketTrend[projKey]);
+                    candidateAmounts.add(marketTrend[projKey] - 5);
+                    candidateAmounts.add(marketTrend[projKey] - 10);
+                    candidateAmounts.add(marketTrend[projKey] + 5);
+                }
+
                 scenarios.forEach(sc => {
                     sc.actions.forEach(act => {
                         if (act.project === projKey) {
@@ -1654,14 +1671,24 @@
                                 let eFCost = state.economy === 'B' ? laborConfig.fulltimeCostB : laborConfig.fulltimeCostA;
                                 let eFixedCost = enemy.employees * eFCost;
                                 
-                                if (enemy.money - eFixedCost < 0) {
-                                    assassinationBonus += sc.prob * winRateInTie * (remainingTurns * 50);
+                                let enemyNextMoney = enemy.money - eFixedCost;
+                                
+                                // --- 追加：無駄な固定費を払わせる「嫌がらせボーナス」 ---
+                                // 相手の固定費が大きいほど、失注させたときのダメージが大きいため加算
+                                let baseBonus = eFixedCost * 5; 
+                                
+                                if (enemyNextMoney < 0) {
+                                    baseBonus += 2000; // 破産
+                                } else if (enemyNextMoney < 100) {
+                                    baseBonus += 500;  // 瀕死
                                 }
+                                
+                                assassinationBonus += sc.prob * winRateInTie * baseBonus;
                             });
                         }
                     });
 
-                    let profitIfWin = myBid - additionalCost; // 参加費を削除
+                    let profitIfWin = myBid - additionalCost; 
                     let expectedValue = profitIfWin * winProbability;
                     
                     let adjustedEV = expectedValue + assassinationBonus + (rng() * 0.1); 
@@ -1669,11 +1696,13 @@
                     let totalCost = fixedCost + additionalCost;
                     let netProfit = myBid - totalCost;
                     
-                    if (netProfit < 0 && profitIfWin > 0) {
+                    if (p.money + netProfit < fixedCost) {
+                        adjustedEV = -99999;
+                    } else if (netProfit < 0 && profitIfWin > 0) {
                         if (p.money > fixedCost * 3) {
                             adjustedEV -= 50; 
                         } else {
-                            adjustedEV -= 10; 
+                            adjustedEV -= 200; 
                         }
                     }
 
@@ -2283,7 +2312,7 @@
                 let fCost = currentEconomy === 'B' ? laborConfig.fulltimeCostB : laborConfig.fulltimeCostA;
                 let tCost = currentEconomy === 'B' ? laborConfig.tempCostB : laborConfig.tempCostA;
                 let laborCost = (p.employees * fCost) + (p.temps * tCost);
-                let totalCost = laborCost; // 参加費を削除
+                let totalCost = laborCost; 
                 let profit = revenue - totalCost;
 
                 if (isWinner) p.money += revenue;
@@ -2371,7 +2400,7 @@
                     
                     action_type: action_type,
                     is_pass: is_pass,
-                    entry_cost_paid: 0, // スキーマエラー防止のため0で記録
+                    entry_cost_paid: 0, 
                     is_single_bidder: is_single_bidder,
                     marginal_cost_estimate: marginal_cost_estimate,
                     is_dumping: is_dumping,
