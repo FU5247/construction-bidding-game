@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>入札ゲーム ver.118</title>
+    <title>入札ゲーム ver.119</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -124,7 +124,7 @@
 
     <header class="bg-slate-800 text-white p-3 shadow-md flex justify-between items-center z-[85] shrink-0">
         <div class="flex items-center gap-3">
-            <h1 class="text-xl font-bold">入札 ver.118 <span class="text-sm font-normal ml-2">第 <span id="turn-display" class="text-yellow-400 font-bold text-2xl">1</span> / <span id="total-turn-display">10</span> ターン</span></h1>
+            <h1 class="text-xl font-bold">入札 ver.119 <span class="text-sm font-normal ml-2">第 <span id="turn-display" class="text-yellow-400 font-bold text-2xl">1</span> / <span id="total-turn-display">10</span> ターン</span></h1>
             <button id="room-badge" class="hidden px-2 py-0.5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 rounded text-xs font-bold text-white shadow border border-indigo-500 transition-colors" onclick="if(myPlayerIndex === 0) document.getElementById('lobby-modal').classList.remove('hidden')">🏠 ルーム: <span id="current-room-id-display">---</span></button>
             <div id="ai-status" class="hidden px-2 py-1 bg-emerald-500 rounded text-xs font-bold shadow animate-pulse">🤖 データ学習済</div>
             
@@ -671,6 +671,7 @@
             small: { name: '小工事', maxBid: 200, labor: 4 } 
         };
         
+        // 労働力設定の初期値を変更
         let laborConfig = {
             fulltimeP: 1,
             fulltimeCostA: 30, // 変更
@@ -969,7 +970,7 @@
             });
             
             document.getElementById('help-labor-text').textContent = `人数は 正社員:${laborConfig.fulltimeP}人 / 発注・派遣:${laborConfig.tempP}人 として計算されます。`;
-            document.getElementById('help-fulltime-cost').textContent = `👨‍‍💼 正社員（好景気${laborConfig.fulltimeCostA}Y / 不景気${laborConfig.fulltimeCostB}Y）：`;
+            document.getElementById('help-fulltime-cost').textContent = `👨‍💼 正社員（好景気${laborConfig.fulltimeCostA}Y / 不景気${laborConfig.fulltimeCostB}Y）：`;
             document.getElementById('help-temp-cost').textContent = `👷 発注・派遣（好景気${laborConfig.tempCostA}Y / 不景気${laborConfig.tempCostB}Y）：`;
             
             updateEconomyHighlight();
@@ -1682,17 +1683,23 @@
                                 
                                 let enemyNextMoney = enemy.money - eFixedCost;
                                 
-                                // --- 邪魔ボーナス超絶強化 ---
-                                // 相手の固定費×10をベースにする（固定費が重いほどボーナス増大）
-                                let baseBonus = eFixedCost * 10; 
-                                
+                                let baseBonus = 0;
+
+                                // 相手が破産・瀕死になる場合は強力なボーナス
                                 if (enemyNextMoney < 0) {
                                     baseBonus += 3000; 
                                 } else if (enemyNextMoney < 100) {
                                     baseBonus += 1000; 
                                 }
                                 
-                                assassinationBonus += sc.prob * winRateInTie * baseBonus;
+                                // 相手の固定費が「重い」場合（例: 60Y以上=正社員2〜3人分以上）のみ、邪魔ボーナスを加算
+                                if (eFixedCost >= 60) {
+                                    baseBonus += eFixedCost * 10;
+                                }
+
+                                if (baseBonus > 0) {
+                                    assassinationBonus += sc.prob * winRateInTie * baseBonus;
+                                }
                             });
                         }
                     });
@@ -1706,7 +1713,7 @@
                     
                     // 単独入札確率が高い場合の強気ボーナス
                     if (aloneProbability > 0.5) {
-                        adjustedEV += profitIfWin * aloneProbability * 0.5; // 利益が大きいほどボーナス（強気を促す）
+                        adjustedEV += Math.max(0, profitIfWin) * aloneProbability * 0.5; // 利益が大きいほどボーナス（強気を促す）
                     } else {
                         // 相場意識: 競合がいて、かつ相場より高すぎる入札には強力なペナルティ
                         if (marketTrend[projKey] !== null && myBid > marketTrend[projKey] + 15) {
@@ -1720,13 +1727,15 @@
                     let totalCost = fixedCost + additionalCost;
                     let netProfit = myBid - totalCost;
                     
+                    // 赤字入札の厳格な制限
                     if (p.money + netProfit < fixedCost) {
                         adjustedEV = -99999;
-                    } else if (netProfit < 0 && profitIfWin > 0) {
-                        if (p.money > fixedCost * 3) {
-                            adjustedEV -= 50; 
+                    } else if (netProfit <= 0) {
+                        if (assassinationBonus > 0) {
+                            adjustedEV -= 10; 
                         } else {
-                            adjustedEV -= 200; 
+                            // 邪魔目的がないのに赤字（純利益マイナス）の入札は絶対にしない
+                            adjustedEV -= 5000; 
                         }
                     }
 
