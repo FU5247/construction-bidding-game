@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>入札ゲーム ver.120</title>
+    <title>入札ゲーム ver.121</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -124,7 +124,7 @@
 
     <header class="bg-slate-800 text-white p-3 shadow-md flex justify-between items-center z-[85] shrink-0">
         <div class="flex items-center gap-3">
-            <h1 class="text-xl font-bold">入札 ver.120 <span class="text-sm font-normal ml-2">第 <span id="turn-display" class="text-yellow-400 font-bold text-2xl">1</span> / <span id="total-turn-display">10</span> ターン</span></h1>
+            <h1 class="text-xl font-bold">入札 ver.121 <span class="text-sm font-normal ml-2">第 <span id="turn-display" class="text-yellow-400 font-bold text-2xl">1</span> / <span id="total-turn-display">10</span> ターン</span></h1>
             <button id="room-badge" class="hidden px-2 py-0.5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 rounded text-xs font-bold text-white shadow border border-indigo-500 transition-colors" onclick="if(myPlayerIndex === 0) document.getElementById('lobby-modal').classList.remove('hidden')">🏠 ルーム: <span id="current-room-id-display">---</span></button>
             <div id="ai-status" class="hidden px-2 py-1 bg-emerald-500 rounded text-xs font-bold shadow animate-pulse">🤖 データ学習済</div>
             
@@ -661,24 +661,21 @@
         let isBiddingPhase = false; 
         let selectedBiddingProject = 'none';
 
-        // 景気変動確率設定 (初期値: 好景気50%, 不景気50%)
         let economyProbability = 50; 
 
-        // 参加コスト（entryFee）を完全に削除
         let projects = { 
             large: { name: '大工事', maxBid: 500, labor: 10 }, 
             medium: { name: '中工事', maxBid: 350, labor: 7 }, 
             small: { name: '小工事', maxBid: 200, labor: 4 } 
         };
         
-        // 労働力設定の初期値を変更
         let laborConfig = {
             fulltimeP: 1,
-            fulltimeCostA: 30, // 変更
-            fulltimeCostB: 30, // 変更
+            fulltimeCostA: 30, 
+            fulltimeCostB: 30, 
             tempP: 1,
-            tempCostA: 40, // 変更
-            tempCostB: 50  // 変更
+            tempCostA: 40, 
+            tempCostB: 50  
         };
 
         const dragModal = document.getElementById('cpu-calculating-dialog');
@@ -818,26 +815,21 @@
             renderPlayers();
         }
 
-        // --- 景気スライダーの動的描画・更新イベント処理 ---
         const economySlider = document.getElementById('economy-slider') || document.getElementById('economy-prob-slider');
         if (economySlider) {
             economySlider.addEventListener('input', (e) => {
                 const val = parseInt(e.target.value, 10);
-                economyProbability = val; // スライダー値 = 好景気発生確率(%)
-                const recessionProb = 100 - val; // 不景気発生確率(%)
+                economyProbability = val; 
+                const recessionProb = 100 - val; 
                 
-                // UI更新
                 document.getElementById('prob-boom-val').textContent = val;
                 document.getElementById('prob-recession-val').textContent = recessionProb;
                 document.getElementById('label-boom-p').textContent = val + '%';
                 document.getElementById('label-recession-p').textContent = recessionProb + '%';
 
                 e.target.style.background = `linear-gradient(to right, #ec4899 0%, #ec4899 ${val}%, #3b82f6 ${val}%, #3b82f6 100%)`;
-                
-                // ホバー表示用ツールチップタイトル
                 e.target.title = `不景気発生確率: ${recessionProb}% / 好景気発生確率: ${val}%`;
             });
-            // 初期状態の反映
             economySlider.value = economyProbability;
             economySlider.dispatchEvent(new Event('input'));
         }
@@ -850,7 +842,6 @@
             document.getElementById('set-init-money').value = initialMoney;
             document.getElementById('set-init-emp').value = initialEmployees;
 
-            // 景気確率スライダー値の同期
             const slider = document.getElementById('economy-prob-slider');
             if (slider) {
                 slider.value = economyProbability;
@@ -1576,13 +1567,26 @@
             const currentLogs = pendingGameLogs.filter(log => log.turn < state.turn);
             const combinedLogs = [...allHistoricalLogs, ...currentLogs];
 
+            // 1. 生存者数（アクティブなプレイヤー数）のカウント
+            let activeCompetitors = 0;
+            for (let i = 0; i < state.players.length; i++) {
+                if (i !== playerId && !state.players[i].bankrupt) activeCompetitors++;
+            }
+            const totalActive = activeCompetitors + 1;
+
             const marketTrend = { large: null, medium: null, small: null };
-            ['large', 'medium', 'small'].forEach(pk => {
-                const recent = currentLogs.filter(l => l.turn >= state.turn - 3 && l.is_winner && l.project_type === pk);
-                if (recent.length > 0) {
-                    marketTrend[pk] = Math.round(recent.reduce((sum, l) => sum + l.winning_bid, 0) / recent.length / 5) * 5;
-                }
-            });
+            
+            // 2. 市場環境変化への即応 (生存者が3人以下なら過疎とみなし、過去の安値トラウマをリセット)
+            const ignoreMarketTrend = (totalActive <= 3);
+
+            if (!ignoreMarketTrend) {
+                ['large', 'medium', 'small'].forEach(pk => {
+                    const recent = currentLogs.filter(l => l.turn >= state.turn - 3 && l.is_winner && l.project_type === pk);
+                    if (recent.length > 0) {
+                        marketTrend[pk] = Math.round(recent.reduce((sum, l) => sum + l.winning_bid, 0) / recent.length / 5) * 5;
+                    }
+                });
+            }
 
             let enemiesData = [];
             for (let i = 0; i < state.players.length; i++) {
@@ -1685,14 +1689,12 @@
                                 
                                 let baseBonus = 0;
 
-                                // 相手が破産・瀕死になる場合は強力なボーナス
                                 if (enemyNextMoney < 0) {
                                     baseBonus += 3000; 
                                 } else if (enemyNextMoney < 100) {
                                     baseBonus += 1000; 
                                 }
                                 
-                                // 相手の固定費が「重い」場合（例: 60Y以上=正社員2〜3人分以上）のみ、邪魔ボーナスを加算
                                 if (eFixedCost >= 60) {
                                     baseBonus += eFixedCost * 10;
                                 }
@@ -1704,42 +1706,41 @@
                         }
                     });
 
-                    let profitIfWin = myBid - additionalCost; 
+                    // 限界利益と純利益の計算
+                    let profitIfWin = myBid - additionalCost; // 限界利益
+                    let netProfit = myBid - (fixedCost + additionalCost); // 純利益
                     
-                    // 勝率が低いギャンブルの評価を下げるため、勝率を1.5乗する
                     let expectedValue = profitIfWin * Math.pow(winProbability, 1.5); 
                     
-                    let adjustedEV = expectedValue + assassinationBonus; 
+                    // 3. 利益ファーストな暗殺（自分が十分な黒字の時のみ暗殺ボーナスを適用）
+                    let validAssassinationBonus = 0;
+                    if (netProfit >= 20) { // 純利益が20Y以上出るなら暗殺も狙う
+                        validAssassinationBonus = assassinationBonus;
+                    }
+
+                    let adjustedEV = expectedValue + validAssassinationBonus; 
                     
-                    // 単独入札確率が高い場合の強気ボーナス
                     if (aloneProbability > 0.5) {
-                        adjustedEV += Math.max(0, profitIfWin) * aloneProbability * 0.5; // 利益が大きいほどボーナス（強気を促す）
+                        adjustedEV += Math.max(0, profitIfWin) * aloneProbability * 0.5; 
                     } else {
-                        // 相場意識: 競合がいて、かつ相場より高すぎる入札には強力なペナルティ
                         if (marketTrend[projKey] !== null && myBid > marketTrend[projKey] + 15) {
-                            adjustedEV *= 0.5; // 勝率が低くてもEVが下がりにくい問題を抑制
+                            adjustedEV *= 0.5; 
                         }
                     }
 
-                    // ブレ追加
                     adjustedEV += (rng() * 0.1);
 
-                    let totalCost = fixedCost + additionalCost;
-                    let netProfit = myBid - totalCost;
-                    
-                    // 赤字入札の厳格な制限
-                    if (p.money + netProfit < fixedCost) {
+                    // 4. 限界利益ベースの生存戦略（赤字ストッパーの緩和）
+                    if (profitIfWin <= 0) {
+                        // 限界利益すらマイナス（やればやるほど損）の場合は絶対に入札しない
                         adjustedEV = -99999;
                     } else if (netProfit <= 0) {
-                        if (assassinationBonus > 0) {
-                            adjustedEV -= 10; 
-                        } else {
-                            // 邪魔目的がないのに赤字（純利益マイナス）の入札は絶対にしない
-                            adjustedEV -= 5000; 
-                        }
+                        // 限界利益はプラスだが純利益はマイナス（固定費を全額は回収できない）場合、
+                        // 以前のように即死ペナルティにはせず、期待値を半分にして「他により良い選択肢があればそっちを選ぶ」程度に留める。
+                        adjustedEV *= 0.5;
                     }
 
-                    if ((profitIfWin > 0 || assassinationBonus > 0) && adjustedEV > 0) {
+                    if (adjustedEV > -99999) {
                         candidateActions.push({ project: projKey, amount: myBid, ev: adjustedEV });
                     }
                 });
@@ -1749,8 +1750,9 @@
                 return { project: 'none', amount: 0 };
             }
 
-            // ソフトマックス関数（混合戦略）による確率的選択
-            const T = 30; // 温度パラメータ（揺らぎの大きさ。適度にバラけさせる）
+            // 5. 混合戦略の最適化（Tの動的変動）
+            // 生存者が多い（4人）ならT=40でバラけさせ、生存者が少ない（3人以下）ならT=10で利益を最大化する選択肢を確実に取りにいく
+            const T = (totalActive >= 4) ? 40 : 10; 
             let maxEV = Math.max(...candidateActions.map(a => a.ev));
             let totalWeight = 0;
             candidateActions.forEach(a => {
