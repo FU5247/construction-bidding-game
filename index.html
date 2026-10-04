@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>入札ゲーム ver.121</title>
+    <title>入札ゲーム ver.141</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -124,7 +124,7 @@
 
     <header class="bg-slate-800 text-white p-3 shadow-md flex justify-between items-center z-[85] shrink-0">
         <div class="flex items-center gap-3">
-            <h1 class="text-xl font-bold">入札 ver.121 <span class="text-sm font-normal ml-2">第 <span id="turn-display" class="text-yellow-400 font-bold text-2xl">1</span> / <span id="total-turn-display">10</span> ターン</span></h1>
+            <h1 class="text-xl font-bold">入札 ver.141 <span class="text-sm font-normal ml-2">第 <span id="turn-display" class="text-yellow-400 font-bold text-2xl">1</span> / <span id="total-turn-display">10</span> ターン</span></h1>
             <button id="room-badge" class="hidden px-2 py-0.5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 rounded text-xs font-bold text-white shadow border border-indigo-500 transition-colors" onclick="if(myPlayerIndex === 0) document.getElementById('lobby-modal').classList.remove('hidden')">🏠 ルーム: <span id="current-room-id-display">---</span></button>
             <div id="ai-status" class="hidden px-2 py-1 bg-emerald-500 rounded text-xs font-bold shadow animate-pulse">🤖 データ学習済</div>
             
@@ -370,16 +370,15 @@
                             <h4 class="font-bold text-slate-700 mb-2 text-center">👨‍💼 正社員</h4>
                             <div class="space-y-2">
                                 <label class="flex flex-col text-xs font-bold text-slate-600">1人あたりの提供人数 <input type="number" id="set-full-p" class="mt-1 border border-slate-300 p-1.5 rounded font-mono font-bold" min="0" step="0.1"></label>
-                                <label class="flex flex-col text-xs font-bold text-slate-600">好景気コスト (Y/毎T) <input type="number" id="set-full-cA" class="mt-1 border border-slate-300 p-1.5 rounded font-mono font-bold" min="0"></label>
-                                <label class="flex flex-col text-xs font-bold text-slate-600">不景気コスト (Y/毎T) <input type="number" id="set-full-cB" class="mt-1 border border-slate-300 p-1.5 rounded font-mono font-bold" min="0"></label>
+                                <label class="flex flex-col text-xs font-bold text-slate-600">維持コスト (Y/毎T) <input type="number" id="set-full-c" class="mt-1 border border-slate-300 p-1.5 rounded font-mono font-bold" min="0"></label>
                             </div>
                         </div>
                         <div class="bg-slate-50 p-3 rounded-lg border border-slate-200">
-                            <h4 class="font-bold text-slate-700 mb-2 text-center">👷 発注・派遣</h4>
+                            <h4 class="font-bold text-slate-700 mb-2 text-center">👷 新規採用・発注</h4>
                             <div class="space-y-2">
                                 <label class="flex flex-col text-xs font-bold text-slate-600">1回あたりの提供人数 <input type="number" id="set-temp-p" class="mt-1 border border-slate-300 p-1.5 rounded font-mono font-bold" min="0" step="0.1"></label>
-                                <label class="flex flex-col text-xs font-bold text-slate-600">好景気コスト (Y/単発) <input type="number" id="set-temp-cA" class="mt-1 border border-slate-300 p-1.5 rounded font-mono font-bold" min="0"></label>
-                                <label class="flex flex-col text-xs font-bold text-slate-600">不景気コスト (Y/単発) <input type="number" id="set-temp-cB" class="mt-1 border border-slate-300 p-1.5 rounded font-mono font-bold" min="0"></label>
+                                <label class="flex flex-col text-xs font-bold text-slate-600">好景気コスト (Y/回) <input type="number" id="set-temp-cA" class="mt-1 border border-slate-300 p-1.5 rounded font-mono font-bold" min="0"></label>
+                                <label class="flex flex-col text-xs font-bold text-slate-600">不景気コスト (Y/回) <input type="number" id="set-temp-cB" class="mt-1 border border-slate-300 p-1.5 rounded font-mono font-bold" min="0"></label>
                             </div>
                         </div>
                     </div>
@@ -420,7 +419,7 @@
                 <section>
                     <h3 class="text-lg font-bold text-teal-700 border-b-2 border-teal-200 pb-1 mb-2 flex items-center gap-2"><span>🔄</span> ターンの流れ</h3>
                     <ol class="list-decimal list-inside space-y-2 ml-1">
-                        <li><strong>景気決定：</strong> 抽選により「好景気」か「不景気」が決まります。数値設定で確率をカスタマイズ可能です。<strong>景気により人件費が変動します。不景気時はコストが高騰します。</strong></li>
+                        <li><strong>景気決定：</strong> 抽選により「好景気」か「不景気」が決まります。数値設定で確率をカスタマイズ可能です。<strong>景気により採用・発注のコストが変動します。</strong></li>
                         <li><strong>入札フェイズ：</strong> 大・中・小いずれかの工事を選び、5Y単位で入札します。一番<strong>安い金額（最安値）</strong>を提示した1社のみが落札（受注）できます。同額の場合は抽選になります。</li>
                         <li><strong>雇用フェイズ：</strong> 落札できた場合、工事に必要な人数を満たすように人を雇います。</li>
                         <li><strong>清算：</strong> 獲得した入札額から、人件費を引いた額が資金に反映されます。</li>
@@ -431,8 +430,8 @@
                     <h3 class="text-lg font-bold text-teal-700 border-b-2 border-teal-200 pb-1 mb-2 flex items-center gap-2"><span>👷</span> 雇用とコストについて</h3>
                     <p id="help-labor-text" class="mb-2">人数は 正社員:1人 / 発注・派遣:1人 として計算されます。</p>
                     <ul class="list-disc list-inside space-y-2 ml-1 bg-slate-50 p-3 rounded-lg border border-slate-200">
-                        <li><strong id="help-fulltime-cost">👨‍💼 正社員（好景気30Y / 不景気30Y）：</strong> 一度雇うと解雇できません。毎ターン固定費としてかかりますが、長期的に見るとコストパフォーマンスに優れます。</li>
-                        <li><strong id="help-temp-cost">👷 発注・派遣（好景気40Y / 不景気50Y）：</strong> そのターン限りの人員です。正社員より割高ですが、次ターン以降の固定費にはなりません。</li>
+                        <li><strong id="help-fulltime-cost">👨‍💼 正社員（採用費:発注と同額 / 維持費: 30Y）：</strong> 一度雇うと解雇できません。採用時は発注と同じ額がかかりますが、以降は毎ターン固定費(30Y)のみがかかります。長期的に見るとコストパフォーマンスに優れます。</li>
+                        <li><strong id="help-temp-cost">👷 発注・派遣（好景気40Y / 不景気50Y）：</strong> そのターン限りの人員です。維持費はかかりませんが、毎回景気に合わせたコストがかかります。</li>
                     </ul>
                 </section>
 
@@ -470,7 +469,7 @@
                     <h3 class="text-lg font-bold text-teal-700 border-b-2 border-teal-200 pb-1 mb-2 flex items-center gap-2"><span>🤖</span> CPUの戦略について</h3>
                     <p class="mb-2">設定から各CPUの性格を変更できます。</p>
                     <ul class="list-disc list-inside space-y-1 ml-1 text-sm">
-                        <li><strong>自律適応型：</strong> 正社員雇用と発注の両方を経験した勝者のデータを学習し、状況に応じて柔軟に使い分ける賢いAI。</li>
+                        <li><strong>自律適応型：</strong> 正社員雇用と発注の両方を経験した勝者のデータを学習し、状況に応じて柔軟に使い分ける賢いAI。プレイヤーの隙（独占状態）を検知すると横取りしてくることもあります。</li>
                         <li><strong>完全外注特化：</strong> 正社員を雇わず、すべて派遣で賄う身軽な戦略。</li>
                         <li><strong>完全正社員特化：</strong> 積極的に正社員を雇い、固定費をかけても受注を狙う戦略。</li>
                     </ul>
@@ -602,6 +601,22 @@
             <div class="mt-4 pt-4 border-t border-slate-200"><button onclick="closeHistoryModal()" class="w-full bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold py-3 rounded-xl">閉じる</button></div>
         </div>
     </div>
+
+    <!-- 全プレイヤー所持金推移モーダル -->
+    <div id="all-history-modal" class="fixed inset-0 modal-bg hidden flex justify-center items-center z-[110] p-4">
+        <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-4xl slide-in relative flex flex-col h-[70vh] border-t-8 border-teal-500">
+            <button onclick="closeAllHistoryModal()" class="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 font-bold z-10">✕</button>
+            <div class="mb-4 border-b border-slate-200 pb-3 flex items-center gap-2">
+                <span class="text-2xl">📈</span><h2 class="text-xl font-black text-slate-800">全プレイヤーの所持金推移</h2>
+            </div>
+            <div class="flex-1 relative w-full h-full bg-slate-50 rounded-xl border border-slate-200 p-4">
+                <canvas id="all-history-chart"></canvas>
+            </div>
+            <div class="mt-4 pt-4 border-t border-slate-200">
+                <button onclick="closeAllHistoryModal()" class="w-full bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold py-3 rounded-xl transition-all">閉じる</button>
+            </div>
+        </div>
+    </div>
     
     <div id="ranking-modal" class="fixed inset-0 modal-bg hidden flex justify-center items-center z-[100] p-4">
         <div class="bg-white p-8 rounded-3xl shadow-2xl w-full max-w-lg slide-in text-center border-4 border-yellow-400 overflow-hidden relative">
@@ -643,6 +658,8 @@
             A: { large: {sum:0, count:0, avg:null}, medium: {sum:0, count:0, avg:null}, small: {sum:0, count:0, avg:null} }, 
             B: { large: {sum:0, count:0, avg:null}, medium: {sum:0, count:0, avg:null}, small: {sum:0, count:0, avg:null} } 
         };
+        let goldenEmpStats = Array(25).fill(0).map(() => ({sum: 0, count: 0, avg: 0}));
+
         let aiStrategies = ['adaptive', 'adaptive', 'adaptive', 'adaptive'];
         const strategyLabels = { 'adaptive': '自律適応型', 'outsource': '完全外注(派遣)', 'fulltime': '完全正社員' };
 
@@ -671,11 +688,10 @@
         
         let laborConfig = {
             fulltimeP: 1,
-            fulltimeCostA: 30, 
-            fulltimeCostB: 30, 
+            fulltimeCost: 30,
             tempP: 1,
-            tempCostA: 40, 
-            tempCostB: 50  
+            tempCostA: 40,
+            tempCostB: 50
         };
 
         const dragModal = document.getElementById('cpu-calculating-dialog');
@@ -819,7 +835,6 @@
         if (economySlider) {
             economySlider.addEventListener('input', (e) => {
                 const val = parseInt(e.target.value, 10);
-                economyProbability = val; 
                 const recessionProb = 100 - val; 
                 
                 document.getElementById('prob-boom-val').textContent = val;
@@ -853,8 +868,7 @@
                 document.getElementById(`set-${k[0]}-labor`).value = projects[k].labor;
             });
             document.getElementById('set-full-p').value = laborConfig.fulltimeP;
-            document.getElementById('set-full-cA').value = laborConfig.fulltimeCostA;
-            document.getElementById('set-full-cB').value = laborConfig.fulltimeCostB;
+            document.getElementById('set-full-c').value = laborConfig.fulltimeCost;
             document.getElementById('set-temp-p').value = laborConfig.tempP;
             document.getElementById('set-temp-cA').value = laborConfig.tempCostA;
             document.getElementById('set-temp-cB').value = laborConfig.tempCostB;
@@ -893,8 +907,7 @@
                     projects[k].labor = parseInt(document.getElementById(`set-${k[0]}-labor`).value) || 0;
                 });
                 laborConfig.fulltimeP = parseFloat(document.getElementById('set-full-p').value) || 0;
-                laborConfig.fulltimeCostA = parseInt(document.getElementById('set-full-cA').value) || 0;
-                laborConfig.fulltimeCostB = parseInt(document.getElementById('set-full-cB').value) || 0;
+                laborConfig.fulltimeCost = parseInt(document.getElementById('set-full-c').value) || 0;
                 laborConfig.tempP = parseFloat(document.getElementById('set-temp-p').value) || 0;
                 laborConfig.tempCostA = parseInt(document.getElementById('set-temp-cA').value) || 0;
                 laborConfig.tempCostB = parseInt(document.getElementById('set-temp-cB').value) || 0;
@@ -961,7 +974,7 @@
             });
             
             document.getElementById('help-labor-text').textContent = `人数は 正社員:${laborConfig.fulltimeP}人 / 発注・派遣:${laborConfig.tempP}人 として計算されます。`;
-            document.getElementById('help-fulltime-cost').textContent = `👨‍💼 正社員（好景気${laborConfig.fulltimeCostA}Y / 不景気${laborConfig.fulltimeCostB}Y）：`;
+            document.getElementById('help-fulltime-cost').textContent = `👨‍💼 正社員（採用費:発注と同額 / 維持費: ${laborConfig.fulltimeCost}Y）：`;
             document.getElementById('help-temp-cost').textContent = `👷 発注・派遣（好景気${laborConfig.tempCostA}Y / 不景気${laborConfig.tempCostB}Y）：`;
             
             updateEconomyHighlight();
@@ -1034,24 +1047,31 @@
                 });
                 
                 data.forEach(log => {
+                    allHistoricalLogs.push(log);
+
                     if (log.is_winner && log.bid_amount > 0) {
                         let reqLabor = projects[log.construction_mode]?.labor || 0;
                         if (reqLabor === 0) return;
                         let minCost = Math.min(Math.ceil(reqLabor / log.fulltime_unit_labor) * log.fulltime_unit_cost, Math.ceil(reqLabor / log.temp_unit_labor) * log.temp_unit_cost);
                         if (log.bid_amount >= minCost) {
-                            allHistoricalLogs.push(log);
-                            
                             let mStat = marketStats[log.economy]?.[log.construction_mode];
                             if (mStat) { mStat.sum += log.bid_amount; mStat.count++; mStat.avg = Math.round(mStat.sum / mStat.count); }
                             if (log.player_id === 0) { let pStat = playerStats[log.economy]?.[log.construction_mode]; if (pStat) { pStat.sum += log.bid_amount; pStat.count++; pStat.avg = Math.round(pStat.sum / pStat.count); } }
-                            if (log.final_rank === 1) { let gStat = goldenStats[log.economy]?.[log.construction_mode]; if (gStat) { gStat.sum += log.bid_amount; gStat.count++; gStat.avg = Math.round(gStat.sum / gStat.count); } }
+                            if (log.final_rank === 1) { 
+                                let gStat = goldenStats[log.economy]?.[log.construction_mode]; if (gStat) { gStat.sum += log.bid_amount; gStat.count++; gStat.avg = Math.round(gStat.sum / gStat.count); } 
+                                if (log.turn <= 20) {
+                                    goldenEmpStats[log.turn].sum += log.employees_after;
+                                    goldenEmpStats[log.turn].count++;
+                                    goldenEmpStats[log.turn].avg = goldenEmpStats[log.turn].sum / goldenEmpStats[log.turn].count;
+                                }
+                            }
                         }
                     }
                 });
                 document.getElementById('ai-status').classList.remove('hidden');
             } catch (error) {
                 console.error("ログ読み込みエラー:", error);
-                const aiStatus = document.getElementById('ai-status'); aiStatus.textContent = '⚠️ 学習データなし'; aiStatus.classList.remove('hidden', 'bg-emerald-500'); aiStatus.classList.add('bg-amber-500');
+                const aiStatus = document.getElementById('ai-status'); aiStatus.textContent = '⚠ 学習データなし'; aiStatus.classList.remove('hidden', 'bg-emerald-500'); aiStatus.classList.add('bg-amber-500');
             } finally {
                 if(welcomeStartBtn) { 
                     welcomeStartBtn.disabled = false; 
@@ -1192,7 +1212,7 @@
             const currentLabor = players[myPlayerIndex].employees * laborConfig.fulltimeP;
             const shortageLabor = Math.max(0, reqLabor - currentLabor);
             
-            const fCost = currentEconomy === 'B' ? laborConfig.fulltimeCostB : laborConfig.fulltimeCostA;
+            const fCost = laborConfig.fulltimeCost;
             const tCost = currentEconomy === 'B' ? laborConfig.tempCostB : laborConfig.tempCostA;
             const costCurrent = players[myPlayerIndex].employees * fCost;
             
@@ -1203,11 +1223,16 @@
             } else {
                 const reqFull = Math.ceil(shortageLabor / laborConfig.fulltimeP);
                 const reqTemp = Math.ceil(shortageLabor / laborConfig.tempP);
-                const costFull = reqFull * fCost;
+                const costFull = reqFull * tCost; 
                 const costTemp = reqTemp * tCost;
                 const profitTemp = amount - costCurrent - costTemp;
                 const profitFull = amount - costCurrent - costFull;
-                tooltipText = `予想収益: ${profitTemp}Y ～ ${profitFull}Y`;
+                
+                if(profitTemp === profitFull) {
+                    tooltipText = `予想収益: ${profitTemp}Y`;
+                } else {
+                    tooltipText = `予想収益: ${profitTemp}Y ～ ${profitFull}Y`;
+                }
             }
             
             profitEl.textContent = tooltipText;
@@ -1242,16 +1267,16 @@
         }
 
         function updateEconomyHighlight() {
-            const fCost = currentEconomy === 'B' ? laborConfig.fulltimeCostB : laborConfig.fulltimeCostA;
+            const fCost = laborConfig.fulltimeCost;
             const tCost = currentEconomy === 'B' ? laborConfig.tempCostB : laborConfig.tempCostA;
 
             const ecoBar = document.getElementById('economy-status');
             if (currentEconomy === 'A') { 
-                ecoBar.innerHTML = `🪙 景気：<span class="text-pink-200 mx-1">好景気</span><span class="text-[10px] sm:text-xs ml-1 text-pink-100 font-bold border border-pink-400 bg-pink-700/50 px-1.5 py-0.5 rounded whitespace-nowrap">正社員${fCost}Y /発注${tCost}Y</span>`; 
+                ecoBar.innerHTML = `🪙 景気：<span class="text-pink-200 mx-1">好景気</span><span class="text-[10px] sm:text-xs ml-1 text-pink-100 font-bold border border-pink-400 bg-pink-700/50 px-1.5 py-0.5 rounded whitespace-nowrap">維持${fCost}Y / 新規・発注${tCost}Y</span>`; 
                 ecoBar.className = 'px-3 py-1.5 rounded-lg font-black text-sm sm:text-base bg-pink-600 text-white shadow-md border border-pink-700 flex items-center whitespace-nowrap shrink-0'; 
             } 
             else if(currentEconomy === 'B') { 
-                ecoBar.innerHTML = `🪙 景気：<span class="text-blue-200 mx-1">不景気</span><span class="text-[10px] sm:text-xs ml-1 text-blue-100 font-bold border border-blue-400 bg-blue-700/50 px-1.5 py-0.5 rounded whitespace-nowrap">正社員${fCost}Y /発注${tCost}Y</span>`; 
+                ecoBar.innerHTML = `🪙 景気：<span class="text-blue-200 mx-1">不景気</span><span class="text-[10px] sm:text-xs ml-1 text-blue-100 font-bold border border-blue-400 bg-blue-700/50 px-1.5 py-0.5 rounded whitespace-nowrap">維持${fCost}Y / 新規・発注${tCost}Y</span>`; 
                 ecoBar.className = 'px-3 py-1.5 rounded-lg font-black text-sm sm:text-base bg-blue-600 text-white shadow-md border border-blue-700 flex items-center whitespace-nowrap shrink-0'; 
             }
         }
@@ -1289,6 +1314,57 @@
             modal.classList.remove('hidden');
         };
         window.closeHistoryModal = function() { document.getElementById('history-modal').classList.add('hidden'); };
+
+        let allHistoryChartInstance = null;
+        window.showAllHistoryGraph = function() {
+            const modal = document.getElementById('all-history-modal');
+            modal.classList.remove('hidden');
+
+            const ctx = document.getElementById('all-history-chart').getContext('2d');
+            const colors = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b'];
+
+            const datasets = players.map((p, i) => {
+                return {
+                    label: p.name,
+                    data: p.moneyHistory,
+                    borderColor: colors[i % colors.length],
+                    backgroundColor: 'transparent',
+                    borderWidth: 2,
+                    pointBackgroundColor: colors[i % colors.length],
+                    pointBorderColor: '#fff',
+                    pointRadius: 4,
+                    tension: 0.1
+                };
+            });
+
+            const labels = players[0].moneyHistory.map((_, i) => i === 0 ? '初期' : `第${i}T`);
+
+            if (allHistoryChartInstance) {
+                allHistoryChartInstance.data.labels = labels;
+                allHistoryChartInstance.data.datasets = datasets;
+                allHistoryChartInstance.update();
+            } else {
+                allHistoryChartInstance = new Chart(ctx, {
+                    type: 'line',
+                    data: { labels, datasets },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: true, position: 'top' }
+                        },
+                        scales: {
+                            y: { beginAtZero: false, ticks: { stepSize: 50 } },
+                            x: { beginAtZero: true }
+                        }
+                    }
+                });
+            }
+        };
+
+        window.closeAllHistoryModal = function() {
+            document.getElementById('all-history-modal').classList.add('hidden');
+        };
 
         window.startGameLocal = function() {
             document.getElementById('welcome-modal').classList.add('hidden');
@@ -1420,12 +1496,11 @@
             const shortageP = Math.max(0, reqP - currentP);
             const reqFull = Math.ceil(shortageP / laborConfig.fulltimeP);
             const reqTemp = Math.ceil(shortageP / laborConfig.tempP);
-            const fCost = state.economy === 'B' ? laborConfig.fulltimeCostB : laborConfig.fulltimeCostA;
             const tCost = state.economy === 'B' ? laborConfig.tempCostB : laborConfig.tempCostA;
-            return { shortage: reqFull, full: reqFull * fCost, temp: reqTemp * tCost }; 
+            return { shortage: reqFull, full: reqFull * tCost, temp: reqTemp * tCost }; 
         }
 
-        function predictEnemyActions(state, enemyId, logs, currentGameId) {
+        function predictEnemyActions(state, enemyId, logs, currentGameId, targetPlayerId) {
             const enemy = state.players[enemyId];
             const enemyStrategy = enemy.strat || aiStrategies[enemyId] || 'adaptive';
             let actionCounts = {};
@@ -1433,15 +1508,32 @@
             const currentMoneys = state.players.map(p => p.money).sort((a,b)=>b-a);
             const currentEmps = state.players.map(p => p.employees).sort((a,b)=>b-a);
 
+            const target = state.players[targetPlayerId];
+            const fCost = laborConfig.fulltimeCost;
+            const tCost = state.economy === 'B' ? laborConfig.tempCostB : laborConfig.tempCostA;
+            const targetFixedCost = target.employees * fCost;
+            const targetNextMoney = target.money - targetFixedCost;
+            
+            let dmgToTarget = targetFixedCost;
+            if (targetNextMoney < 0) dmgToTarget += 1500;
+            else if (targetNextMoney < 150) dmgToTarget += 500;
+            if (targetFixedCost >= 150) dmgToTarget += 4000;
+            
+            const enemyAssassinationValue = dmgToTarget * 0.5; 
+            const enemyFixedCost = enemy.employees * fCost;
+
             const filteredLogs = logs.filter(l => l.economy === state.economy);
 
             const targetPlayerKeys = new Set();
             const pActivity = {};
             filteredLogs.forEach(l => {
                 const k = l.game_id + '_' + l.player_id;
-                if (!pActivity[k]) pActivity[k] = { full: false, temp: false };
+                if (!pActivity[k]) pActivity[k] = { full: false, temp: false, final_rank: l.final_rank };
                 if (l.hire_fulltime > 0) pActivity[k].full = true;
                 if (l.hire_temp > 0) pActivity[k].temp = true;
+                if (l.final_rank !== null && l.final_rank !== undefined) {
+                    pActivity[k].final_rank = l.final_rank;
+                }
             });
 
             for (const k in pActivity) {
@@ -1454,7 +1546,7 @@
                         targetPlayerKeys.add(k);
                     }
                 } else {
-                    if (pActivity[k].full && pActivity[k].temp) {
+                    if (pActivity[k].final_rank === 1) {
                         targetPlayerKeys.add(k);
                     }
                 }
@@ -1509,49 +1601,127 @@
                 }
             }
 
+            const veryRecentLogs = logs.filter(l => l.player_id === enemyId && l.turn >= state.turn - 2 && l.game_id === currentGameId);
+            veryRecentLogs.forEach(log => {
+                if (log.action_type === 'bid') {
+                    let actKey = `${log.construction_mode}:${log.bid_amount}`;
+                    actionCounts[actKey] = (actionCounts[actKey] || 0) + 5000; 
+                }
+            });
+
             let sortedActions = Object.entries(actionCounts).sort((a, b) => b[1] - a[1]);
             
+            let finalActions = [];
             if (sortedActions.length === 0) {
-                let fallbackProj = 'medium';
-                if (enemy.money >= 300) fallbackProj = 'large';
-                if (enemy.money < 150) fallbackProj = 'small';
-                return [
-                    { project: fallbackProj, amount: projects[fallbackProj].maxBid - 20, prob: 0.3 },
-                    { project: fallbackProj, amount: projects[fallbackProj].maxBid - 30, prob: 0.2 },
-                    { project: fallbackProj, amount: projects[fallbackProj].maxBid - 40, prob: 0.1 },
-                    { project: 'none', amount: 0, prob: 0.4 }
-                ];
-            }
-            
-            let top1 = sortedActions[0][0].split(':');
-            let baseAct1 = { project: top1[0], amount: parseInt(top1[1]) };
-            
-            let baseAct2 = baseAct1; 
-            if (sortedActions.length > 1) {
-                let top2 = sortedActions[1][0].split(':');
-                baseAct2 = { project: top2[0], amount: parseInt(top2[1]) };
+                let fallbackProjs = [];
+                if (enemy.money >= 300) fallbackProjs = ['large', 'medium'];
+                else if (enemy.money >= 150) fallbackProjs = ['medium', 'small'];
+                else fallbackProjs = ['small'];
+
+                fallbackProjs.forEach(proj => {
+                    let max = projects[proj].maxBid;
+                    finalActions.push({ project: proj, amount: max, prob: 0.1 });
+                    finalActions.push({ project: proj, amount: max - 10, prob: 0.2 });
+                    finalActions.push({ project: proj, amount: max - 30, prob: 0.2 });
+                });
+                finalActions.push({ project: 'none', amount: 0, prob: 0.3 });
+            } else {
+                let top1 = sortedActions[0][0].split(':');
+                let baseAct1 = { project: top1[0], amount: parseInt(top1[1]) };
+                
+                let baseAct2 = baseAct1; 
+                if (sortedActions.length > 1) {
+                    let top2 = sortedActions[1][0].split(':');
+                    baseAct2 = { project: top2[0], amount: parseInt(top2[1]) };
+                }
+
+                function expandAction(baseAct, baseProb) {
+                    if (baseAct.project === 'none') {
+                        finalActions.push({ project: 'none', amount: 0, prob: baseProb });
+                        return;
+                    }
+                    finalActions.push({ project: baseAct.project, amount: baseAct.amount, prob: baseProb * 0.5 });
+                    if (baseAct.amount >= 5) finalActions.push({ project: baseAct.project, amount: baseAct.amount - 5, prob: baseProb * 0.3 });
+                    else finalActions[0].prob += baseProb * 0.3;
+                    
+                    if (baseAct.amount >= 10) finalActions.push({ project: baseAct.project, amount: baseAct.amount - 10, prob: baseProb * 0.2 });
+                    else finalActions[0].prob += baseProb * 0.2;
+                }
+                
+                if (sortedActions.length > 1) {
+                    expandAction(baseAct1, 0.6);
+                    expandAction(baseAct2, 0.4);
+                } else {
+                    expandAction(baseAct1, 1.0);
+                }
             }
 
-            let finalActions = [];
-            function expandAction(baseAct, baseProb) {
-                if (baseAct.project === 'none') {
-                    finalActions.push({ project: 'none', amount: 0, prob: baseProb });
-                    return;
+            let prevTurnBids = logs.filter(l => l.turn === state.turn - 1 && l.game_id === currentGameId);
+            let projectBidders = { large: 0, medium: 0, small: 0 };
+            prevTurnBids.forEach(l => {
+                if (l.action_type === 'bid' && l.construction_mode !== 'none') {
+                    projectBidders[l.construction_mode]++;
                 }
-                finalActions.push({ project: baseAct.project, amount: baseAct.amount, prob: baseProb * 0.5 });
-                if (baseAct.amount >= 5) finalActions.push({ project: baseAct.project, amount: baseAct.amount - 5, prob: baseProb * 0.3 });
-                else finalActions[0].prob += baseProb * 0.3;
+            });
+            let emptyProjects = [];
+            for (let proj in projectBidders) {
+                if (projectBidders[proj] <= 1) emptyProjects.push(proj);
+            }
+
+            finalActions.forEach(act => {
+                if (act.project === 'none') return;
                 
-                if (baseAct.amount >= 10) finalActions.push({ project: baseAct.project, amount: baseAct.amount - 10, prob: baseProb * 0.2 });
-                else finalActions[0].prob += baseProb * 0.2;
+                if (emptyProjects.includes(act.project)) {
+                    act.prob *= 3.0;
+                }
+                
+                let reqP = projects[act.project].labor;
+                let currentP = enemy.employees * laborConfig.fulltimeP;
+                let shortage = Math.max(0, reqP - currentP);
+                
+                if (currentP > reqP) {
+                    let waste = currentP - reqP;
+                    if (waste >= 5) act.prob *= 0.001;      
+                    else if (waste >= 3) act.prob *= 0.05;  
+                    else if (waste >= 1) act.prob *= 0.3;   
+                }
+
+                if (shortage > 0) {
+                    if (state.economy === 'B' && shortage >= 4) {
+                        act.prob *= 0.05;
+                    } else if (state.economy === 'A' && shortage >= 6) {
+                        act.prob *= 0.2;
+                    }
+                }
+                
+                let addCost = 0;
+                if (enemyStrategy === 'fulltime') addCost = Math.ceil(shortage / laborConfig.fulltimeP) * tCost;
+                else if (enemyStrategy === 'outsource') addCost = Math.ceil(shortage / laborConfig.tempP) * tCost;
+                else addCost = Math.min(Math.ceil(shortage / laborConfig.fulltimeP) * tCost, Math.ceil(shortage / laborConfig.tempP) * tCost);
+                
+                let marginalProfit = act.amount - addCost;
+                let netProfit = marginalProfit - enemyFixedCost;
+                let enemyNextMoney = enemy.money + netProfit;
+
+                if (marginalProfit <= 0) {
+                    let deficit = -marginalProfit;
+                    if (deficit <= enemyAssassinationValue && enemyNextMoney >= 0 && enemyFixedCost < 150) {
+                        act.prob *= 0.5;
+                    } else {
+                        act.prob *= 0.001; 
+                    }
+                } else {
+                    if (netProfit <= 0) {
+                        act.prob *= 0.8; 
+                    }
+                }
+            });
+
+            let totalProb = finalActions.reduce((sum, act) => sum + act.prob, 0);
+            if (totalProb <= 0) {
+                 return [{ project: 'none', amount: 0, prob: 1.0 }];
             }
-            
-            if (sortedActions.length > 1) {
-                expandAction(baseAct1, 0.6);
-                expandAction(baseAct2, 0.4);
-            } else {
-                expandAction(baseAct1, 1.0);
-            }
+            finalActions.forEach(act => act.prob /= totalProb);
             
             return finalActions;
         }
@@ -1560,23 +1730,44 @@
             const p = state.players[playerId];
             if (p.bankrupt) return { project: 'none', amount: 0 };
             
-            const fCost = state.economy === 'B' ? laborConfig.fulltimeCostB : laborConfig.fulltimeCostA;
+            const fCost = laborConfig.fulltimeCost;
+            const tCost = state.economy === 'B' ? laborConfig.tempCostB : laborConfig.tempCostA;
             const fixedCost = p.employees * fCost;
             const strategy = p.strat || aiStrategies[playerId];
 
             const currentLogs = pendingGameLogs.filter(log => log.turn < state.turn);
             const combinedLogs = [...allHistoricalLogs, ...currentLogs];
 
-            // 1. 生存者数（アクティブなプレイヤー数）のカウント
+            const bankruptLogs = combinedLogs.filter(l => l.bankrupt_after || l.final_rank === 4);
+
+            let recentBlueOceans = [];
+            if (state.turn > 1) {
+                const prevTurnLogs = combinedLogs.filter(l => l.turn === state.turn - 1 && l.game_id === currentGameId);
+                let biddersCount = { large: 0, medium: 0, small: 0 };
+                prevTurnLogs.forEach(l => {
+                    if (l.action_type === 'bid' && l.construction_mode !== 'none') {
+                        biddersCount[l.construction_mode]++;
+                    }
+                });
+                for (let k in biddersCount) {
+                    if (biddersCount[k] <= 1) recentBlueOceans.push(k);
+                }
+            }
+
             let activeCompetitors = 0;
             for (let i = 0; i < state.players.length; i++) {
                 if (i !== playerId && !state.players[i].bankrupt) activeCompetitors++;
             }
             const totalActive = activeCompetitors + 1;
 
+            // ③ 要件：破産者がいたり、他社の正社員数が一定以上だったりして競合が少ないと判断できるとき、強気入札
+            let hasBankrupt = state.players.some(pl => pl.bankrupt || pl.isDefaulter);
+            let activeEnemies = state.players.filter((pl, idx) => idx !== playerId && !pl.bankrupt && !pl.isDefaulter);
+            let enemyTotalEmps = activeEnemies.reduce((sum, pl) => sum + pl.employees, 0);
+            // 競合が少ないと判断できる条件（破産者がいる、または他社の正社員数が少ない等、あるいは他社全体の戦力が相対的に低い）
+            let lowCompetition = hasBankrupt || activeEnemies.length <= 1 || (activeEnemies.length > 0 && enemyTotalEmps >= 5); // 正社員数が一定以上（あるいは脅威が少ない）
+
             const marketTrend = { large: null, medium: null, small: null };
-            
-            // 2. 市場環境変化への即応 (生存者が3人以下なら過疎とみなし、過去の安値トラウマをリセット)
             const ignoreMarketTrend = (totalActive <= 3);
 
             if (!ignoreMarketTrend) {
@@ -1588,10 +1779,28 @@
                 });
             }
 
+            let hyenaTargets = [];
+            const RECENT_TURNS = 2; 
+            if (state.turn > RECENT_TURNS) {
+                ['large', 'medium', 'small'].forEach(projKey => {
+                    const recentLogs = currentLogs.filter(l => l.turn >= state.turn - RECENT_TURNS && l.is_winner && l.project_type === projKey);
+                    if (recentLogs.length === RECENT_TURNS) {
+                        const winnerId = recentLogs[0].winner_id;
+                        const consistentlyWonBySame = recentLogs.every(l => l.winner_id === winnerId);
+                        const avgWinningBid = recentLogs.reduce((sum, l) => sum + l.winning_bid, 0) / recentLogs.length;
+
+                        if (consistentlyWonBySame && winnerId !== playerId && avgWinningBid >= projects[projKey].maxBid * 0.8) {
+                            let snipeAmount = Math.max(0, Math.floor((avgWinningBid - 5) / 5) * 5);
+                            hyenaTargets.push({ project: projKey, targetPrice: snipeAmount, victimId: winnerId });
+                        }
+                    }
+                });
+            }
+
             let enemiesData = [];
             for (let i = 0; i < state.players.length; i++) {
                 if (i !== playerId && !state.players[i].bankrupt) {
-                    enemiesData.push({ id: i, actions: predictEnemyActions(state, i, combinedLogs, currentGameId) });
+                    enemiesData.push({ id: i, actions: predictEnemyActions(state, i, combinedLogs, currentGameId, playerId) });
                 }
             }
 
@@ -1614,18 +1823,18 @@
 
             ['large', 'medium', 'small'].forEach(projKey => {
                 const maxBid = projects[projKey].maxBid;
-                
                 const c = cpuLabourCost(state, playerId, projKey);
                 let additionalCost = 0;
-                if (strategy === 'outsource') {
-                    additionalCost = c.temp;
-                } else if (strategy === 'fulltime') {
-                    additionalCost = c.full;
-                } else {
-                    additionalCost = Math.min(c.full, c.temp); 
-                }
+                if (strategy === 'outsource') additionalCost = c.temp;
+                else if (strategy === 'fulltime') additionalCost = c.full;
+                else additionalCost = Math.min(c.full, c.temp); 
                 
-                let candidateAmounts = new Set([maxBid]);
+                let breakEven = Math.ceil(additionalCost / 5) * 5;
+                
+                let candidateAmounts = new Set();
+                for (let b = maxBid; b >= breakEven; b -= 5) {
+                    candidateAmounts.add(b);
+                }
                 
                 if (marketTrend[projKey] !== null) {
                     candidateAmounts.add(marketTrend[projKey]);
@@ -1640,32 +1849,39 @@
                             candidateAmounts.add(act.amount);
                             if (act.amount >= 5) candidateAmounts.add(act.amount - 5);
                             if (act.amount >= 10) candidateAmounts.add(act.amount - 10);
-                            if (act.amount >= 15) candidateAmounts.add(act.amount - 15);
-                            if (act.amount >= 20) candidateAmounts.add(act.amount - 20);
                         }
                     });
                 });
 
+                let expectedHostileBid = Math.min(...scenarios.map(sc => {
+                    let rivals = sc.actions.filter(act => act.project === projKey);
+                    return rivals.length > 0 ? Math.min(...rivals.map(a => a.amount)) : Infinity;
+                }));
+
+                let hyenaMatch = hyenaTargets.find(h => h.project === projKey);
+                if (hyenaMatch) {
+                    candidateAmounts.add(hyenaMatch.targetPrice);
+                }
+
                 candidateAmounts.forEach(myBid => {
                     myBid = Math.max(0, Math.min(maxBid, Math.round(myBid / 5) * 5));
+                    if (myBid < breakEven) return; 
 
                     let winProbability = 0;
-                    let assassinationBonus = 0;
-                    let expectedCompetitors = 0;
+                    let assassinationValue = 0;
                     let aloneProbability = 0;
+                    let expectedRivalsCount = 0;
                     let remainingTurns = totalTurns - state.turn;
 
                     scenarios.forEach(sc => {
                         let rivalsInSameProject = sc.actions.filter(act => act.project === projKey);
+                        expectedRivalsCount += sc.prob * rivalsInSameProject.length;
                         
                         if (rivalsInSameProject.length === 0) {
                             aloneProbability += sc.prob;
-                        } else {
-                            expectedCompetitors += sc.prob * rivalsInSameProject.length;
                         }
 
                         let minRivalBid = rivalsInSameProject.length > 0 ? Math.min(...rivalsInSameProject.map(a => a.amount)) : Infinity;
-                        
                         let iWin = false;
                         let winRateInTie = 1.0;
 
@@ -1679,66 +1895,128 @@
                             iWin = true;
                         }
 
-                        if (iWin && remainingTurns > 0) {
+                        if (iWin && remainingTurns > 0 && sc.prob > 0.3) {
                             rivalsInSameProject.forEach(rivalAct => {
                                 let enemy = state.players[rivalAct.enemyId];
-                                let eFCost = state.economy === 'B' ? laborConfig.fulltimeCostB : laborConfig.fulltimeCostA;
-                                let eFixedCost = enemy.employees * eFCost;
-                                
+                                let eFixedCost = enemy.employees * fCost;
                                 let enemyNextMoney = enemy.money - eFixedCost;
                                 
-                                let baseBonus = 0;
+                                let dmg = eFixedCost; 
+                                if (enemyNextMoney < 0) dmg += 1500; 
+                                else if (enemyNextMoney < 150) dmg += 500; 
+                                if (eFixedCost >= 150) dmg += 4000;
 
-                                if (enemyNextMoney < 0) {
-                                    baseBonus += 3000; 
-                                } else if (enemyNextMoney < 100) {
-                                    baseBonus += 1000; 
-                                }
-                                
-                                if (eFixedCost >= 60) {
-                                    baseBonus += eFixedCost * 10;
-                                }
-
-                                if (baseBonus > 0) {
-                                    assassinationBonus += sc.prob * winRateInTie * baseBonus;
-                                }
+                                assassinationValue += sc.prob * winRateInTie * dmg;
                             });
                         }
                     });
 
-                    // 限界利益と純利益の計算
-                    let profitIfWin = myBid - additionalCost; // 限界利益
-                    let netProfit = myBid - (fixedCost + additionalCost); // 純利益
+                    let marginalProfit = myBid - additionalCost; 
+                    let netProfit = marginalProfit - fixedCost; 
                     
-                    let expectedValue = profitIfWin * Math.pow(winProbability, 1.5); 
-                    
-                    // 3. 利益ファーストな暗殺（自分が十分な黒字の時のみ暗殺ボーナスを適用）
-                    let validAssassinationBonus = 0;
-                    if (netProfit >= 20) { // 純利益が20Y以上出るなら暗殺も狙う
-                        validAssassinationBonus = assassinationBonus;
+                    // ① 要件：邪魔プレイによって（または邪魔プレイの失敗によって）自分が破産する時、邪魔プレイしない
+                    let myNextMoney = p.money + netProfit;
+                    let isHarmfulSabotage = (marginalProfit <= 0 && myNextMoney < 0);
+                    if (isHarmfulSabotage) {
+                        // 邪魔プレイ（赤字特攻）により自分が破産する場合は邪魔プレイを絶対しない（EVを極小にする）
+                        candidateActions.push({ project: projKey, amount: myBid, ev: -99999 });
+                        return;
                     }
 
-                    let adjustedEV = expectedValue + validAssassinationBonus; 
+                    // ② 要件：邪魔プレイの精度を上げる（相手へのダメージが確実、または成功見込みが高い場合のみ有効にする）
+                    let refinedAssassinationValue = assassinationValue;
+                    if (marginalProfit <= 0 && assassinationValue < 2000) {
+                        refinedAssassinationValue *= 0.2; // 失敗リスク・効果薄の邪魔プレイを抑制
+                    }
+
+                    let baseEV = marginalProfit * winProbability; 
+                    let adjustedEV = baseEV + (refinedAssassinationValue * 0.5); 
                     
-                    if (aloneProbability > 0.5) {
-                        adjustedEV += Math.max(0, profitIfWin) * aloneProbability * 0.5; 
-                    } else {
-                        if (marketTrend[projKey] !== null && myBid > marketTrend[projKey] + 15) {
-                            adjustedEV *= 0.5; 
+                    if (aloneProbability > 0.9) {
+                        adjustedEV += marginalProfit * aloneProbability * 0.5; 
+                    }
+
+                    if (hyenaMatch && myBid <= hyenaMatch.targetPrice && myBid >= hyenaMatch.targetPrice - 10) {
+                        adjustedEV += Math.max(0, marginalProfit * 0.5);
+                    }
+
+                    // ③ 要件：競合が少ないと判断できるとき、強気入札
+                    if (lowCompetition) {
+                        // 競合が少ないため、価格を低くしすぎず上限付近（強気）で落札して利益を最大化する
+                        let highBidBonus = (myBid >= maxBid - 50) ? (marginalProfit * 0.6) : 0;
+                        adjustedEV += highBidBonus;
+                    }
+
+                    if (recentBlueOceans.includes(projKey)) {
+                        if (rng() > 0.4) {
+                            expectedRivalsCount += 1.0;
+                            adjustedEV *= 0.6;
                         }
                     }
 
-                    adjustedEV += (rng() * 0.1);
-
-                    // 4. 限界利益ベースの生存戦略（赤字ストッパーの緩和）
-                    if (profitIfWin <= 0) {
-                        // 限界利益すらマイナス（やればやるほど損）の場合は絶対に入札しない
-                        adjustedEV = -99999;
-                    } else if (netProfit <= 0) {
-                        // 限界利益はプラスだが純利益はマイナス（固定費を全額は回収できない）場合、
-                        // 以前のように即死ペナルティにはせず、期待値を半分にして「他により良い選択肢があればそっちを選ぶ」程度に留める。
-                        adjustedEV *= 0.5;
+                    let bankruptPenalty = 0;
+                    if (bankruptLogs.length > 0) {
+                        bankruptLogs.forEach(log => {
+                            if (log.action_type === 'bid' && log.construction_mode === projKey) {
+                                let turnDist = Math.abs(log.turn - state.turn);
+                                if (turnDist <= 2) {
+                                    let mDist = Math.abs((log.money_before || 0) - p.money);
+                                    let eDist = Math.abs((log.employees_before || 0) - p.employees) * fCost;
+                                    let stateDist = Math.sqrt(mDist * mDist + eDist * eDist);
+                                    if (stateDist < 150) {
+                                        let bidDist = Math.abs((log.bid_amount || 0) - myBid);
+                                        if (bidDist <= 10) {
+                                            bankruptPenalty += 2000 / (stateDist + 10);
+                                        }
+                                    }
+                                }
+                            }
+                        });
                     }
+                    adjustedEV -= bankruptPenalty;
+
+                    let isDesperate = (p.money - fixedCost < 0) || (fixedCost >= 150);
+                    if (isDesperate) {
+                        let minEnemySuicideBid = Infinity;
+                        for (let eIdx = 0; eIdx < state.players.length; eIdx++) {
+                            if (eIdx !== playerId && !state.players[eIdx].bankrupt) {
+                                let enemy = state.players[eIdx];
+                                let eCost = cpuLabourCost(state, eIdx, projKey);
+                                let eMinCost = Math.min(eCost.full, eCost.temp); 
+                                let eAssassinationTolerance = Math.min(enemy.money, 100); 
+                                let eSuicideBid = Math.max(0, Math.ceil((eMinCost - eAssassinationTolerance) / 5) * 5);
+                                if (eSuicideBid < minEnemySuicideBid) minEnemySuicideBid = eSuicideBid;
+                            }
+                        }
+
+                        let fearfulBid = (expectedHostileBid !== Infinity) ? expectedHostileBid - 5 : maxBid;
+                        let targetBid = Math.min(fearfulBid, minEnemySuicideBid);
+                        targetBid = Math.max(breakEven, targetBid);
+
+                        if (myBid === targetBid) {
+                            adjustedEV += fixedCost * 100.0; 
+                        } else if (myBid > targetBid) {
+                            adjustedEV -= fixedCost * 50.0;
+                        } else {
+                            adjustedEV -= fixedCost * 10.0;
+                        }
+                    }
+
+                    if (marginalProfit <= 0) {
+                        if (refinedAssassinationValue < 1500 && !isDesperate) {
+                            adjustedEV = -99999;
+                        } else {
+                            adjustedEV *= 0.1; 
+                        }
+                    } else if (winProbability > 0 && adjustedEV <= 0 && !isDesperate) {
+                        adjustedEV = marginalProfit * 0.1;
+                    }
+
+                    if (winProbability < 0.05) {
+                        adjustedEV = -99999;
+                    }
+
+                    adjustedEV += (rng() * 0.1);
 
                     if (adjustedEV > -99999) {
                         candidateActions.push({ project: projKey, amount: myBid, ev: adjustedEV });
@@ -1750,10 +2028,15 @@
                 return { project: 'none', amount: 0 };
             }
 
-            // 5. 混合戦略の最適化（Tの動的変動）
-            // 生存者が多い（4人）ならT=40でバラけさせ、生存者が少ない（3人以下）ならT=10で利益を最大化する選択肢を確実に取りにいく
-            const T = (totalActive >= 4) ? 40 : 10; 
             let maxEV = Math.max(...candidateActions.map(a => a.ev));
+            
+            if (maxEV > 0) {
+                candidateActions = candidateActions.filter(a => a.ev >= maxEV * 0.3);
+            }
+
+            const T = 10; 
+            maxEV = Math.max(...candidateActions.map(a => a.ev));
+            
             let totalWeight = 0;
             candidateActions.forEach(a => {
                 a.weight = Math.exp((a.ev - maxEV) / T);
@@ -1790,23 +2073,20 @@
             }
             
             const tempP = Math.max(1, laborConfig.tempP);
+            const fullP = Math.max(1, laborConfig.fulltimeP);
 
             if (strategy === 'outsource') {
                 const tempCount = Math.ceil(shortageP / tempP);
                 return { f: 0, t: tempCount };
             }
 
-            const fCost =
-                state.economy === 'B'
-                    ? laborConfig.fulltimeCostB
-                    : laborConfig.fulltimeCostA;
+            if (strategy === 'fulltime') {
+                const fullCount = Math.ceil(shortageP / fullP);
+                return { f: fullCount, t: 0 };
+            }
 
-            const tCost =
-                state.economy === 'B'
-                    ? laborConfig.tempCostB
-                    : laborConfig.tempCostA;
-
-            const fullP = Math.max(1, laborConfig.fulltimeP);
+            const fCost = laborConfig.fulltimeCost;
+            const tCost = state.economy === 'B' ? laborConfig.tempCostB : laborConfig.tempCostA;
 
             const turnsLeft = Math.max(1, remainingTurns);
             const futureTurns = Math.max(0, turnsLeft - 1);
@@ -1866,8 +2146,7 @@
             desiredFulltime =
                 Math.min(desiredFulltime, Math.ceil(shortageP / fullP));
 
-            const utilizationThreshold =
-                fCost / Math.max(1, tCost);
+            const utilizationThreshold = fCost / Math.max(1, tCost);
 
             const expectedUses =
                 futureTurns * effectiveWinRate;
@@ -1889,17 +2168,28 @@
                     Math.ceil(shortageP / fullP)
                 );
 
+            let targetEmpFromData = 0;
+            if (state.turn && goldenEmpStats[state.turn] && goldenEmpStats[state.turn].count > 5) {
+                targetEmpFromData = goldenEmpStats[state.turn].avg;
+            }
+
             for (let i = 0; i < maxFulltime; i++) {
                 const utilization =
                     futureTurns > 0
                         ? expectedUses / futureTurns
                         : 0;
 
-                const economicallyReasonable =
-                    utilization >= utilizationThreshold;
+                const currentProjectedEmp = p.employees + fulltimeCount;
+                
+                let currentThreshold = utilizationThreshold;
+                if (strategy === 'adaptive' && currentProjectedEmp < targetEmpFromData) {
+                    currentThreshold *= 0.5;
+                }
+
+                const economicallyReasonable = utilization >= currentThreshold;
 
                 const projectedFixedCost =
-                    (p.employees + fulltimeCount + 1) * fCost;
+                    (currentProjectedEmp + 1) * fCost;
 
                 const financiallySafe =
                     p.money >=
@@ -2017,7 +2307,7 @@
                 
                 for (let i = 0; i < 4; i++) {
                     if (players[i].isCPU && !players[i].isDefaulter && winningResults[i]) {
-                        hiringInputs[i] = cpuHiring({players: players, economy: currentEconomy}, i, winningResults[i].project, totalTurns - currentTurn + 1, Math.random);
+                        hiringInputs[i] = cpuHiring({players: players, economy: currentEconomy, turn: currentTurn}, i, winningResults[i].project, totalTurns - currentTurn + 1, Math.random);
                     } else if (typeof hiringInputs[i] === 'undefined') {
                         hiringInputs[i] = { f: 0, t: 0 };
                     }
@@ -2172,7 +2462,7 @@
                 const btn = document.getElementById('submit-hire-btn');
                 const profitDisplay = document.getElementById('hire-profit-display');
                 
-                const fCost = currentEconomy === 'B' ? laborConfig.fulltimeCostB : laborConfig.fulltimeCostA;
+                const fCost = laborConfig.fulltimeCost;
                 const tCost = currentEconomy === 'B' ? laborConfig.tempCostB : laborConfig.tempCostA;
 
                 if (shortageLabor <= 0) {
@@ -2199,10 +2489,10 @@
                         const remain = Math.max(0, shortageLabor - covered);
                         const tAdd = Math.ceil(remain / laborConfig.tempP);
                         
-                        valFull.innerHTML = `👨‍💼 正社員: <span class="text-lg">${fAdd}</span>`;
+                        valFull.innerHTML = `👨‍‍💼 正社員: <span class="text-lg">${fAdd}</span>`;
                         valTemp.innerHTML = `👷 発注: <span class="text-lg">${tAdd}</span>`;
                         
-                        const estProfit = p.amount - ((players[myPlayerIndex].employees + fAdd) * fCost) - (tAdd * tCost);
+                        const estProfit = p.amount - (players[myPlayerIndex].employees * fCost) - (fAdd * tCost) - (tAdd * tCost);
                         profitDisplay.textContent = `${estProfit}Y`;
                         
                         const percentage = shortageLabor === 0 ? 0 : (v / shortageLabor) * 100;
@@ -2244,13 +2534,20 @@
                     await handleHiringCompleted(0, myHire);
                 }
             } else {
+                hiringInputs[myPlayerIndex] = myHire; 
                 players[myPlayerIndex].employees += myHire.f; 
                 players[myPlayerIndex].temps += myHire.t;
                 
                 for (let i = 0; i < 4; i++) {
-                    if (i !== myPlayerIndex && winningResults[i]) {
-                        const hireAction = cpuHiring({players: players, economy: currentEconomy}, i, winningResults[i].project, totalTurns - currentTurn + 1, Math.random);
-                        players[i].employees += hireAction.f; players[i].temps += hireAction.t;
+                    if (i !== myPlayerIndex) {
+                        if (winningResults[i]) {
+                            const hireAction = cpuHiring({players: players, economy: currentEconomy, turn: currentTurn}, i, winningResults[i].project, totalTurns - currentTurn + 1, Math.random);
+                            hiringInputs[i] = hireAction; 
+                            players[i].employees += hireAction.f; 
+                            players[i].temps += hireAction.t;
+                        } else {
+                            hiringInputs[i] = { f: 0, t: 0 };
+                        }
                     }
                 }
                 renderPlayers(); 
@@ -2326,7 +2623,7 @@
                         money_after: p.money,
                         employees_after: p.employees,
                         bankrupt_after: true,
-                        fulltime_unit_cost: currentEconomy === 'B' ? laborConfig.fulltimeCostB : laborConfig.fulltimeCostA,
+                        fulltime_unit_cost: laborConfig.fulltimeCost,
                         temp_unit_cost: currentEconomy === 'B' ? laborConfig.tempCostB : laborConfig.tempCostA,
                         fulltime_unit_labor: laborConfig.fulltimeP,
                         temp_unit_labor: laborConfig.tempP,
@@ -2351,9 +2648,11 @@
                 let bidObj = bidInputs[i] || { project: 'none', amount: 0 };
                 let hireAction = hiringInputs[i] || { f: 0, t: 0 };
 
-                let fCost = currentEconomy === 'B' ? laborConfig.fulltimeCostB : laborConfig.fulltimeCostA;
+                let fCost = laborConfig.fulltimeCost;
                 let tCost = currentEconomy === 'B' ? laborConfig.tempCostB : laborConfig.tempCostA;
-                let laborCost = (p.employees * fCost) + (p.temps * tCost);
+                
+                let emp_before = p.employees - (hireAction.f || 0);
+                let laborCost = (emp_before * fCost) + (hireAction.f * tCost) + (hireAction.t * tCost);
                 let totalCost = laborCost; 
                 let profit = revenue - totalCost;
 
@@ -2384,7 +2683,6 @@
                 let is_pass = (action_type === 'pass');
                 let is_single_bidder = (action_type === 'bid' && other_bidders === 0);
 
-                let emp_before = p.employees - (hireAction.f || 0);
                 let marginal_cost_estimate = 0;
                 if (bidObj.project !== 'none') {
                     const reqP = projects[bidObj.project].labor;
@@ -2392,7 +2690,7 @@
                     const shortageP = Math.max(0, reqP - currentP);
                     const reqFull = Math.ceil(shortageP / laborConfig.fulltimeP);
                     const reqTemp = Math.ceil(shortageP / laborConfig.tempP);
-                    const addCostFull = reqFull * fCost;
+                    const addCostFull = reqFull * tCost;
                     const addCostTemp = reqTemp * tCost;
                     marginal_cost_estimate = Math.min(addCostFull, addCostTemp);
                 }
@@ -2556,20 +2854,22 @@
                 container.innerHTML += `<div class="flex justify-between items-center p-4 rounded-xl ${bg} ${isMe ? 'ring-2 ring-blue-400' : ''} ${isBankrupt ? 'opacity-60' : ''}"><div class="text-xl font-black flex items-center gap-2"><span>${rankText}</span><span class="text-lg ${isMe ? 'text-blue-700' : 'text-slate-700'}">${p.name}</span>${isBankrupt ? '<span class="text-[10px] bg-red-600 text-white px-2 py-1 rounded-full font-bold ml-1">破産</span>' : ''}</div><div class="text-3xl font-black font-mono tracking-tighter ${p.money < 0 ? 'text-red-600' : 'text-slate-800'}">${p.money}<span class="text-lg">Y</span></div></div>`;
             });
 
+            const historyBtnHtml = `<button onclick="showAllHistoryGraph()" class="w-full bg-teal-600 hover:bg-teal-700 active:scale-95 text-white font-black text-lg py-3 px-6 rounded-xl shadow border-b-4 border-teal-800 transition-all mb-2 flex justify-center items-center gap-2"><span>📈</span> 全プレイヤーの所持金推移</button>`;
+
             if (isOnlineMode) {
                 if (myPlayerIndex === 0) {
-                    rankingButtonsContainer.innerHTML = `
+                    rankingButtonsContainer.innerHTML = historyBtnHtml + `
                         <button onclick="returnToLobby()" class="w-full bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-black text-lg py-4 px-6 rounded-xl shadow-lg border-b-4 border-blue-900 transition-all">🔄 もう一度遊ぶ（同じルームで）</button>
-                        <button onclick="leaveRoomAndGoHome()" class="w-full bg-rose-600 hover:bg-rose-700 active:scale-95 text-white font-black text-lg py-4 px-6 rounded-xl shadow-lg border-b-4 border-rose-900 transition-all">🏠 ホームに戻る（退出）</button>
+                        <button onclick="leaveRoomAndGoHome()" class="w-full bg-rose-600 hover:bg-rose-700 active:scale-95 text-white font-black text-lg py-4 px-6 rounded-xl shadow-lg border-b-4 border-rose-900 transition-all mt-2">🏠 ホームに戻る（退出）</button>
                     `;
                 } else {
-                    rankingButtonsContainer.innerHTML = `
-                        <div class="text-center text-sm font-bold text-slate-500 p-2 bg-slate-100 rounded border border-slate-200">ホストが「もう一度遊ぶ」を選択するのを待機しています...</div>
-                        <button onclick="leaveRoomAndGoHome()" class="w-full bg-rose-600 hover:bg-rose-700 active:scale-95 text-white font-black text-lg py-4 px-6 rounded-xl shadow-lg border-b-4 border-rose-900 transition-all">🏠 ホームに戻る（退出）</button>
+                    rankingButtonsContainer.innerHTML = historyBtnHtml + `
+                        <div class="text-center text-sm font-bold text-slate-500 p-2 bg-slate-100 rounded border border-slate-200 mt-2">ホストが「もう一度遊ぶ」を選択するのを待機しています...</div>
+                        <button onclick="leaveRoomAndGoHome()" class="w-full bg-rose-600 hover:bg-rose-700 active:scale-95 text-white font-black text-lg py-4 px-6 rounded-xl shadow-lg border-b-4 border-rose-900 transition-all mt-2">🏠 ホームに戻る（退出）</button>
                     `;
                 }
             } else {
-                rankingButtonsContainer.innerHTML = `
+                rankingButtonsContainer.innerHTML = historyBtnHtml + `
                     <button onclick="location.reload()" class="w-full bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-black text-lg py-4 px-6 rounded-xl shadow-lg border-b-4 border-indigo-900 transition-all">🔄 もう一度プレイする</button>
                 `;
             }
