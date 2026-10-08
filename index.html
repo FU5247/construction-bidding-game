@@ -3,988 +3,1208 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>建設入札マルチプレイヤーゲーム</title>
+    <title>建設入札マルチプレイヤーゲーム - Online</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        body { font-family: 'Inter', sans-serif; }
-        .card-slot { min-height: 80px; }
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&display=swap');
+        body { font-family: 'Noto Sans JP', sans-serif; background-color: #f8fafc; }
+        
+        .modal-bg { background-color: rgba(15, 23, 42, 0.7); backdrop-filter: blur(4px); }
+        .slide-in { animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        @keyframes slideIn {
+            from { transform: translateY(-20px) scale(0.95); opacity: 0; }
+            to { transform: translateY(0) scale(1); opacity: 1; }
+        }
+        
+        .card-slot { 
+            min-height: 90px; 
+            transition: all 0.2s ease;
+        }
+        .drag-over {
+            background-color: #e2e8f0;
+            border-color: #94a3b8;
+            transform: scale(1.02);
+        }
+        
+        .role-badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: bold; }
+        .role-prime { background: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe; }
+        .role-sub { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+        
+        .custom-scroll::-webkit-scrollbar { width: 6px; }
+        .custom-scroll::-webkit-scrollbar-track { background: transparent; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .custom-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
     </style>
 </head>
-<body class="bg-slate-100 text-slate-800 h-screen flex flex-col">
+<body class="text-slate-800 h-screen flex flex-col overflow-hidden">
 
-<div id="message-box" class="fixed top-4 left-1/2 transform -translate-x-1/2 bg-red-500 text-white px-6 py-3 rounded shadow-lg z-50 hidden transition-opacity duration-300"></div>
+    <!-- Alert / Message Toast -->
+    <div id="toast-message" class="fixed top-4 left-1/2 transform -translate-x-1/2 bg-slate-800 text-white px-6 py-3 rounded-lg shadow-xl z-[200] font-bold hidden transition-opacity duration-300"></div>
 
-<!-- Login / Room Select View -->
-<div id="view-login" class="flex-1 flex flex-col items-center justify-center p-4">
-    <div class="bg-white p-8 rounded-xl shadow-md w-full max-w-md text-center">
-        <h1 class="text-2xl font-bold mb-6 text-blue-900">建設入札ゲーム</h1>
-        <p class="mb-6 text-sm text-gray-600">6人用のマルチプレイヤー対戦ゲームです。</p>
-        
-        <button id="btn-create-room" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded mb-4 transition">
-            新しいルームを作成
-        </button>
-        
-        <div class="flex items-center mb-4">
-            <hr class="flex-1 border-gray-300">
-            <span class="mx-2 text-gray-500 text-sm">または</span>
-            <hr class="flex-1 border-gray-300">
-        </div>
-        
-        <div class="flex gap-2">
-            <input type="text" id="input-room-id" placeholder="ルームIDを入力" class="flex-1 border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500">
-            <button id="btn-join-room" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded transition">
-                参加
-            </button>
+    <!-- Lobby Modal -->
+    <div id="lobby-modal" class="fixed inset-0 modal-bg flex justify-center items-center z-[100] p-4">
+        <div class="bg-white p-6 md:p-8 rounded-2xl shadow-2xl w-full max-w-md slide-in relative border-t-8 border-indigo-600">
+            <div class="text-center mb-6">
+                <span class="text-5xl mb-3 block">🏢</span>
+                <h2 class="text-2xl font-black text-slate-800">建設入札ゲーム</h2>
+                <p class="text-sm text-slate-500 mt-1 font-bold">オンラインマルチプレイヤー (全6役)</p>
+            </div>
+            <div class="space-y-4">
+                <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2">
+                    <label class="block text-sm font-bold text-slate-700">あなたのプレイヤー名</label>
+                    <input type="text" id="player-name-input" class="w-full bg-white border border-slate-300 p-2.5 rounded-lg font-bold text-slate-800 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition" value="プレイヤー">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <button onclick="createRoom()" class="bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold py-3 px-3 rounded-xl shadow-lg border-b-4 border-indigo-800 transition text-sm flex flex-col items-center gap-1">
+                        <span class="text-lg">🏠</span> ルームを作成 (ホスト)
+                    </button>
+                    <div class="flex flex-col gap-1.5">
+                        <input type="text" id="room-code-input" class="w-full bg-white border border-slate-300 p-2 rounded-lg text-center font-mono font-bold text-slate-800 text-sm uppercase" placeholder="コード入力">
+                        <button onclick="joinRoom()" id="join-btn-text" class="w-full bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold py-2 px-2 rounded-lg shadow border-b-4 border-emerald-800 transition text-xs flex-1">ルームに参加</button>
+                    </div>
+                </div>
+                <div id="room-status-box" class="hidden bg-indigo-50 p-4 rounded-xl border border-indigo-200 text-center space-y-3 mt-4">
+                    <p class="text-sm text-indigo-700 font-bold">ルームコード: <span id="display-room-code" class="text-indigo-900 font-mono text-xl tracking-wider bg-indigo-100 px-3 py-1 rounded">----</span></p>
+                    <div class="bg-white rounded border border-indigo-100 p-2">
+                        <p class="text-sm text-slate-700 font-bold mb-1" id="room-member-count">参加メンバー: 1 / 6人</p>
+                        <ul id="lobby-member-list" class="text-xs text-left text-slate-600 space-y-1 h-20 overflow-y-auto custom-scroll px-1">
+                            <!-- Members listed here -->
+                        </ul>
+                    </div>
+                    <p class="text-xs text-indigo-600 font-bold">※足りない枠はCPUが自動操作します</p>
+                    <button id="start-online-game-btn" onclick="startOnlineGameHost()" class="hidden w-full bg-yellow-400 hover:bg-yellow-500 active:scale-95 text-slate-900 font-black py-3 rounded-lg shadow-lg border-b-4 border-yellow-600 text-sm transition">ゲームを開始する</button>
+                </div>
+            </div>
         </div>
     </div>
-</div>
 
-<!-- Waiting Room View -->
-<div id="view-waiting" class="hidden flex-1 flex flex-col items-center justify-center p-4">
-    <div class="bg-white p-8 rounded-xl shadow-md w-full max-w-md text-center">
-        <h2 class="text-xl font-bold mb-2">待機室</h2>
-        <div class="mb-6">
-            <span class="text-gray-600 text-sm">ルームID:</span>
-            <span id="display-room-id" class="font-mono font-bold text-lg text-blue-800 ml-2 select-all"></span>
+    <!-- Processing Modal -->
+    <div id="processing-modal" class="fixed inset-0 modal-bg hidden flex justify-center items-center z-[150]">
+        <div class="bg-white p-8 rounded-2xl shadow-2xl text-center max-w-sm w-full flex flex-col items-center gap-4 slide-in border-t-8 border-indigo-600">
+            <div class="text-5xl animate-bounce">⏳</div>
+            <h2 class="text-xl font-black text-slate-800" id="proc-title">処理中...</h2>
+            <p class="text-sm text-slate-500 font-bold" id="proc-desc">他のプレイヤーを待機しています。</p>
         </div>
-        
-        <div class="mb-4">
-            <p class="mb-2">参加者 (<span id="player-count">0</span>/6)</p>
-            <ul id="player-list" class="bg-gray-50 rounded border p-2 h-40 overflow-y-auto text-left space-y-1 text-sm">
-                <!-- Players will be listed here -->
-            </ul>
-        </div>
-        
-        <p class="text-sm text-gray-500">6人揃うと自動的にゲームが開始されます...</p>
     </div>
-</div>
 
-<!-- Game View -->
-<div id="view-game" class="hidden flex-1 flex flex-col h-full overflow-hidden">
     <!-- Header -->
-    <header class="bg-slate-800 text-white p-4 shadow-md shrink-0 flex justify-between items-center flex-wrap gap-2">
-        <div>
-            <span class="text-xl font-bold mr-4">Turn: <span id="header-turn">1</span>/10</span>
-            <span class="text-sm bg-slate-700 px-2 py-1 rounded">ルーム: <span id="header-room"></span></span>
+    <header class="bg-slate-800 text-white p-3 shadow-md flex justify-between items-center z-50 shrink-0">
+        <div class="flex items-center gap-3">
+            <h1 class="text-xl font-bold tracking-tight">建設入札 <span class="text-sm font-normal ml-2">T: <span id="turn-display" class="text-yellow-400 font-black text-2xl">1</span>/10</span></h1>
+            <span class="hidden md:inline-block px-2 py-0.5 bg-slate-700 rounded text-xs font-mono text-slate-300 border border-slate-600">Room: <span id="header-room-id">---</span></span>
         </div>
-        <div class="text-right">
-            <div class="font-bold text-lg">あなたは <span id="header-role" class="text-yellow-300"></span> です</div>
-            <div class="text-sm">資本: <span id="header-capital" class="font-mono text-green-300"></span> Y | 拘束: <span id="header-lock"></span>ターン</div>
+        
+        <div class="flex items-center gap-4">
+            <div class="text-right leading-tight">
+                <div class="text-xs text-slate-400 font-bold">あなた</div>
+                <div class="font-black text-sm md:text-base"><span id="header-player-name" class="mr-2">Player</span><span id="header-role-badge" class="role-badge role-prime">役職</span></div>
+            </div>
+            <div class="h-8 w-px bg-slate-600"></div>
+            <div class="text-right leading-tight">
+                <div class="text-xs text-slate-400 font-bold">所持金</div>
+                <div class="font-black text-yellow-400 text-lg md:text-xl font-mono"><span id="header-money">1000</span><span class="text-sm">Y</span></div>
+            </div>
+            <button onclick="leaveRoom(false)" class="bg-rose-600 hover:bg-rose-700 active:scale-95 text-white font-bold py-1.5 px-3 rounded shadow transition text-xs border border-rose-800 ml-2">退出</button>
         </div>
     </header>
 
-    <!-- Main Content Area -->
-    <main class="flex-1 overflow-y-auto p-4 md:p-8">
+    <!-- Main Content -->
+    <main class="flex-1 flex flex-col md:flex-row overflow-hidden relative">
         
-        <!-- Estimate Phase (下請け用) -->
-        <div id="phase-estimate" class="hidden max-w-4xl mx-auto">
-            <div class="bg-white rounded-xl shadow-md p-6 mb-4 border-t-4 border-blue-500">
-                <h2 class="text-xl font-bold mb-4">相見積もりフェーズ</h2>
-                
-                <div id="estimate-market-info" class="flex gap-4 mb-6 bg-slate-50 p-4 rounded border">
-                    <!-- 市場情報 -->
-                </div>
+        <!-- Sidebar: Player List & Global Info -->
+        <aside class="w-full md:w-1/4 bg-slate-100 border-r border-slate-200 flex flex-col shrink-0 overflow-y-auto custom-scroll">
+            <div class="p-3 bg-slate-200 border-b border-slate-300 shadow-inner">
+                <h3 class="font-black text-slate-700 text-sm flex items-center gap-1"><span>👥</span> プレイヤー状況</h3>
+                <p class="text-[10px] text-slate-500 font-bold mt-0.5">※毎ターン固定費 100Y が全員引かれます</p>
+            </div>
+            <div id="players-container" class="p-2 space-y-2 flex-1">
+                <!-- Players dynamically injected here -->
+            </div>
+        </aside>
 
-                <div id="estimate-locked-msg" class="hidden text-center text-red-600 font-bold py-8">
-                    現在拘束期間中のため、見積もりには参加できません。待機してください...
+        <!-- Center: Game Board -->
+        <section class="flex-1 bg-white flex flex-col overflow-y-auto custom-scroll relative">
+            
+            <!-- Market Info Bar -->
+            <div class="bg-slate-50 p-3 border-b border-slate-200 flex flex-col sm:flex-row justify-center gap-4 shadow-sm shrink-0">
+                <div class="bg-blue-50 border-2 border-blue-200 rounded-lg p-2 flex-1 max-w-sm flex items-center justify-between shadow-sm">
+                    <span class="font-black text-blue-800">市場①</span>
+                    <span id="m1-type-badge" class="font-bold px-2 py-1 rounded bg-white border shadow-sm text-sm">--</span>
                 </div>
-                
-                <div id="estimate-form-container" class="hidden">
-                    <p class="mb-4 text-sm text-gray-600">元請けに提示する見積額を入力してください。提出後は変更できません。</p>
-                    <div id="estimate-inputs" class="flex flex-col md:flex-row gap-6 mb-6">
-                        <!-- JSで動的に入力欄を生成 -->
-                    </div>
-                    <button id="btn-submit-estimate" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded w-full transition">
-                        見積もりを提出する
-                    </button>
-                </div>
-                
-                <div id="estimate-waiting-msg" class="hidden text-center text-blue-600 font-bold py-8">
-                    提出完了。他のプレイヤーの操作を待機中...
+                <div class="bg-green-50 border-2 border-green-200 rounded-lg p-2 flex-1 max-w-sm flex items-center justify-between shadow-sm">
+                    <span class="font-black text-green-800">市場②</span>
+                    <span id="m2-type-badge" class="font-bold px-2 py-1 rounded bg-white border shadow-sm text-sm">--</span>
                 </div>
             </div>
-        </div>
 
-        <!-- Bid Phase (元請け用) -->
-        <div id="phase-bid" class="hidden max-w-5xl mx-auto">
-            <div class="bg-white rounded-xl shadow-md p-6 mb-4 border-t-4 border-indigo-500">
-                <h2 class="text-xl font-bold mb-4">入札フェーズ</h2>
-                
-                <div id="bid-waiting-msg" class="hidden text-center text-blue-600 font-bold py-8">
-                    待機中...
-                </div>
-
-                <div id="bid-form-container" class="hidden">
-                    <p class="mb-4 text-sm text-gray-600">下請けからの見積もりを各市場にドラッグ＆ドロップして割り当て、入札価格を決定してください。</p>
+            <!-- Phase 1: Estimate (下請け用) -->
+            <div id="phase-estimate" class="hidden flex-1 p-4 md:p-8 flex flex-col items-center slide-in">
+                <div class="w-full max-w-2xl bg-white border-2 border-slate-200 rounded-2xl shadow-xl overflow-hidden flex flex-col h-full max-h-[600px]">
+                    <div class="bg-slate-800 text-white p-4 text-center shrink-0">
+                        <h2 class="font-black text-xl">相見積もり作成</h2>
+                        <p class="text-xs text-slate-300 mt-1">所属する元請けへ提出する見積額を決定してください</p>
+                    </div>
                     
-                    <div class="flex flex-col md:flex-row gap-4 mb-6">
-                        <!-- Unassigned Subs -->
-                        <div class="w-full md:w-1/4 bg-gray-50 border-2 border-dashed border-gray-300 rounded p-4 flex flex-col" id="unassigned-container">
-                            <h3 class="font-bold mb-2 text-gray-700 text-sm">未割り当ての下請け</h3>
-                            <div class="card-slot flex-1" id="slot-unassigned"></div>
+                    <div id="est-locked-msg" class="hidden flex-1 flex flex-col items-center justify-center p-8 text-center bg-slate-50">
+                        <span class="text-4xl mb-4">🔒</span>
+                        <h3 class="font-black text-rose-600 text-lg mb-2">拘束期間中です</h3>
+                        <p class="text-sm font-bold text-slate-600">前回の工事に従事しているため、現在見積もりに参加できません。<br>他のプレイヤーの操作をお待ちください。</p>
+                    </div>
+
+                    <div id="est-prime-wait-msg" class="hidden flex-1 flex flex-col items-center justify-center p-8 text-center bg-slate-50">
+                        <span class="text-4xl mb-4">☕</span>
+                        <h3 class="font-black text-slate-700 text-lg mb-2">下請けが見積もりを作成中です</h3>
+                        <p class="text-sm font-bold text-slate-500">しばらくお待ちください...</p>
+                    </div>
+                    
+                    <div id="est-form-container" class="flex-1 p-6 overflow-y-auto custom-scroll hidden flex flex-col">
+                        <div id="est-inputs-area" class="flex flex-col gap-6 flex-1">
+                            <!-- Injected by JS based on market types -->
+                        </div>
+                        <div class="mt-6 pt-4 border-t border-slate-200 shrink-0">
+                            <button id="btn-submit-est" class="w-full bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-black py-4 rounded-xl shadow-lg border-b-4 border-blue-800 transition text-lg flex items-center justify-center gap-2">
+                                見積もりを提出する <span>📤</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Phase 2: Bid (元請け用) -->
+            <div id="phase-bid" class="hidden flex-1 p-4 flex flex-col items-center slide-in">
+                <div class="w-full max-w-4xl bg-white border-2 border-slate-200 rounded-2xl shadow-xl overflow-hidden flex flex-col h-full max-h-[800px]">
+                    <div class="bg-indigo-800 text-white p-4 text-center shrink-0">
+                        <h2 class="font-black text-xl">入札フェーズ</h2>
+                        <p class="text-xs text-indigo-200 mt-1">下請けを各市場に割り当てて、入札価格を決定してください</p>
+                    </div>
+                    
+                    <div id="bid-sub-wait-msg" class="hidden flex-1 flex flex-col items-center justify-center p-8 text-center bg-slate-50">
+                        <span class="text-4xl mb-4">🏢</span>
+                        <h3 class="font-black text-slate-700 text-lg mb-2">元請けが入札を検討中です</h3>
+                        <p class="text-sm font-bold text-slate-500">あなたの見積もりが採用されるか待機しましょう...</p>
+                    </div>
+
+                    <div id="bid-form-container" class="flex-1 p-4 sm:p-6 overflow-y-auto custom-scroll hidden flex flex-col">
+                        <div class="flex flex-col lg:flex-row gap-6 flex-1">
+                            
+                            <!-- Subcontractors Pool (Draggable) -->
+                            <div class="w-full lg:w-1/3 bg-slate-50 border-2 border-dashed border-slate-300 rounded-xl p-4 flex flex-col">
+                                <h3 class="font-bold text-slate-700 text-sm mb-3 flex items-center gap-1"><span>📥</span> 未割り当ての下請け</h3>
+                                <div id="slot-pool" class="card-slot flex-1 flex flex-col gap-2">
+                                    <!-- Draggable cards -->
+                                </div>
+                            </div>
+                            
+                            <!-- Markets -->
+                            <div class="w-full lg:w-2/3 flex flex-col sm:flex-row gap-4">
+                                <!-- Market 1 -->
+                                <div class="flex-1 bg-blue-50 border border-blue-200 rounded-xl p-3 flex flex-col">
+                                    <h3 class="font-black text-blue-900 border-b-2 border-blue-200 pb-1 mb-2" id="bid-m1-title">市場①</h3>
+                                    <div id="slot-m1" class="card-slot bg-white border-2 border-dashed border-blue-300 rounded-lg p-2 mb-3 flex flex-col justify-center items-center">
+                                        <span class="text-xs text-blue-400 font-bold pointer-events-none">ここにドロップ</span>
+                                    </div>
+                                    <div class="mt-auto bg-white p-3 rounded-lg border border-blue-100 shadow-sm space-y-2">
+                                        <label class="block text-xs font-bold text-slate-600">入札価格 (Y)</label>
+                                        <input type="number" id="input-bid-m1" class="w-full border border-slate-300 rounded p-2 text-right font-mono font-bold text-lg" placeholder="未入札">
+                                        <div class="text-[10px] text-slate-500 flex justify-between">
+                                            <span>元請費用: 100Y</span>
+                                            <span id="bid-est-display-m1">下請費用: -</span>
+                                        </div>
+                                        <div id="bid-profit-m1" class="text-sm font-black text-center p-1.5 rounded bg-slate-100 text-slate-500 border border-slate-200">下請けを配置してください</div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Market 2 -->
+                                <div class="flex-1 bg-green-50 border border-green-200 rounded-xl p-3 flex flex-col">
+                                    <h3 class="font-black text-green-900 border-b-2 border-green-200 pb-1 mb-2" id="bid-m2-title">市場②</h3>
+                                    <div id="slot-m2" class="card-slot bg-white border-2 border-dashed border-green-300 rounded-lg p-2 mb-3 flex flex-col justify-center items-center">
+                                        <span class="text-xs text-green-400 font-bold pointer-events-none">ここにドロップ</span>
+                                    </div>
+                                    <div class="mt-auto bg-white p-3 rounded-lg border border-green-100 shadow-sm space-y-2">
+                                        <label class="block text-xs font-bold text-slate-600">入札価格 (Y)</label>
+                                        <input type="number" id="input-bid-m2" class="w-full border border-slate-300 rounded p-2 text-right font-mono font-bold text-lg" placeholder="未入札">
+                                        <div class="text-[10px] text-slate-500 flex justify-between">
+                                            <span>元請費用: 100Y</span>
+                                            <span id="bid-est-display-m2">下請費用: -</span>
+                                        </div>
+                                        <div id="bid-profit-m2" class="text-sm font-black text-center p-1.5 rounded bg-slate-100 text-slate-500 border border-slate-200">下請けを配置してください</div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                         
-                        <!-- Market 1 -->
-                        <div class="w-full md:w-3/8 bg-blue-50 border border-blue-200 rounded p-4 flex flex-col" id="market1-container">
-                            <h3 class="font-bold mb-2 text-blue-800 border-b border-blue-200 pb-1" id="bid-m1-title">市場①</h3>
-                            <div class="card-slot bg-white border border-dashed border-blue-300 min-h-[100px] mb-3 p-2 rounded" id="slot-market1">
-                                <!-- Cards dropped here -->
-                            </div>
-                            <div class="mt-auto">
-                                <label class="block text-sm text-gray-600 mb-1">入札価格 (Y)</label>
-                                <input type="number" id="input-bid-m1" class="w-full border rounded px-3 py-2 mb-2" placeholder="価格を入力">
-                                <div id="profit-market1" class="text-sm font-bold text-gray-700 bg-white p-2 border rounded">下請けを割り当ててください</div>
-                            </div>
+                        <div class="mt-6 pt-4 border-t border-slate-200 shrink-0">
+                            <button id="btn-submit-bid" class="w-full bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-black py-4 rounded-xl shadow-lg border-b-4 border-indigo-800 transition text-lg flex items-center justify-center gap-2">
+                                入札を確定する <span>🔨</span>
+                            </button>
                         </div>
-
-                        <!-- Market 2 -->
-                        <div class="w-full md:w-3/8 bg-green-50 border border-green-200 rounded p-4 flex flex-col" id="market2-container">
-                            <h3 class="font-bold mb-2 text-green-800 border-b border-green-200 pb-1" id="bid-m2-title">市場②</h3>
-                            <div class="card-slot bg-white border border-dashed border-green-300 min-h-[100px] mb-3 p-2 rounded" id="slot-market2">
-                                <!-- Cards dropped here -->
-                            </div>
-                            <div class="mt-auto">
-                                <label class="block text-sm text-gray-600 mb-1">入札価格 (Y)</label>
-                                <input type="number" id="input-bid-m2" class="w-full border rounded px-3 py-2 mb-2" placeholder="価格を入力">
-                                <div id="profit-market2" class="text-sm font-bold text-gray-700 bg-white p-2 border rounded">下請けを割り当ててください</div>
-                            </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Phase 3: Result (全員) -->
+            <div id="phase-result" class="hidden flex-1 p-4 flex flex-col items-center slide-in">
+                <div class="w-full max-w-3xl bg-white border-2 border-slate-200 rounded-2xl shadow-xl overflow-hidden flex flex-col h-full max-h-[800px]">
+                    <div class="bg-emerald-700 text-white p-4 text-center shrink-0">
+                        <h2 class="font-black text-xl">第 <span id="res-turn-disp"></span> ターン 開札結果</h2>
+                    </div>
+                    
+                    <div class="flex-1 overflow-y-auto custom-scroll p-4 sm:p-6 space-y-6">
+                        <!-- M1 Result -->
+                        <div class="border-2 border-blue-200 rounded-xl overflow-hidden">
+                            <div class="bg-blue-100 px-4 py-2 font-black text-blue-900 border-b border-blue-200" id="res-title-m1">市場①</div>
+                            <div class="p-4 bg-white" id="res-content-m1"></div>
+                        </div>
+                        
+                        <!-- M2 Result -->
+                        <div class="border-2 border-green-200 rounded-xl overflow-hidden">
+                            <div class="bg-green-100 px-4 py-2 font-black text-green-900 border-b border-green-200" id="res-title-m2">市場②</div>
+                            <div class="p-4 bg-white" id="res-content-m2"></div>
+                        </div>
+                        
+                        <!-- Fixed Cost Notice -->
+                        <div class="bg-slate-100 p-3 rounded-lg text-center border border-slate-200">
+                            <p class="text-sm font-bold text-slate-700">💸 ターン終了処理: 全員から固定費 <span class="text-rose-600">-100Y</span> を引きました</p>
                         </div>
                     </div>
                     
-                    <button id="btn-submit-bid" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-8 rounded w-full transition">
-                        入札を確定する
+                    <div class="bg-slate-50 p-4 border-t border-slate-200 shrink-0 flex items-center justify-between">
+                        <div class="text-sm font-bold text-slate-500">準備完了: <span id="ready-count-disp">0</span> / 6</div>
+                        <button id="btn-ready" class="bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-black py-3 px-8 rounded-xl shadow-lg border-b-4 border-emerald-800 transition">
+                            確認して次へ
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Phase 4: Finished -->
+            <div id="phase-finished" class="hidden flex-1 p-4 flex flex-col items-center justify-center slide-in">
+                <div class="w-full max-w-2xl bg-white border-4 border-yellow-400 rounded-3xl shadow-2xl p-8 text-center relative overflow-hidden">
+                    <div class="absolute inset-0 bg-gradient-to-br from-yellow-50 to-white -z-10"></div>
+                    <h2 class="text-4xl font-black mb-2 text-yellow-600 drop-shadow-sm">🏁 ゲーム終了！</h2>
+                    <p class="text-slate-500 font-bold mb-8">最終ランキング</p>
+                    
+                    <div id="final-ranking-container" class="space-y-3 mb-8 text-left">
+                        <!-- Ranking injected here -->
+                    </div>
+                    
+                    <button onclick="location.reload()" class="w-full bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-black text-lg py-4 rounded-xl shadow-lg border-b-4 border-blue-800 transition-all">
+                        タイトルに戻る
                     </button>
                 </div>
             </div>
-        </div>
-
-        <!-- Result Phase (全員) -->
-        <div id="phase-result" class="hidden max-w-4xl mx-auto">
-            <div class="bg-white rounded-xl shadow-md p-6 mb-4 border-t-4 border-green-500">
-                <h2 class="text-xl font-bold mb-4">第 <span id="res-turn"></span> ターン 開札結果</h2>
-                
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                    <!-- Market 1 Result -->
-                    <div class="border rounded p-4" id="res-m1-box">
-                        <h3 class="font-bold text-lg mb-2 text-blue-800" id="res-m1-title">市場①</h3>
-                        <div id="res-m1-content" class="space-y-2 text-sm"></div>
-                    </div>
-                    <!-- Market 2 Result -->
-                    <div class="border rounded p-4" id="res-m2-box">
-                        <h3 class="font-bold text-lg mb-2 text-green-800" id="res-m2-title">市場②</h3>
-                        <div id="res-m2-content" class="space-y-2 text-sm"></div>
-                    </div>
-                </div>
-
-                <div class="bg-gray-100 p-4 rounded mb-6 text-sm">
-                    <p class="font-bold mb-1">毎ターン固定費: -100 Y (全員)</p>
-                    <p>※落札した元請け、および工事に採用された下請けには追加で資本の変動があります。</p>
-                </div>
-
-                <div class="flex items-center justify-between">
-                    <div class="text-gray-600 font-bold">準備完了: <span id="ready-count">0</span> / 6</div>
-                    <button id="btn-ready-next" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded transition">
-                        次のターンへ進む
-                    </button>
-                </div>
-            </div>
-        </div>
+            
+        </section>
     </main>
-</div>
 
-<!-- Finished View -->
-<div id="view-finished" class="hidden flex-1 flex flex-col items-center justify-center p-4">
-    <div class="bg-white p-8 rounded-xl shadow-md w-full max-w-2xl text-center">
-        <h2 class="text-3xl font-bold mb-6 text-yellow-600">ゲーム終了！</h2>
-        <p class="mb-4">全10ターンが終了しました。最終結果は以下の通りです。</p>
+    <script>
+        // Supabase Initialization
+        const SUPABASE_URL = 'https://qurypyztchaatyvmmigs.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF1cnlweXp0Y2hhYXR5dm1taWdzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA0MDgzMzcsImV4cCI6MjEwNTk4NDMzN30.eCsv82GKCULbgvc1dyUyfcG423YHIQ--zQlTDUpqM9g';
+        const supabase = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+
+        // Game Constants
+        const CONSTANTS = {
+            TOTAL_TURNS: 10,
+            START_MONEY: 1000,
+            FIXED_COST: 100,
+            MARKETS: {
+                '大工事': { max: 2000, min: 1800, subCost: 200, primeCost: 100, lock: 2, color: 'text-rose-600', bg: 'bg-rose-50', border: 'border-rose-200' },
+                '小工事': { max: 1000, min: 900, subCost: 100, primeCost: 100, lock: 1, color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-200' }
+            },
+            ROLES: [
+                { id: 'PrimeA', name: '元請けA', type: 'prime' },
+                { id: 'PrimeB', name: '元請けB', type: 'prime' },
+                { id: 'SubA1', name: '下請けA1', type: 'sub', parent: 'PrimeA' },
+                { id: 'SubA2', name: '下請けA2', type: 'sub', parent: 'PrimeA' },
+                { id: 'SubB1', name: '下請けB1', type: 'sub', parent: 'PrimeB' },
+                { id: 'SubB2', name: '下請けB2', type: 'sub', parent: 'PrimeB' }
+            ]
+        };
+
+        // State Variables
+        let onlineChannel = null;
+        let onlineRoomId = null;
+        let myClientId = Math.random().toString(36).substring(2, 10);
+        let myRoleIndex = -1; // 0-5 mapping to ROLES
+        let isHost = false;
         
-        <div class="bg-gray-50 rounded border p-4 mb-6">
-            <table class="w-full text-left table-auto">
-                <thead>
-                    <tr class="border-b-2">
-                        <th class="py-2">順位</th>
-                        <th class="py-2">役職</th>
-                        <th class="py-2 text-right">最終資本</th>
-                    </tr>
-                </thead>
-                <tbody id="final-ranking-body">
-                    <!-- ランク挿入 -->
-                </tbody>
-            </table>
-        </div>
-        
-        <button onclick="location.reload()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded">
-            タイトルに戻る
-        </button>
-    </div>
-</div>
+        let gameState = {
+            status: 'lobby', // lobby, playing, finished
+            turn: 1,
+            phase: 'estimate', // estimate, bid, result
+            markets: { m1: '', m2: '' },
+            players: [], // Array of 6 objects
+            turnData: {
+                estimates: {}, // subRole -> {m1, m2}
+                bids: {}, // primeRole -> {m1: {price, sub, est}, m2: ...}
+                results: { m1: null, m2: null },
+                ready: {} // clientId -> true
+            }
+        };
 
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-import { getFirestore, doc, setDoc, updateDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        // Local UI State for Drag & Drop
+        let localBidState = {
+            m1: { subId: null, price: '' },
+            m2: { subId: null, price: '' }
+        };
 
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'bidding-game-v1';
-const firebaseConfigStr = typeof __firebase_config !== 'undefined' ? __firebase_config : '{}';
-let firebaseConfig = {};
-try {
-    firebaseConfig = JSON.parse(firebaseConfigStr);
-} catch (e) {
-    console.warn("Invalid firebase config");
-}
-const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-
-// Only initialize if config is valid enough
-let app, auth, db;
-if (Object.keys(firebaseConfig).length > 0) {
-    app = initializeApp(firebaseConfig);
-    auth = getAuth(app);
-    db = getFirestore(app);
-}
-
-// Global state
-window.roomId = null;
-window.myUserId = null;
-window.myRole = null;
-window.gameState = null;
-
-let unsubscribeRoom = null;
-let currentRenderedTurn = 0;
-let currentRenderedPhase = '';
-
-// Bid Phase Local State
-window.localBidState = {
-    market1: { sub: null, price: '' },
-    market2: { sub: null, price: '' }
-};
-
-const ROLE_NAMES = {
-    'PrimeA': '元請けA',
-    'SubA1': '下請けA1',
-    'SubA2': '下請けA2',
-    'PrimeB': '元請けB',
-    'SubB1': '下請けB1',
-    'SubB2': '下請けB2'
-};
-
-const MARKET_INFO = {
-    '大工事': { standard: 1800, max: 2000, subCost: 200, lock: 3 }, // lock 3 means 2 turns locked after this turn
-    '小工事': { standard: 900, max: 1000, subCost: 100, lock: 2 }   // lock 2 means 1 turn locked
-};
-
-// UI Utils
-function showMessage(msg) {
-    const el = document.getElementById('message-box');
-    el.innerText = msg;
-    el.classList.remove('hidden');
-    setTimeout(() => el.classList.add('hidden'), 3000);
-}
-
-function switchView(viewId) {
-    ['view-login', 'view-waiting', 'view-game', 'view-finished'].forEach(id => {
-        document.getElementById(id).classList.add('hidden');
-    });
-    document.getElementById(viewId).classList.remove('hidden');
-}
-
-function switchGamePhase(phaseId) {
-    ['phase-estimate', 'phase-bid', 'phase-result'].forEach(id => {
-        document.getElementById(id).classList.add('hidden');
-    });
-    document.getElementById(phaseId).classList.remove('hidden');
-}
-
-async function initAuth() {
-    if (!auth) {
-        showMessage("Firebase config is missing.");
-        return;
-    }
-    try {
-        if (initialAuthToken) {
-            await signInWithCustomToken(auth, initialAuthToken);
-        } else {
-            await signInAnonymously(auth);
+        // UI Helpers
+        function showToast(msg) {
+            const el = document.getElementById('toast-message');
+            el.textContent = msg;
+            el.classList.remove('hidden');
+            setTimeout(() => el.classList.add('hidden'), 3000);
         }
-        window.myUserId = auth.currentUser.uid;
-        switchView('view-login');
-        setupEventListeners();
-    } catch (e) {
-        console.error("Auth Error", e);
-        showMessage("認証エラーが発生しました");
-    }
-}
 
-function getRoomRef(roomId) {
-    return doc(db, 'artifacts', appId, 'public', 'data', 'rooms', roomId);
-}
-
-async function createRoom() {
-    const newRoomId = Math.random().toString(36).substring(2, 8).toUpperCase();
-    const roomRef = getRoomRef(newRoomId);
-    
-    await setDoc(roomRef, {
-        host: window.myUserId,
-        status: 'waiting',
-        players: { [window.myUserId]: 'Host' }
-    });
-    
-    joinRoom(newRoomId);
-}
-
-async function joinRoom(rId) {
-    if (!rId) {
-        showMessage("ルームIDを入力してください");
-        return;
-    }
-    window.roomId = rId.toUpperCase();
-    const roomRef = getRoomRef(window.roomId);
-    
-    if (unsubscribeRoom) unsubscribeRoom();
-    
-    unsubscribeRoom = onSnapshot(roomRef, async (snapshot) => {
-        if (!snapshot.exists()) {
-            showMessage("ルームが存在しません");
-            unsubscribeRoom();
-            return;
+        function showProcessing(title = '処理中...', desc = '待機しています') {
+            document.getElementById('proc-title').textContent = title;
+            document.getElementById('proc-desc').textContent = desc;
+            document.getElementById('processing-modal').classList.remove('hidden');
         }
         
-        const data = snapshot.data();
-        
-        // If not joined yet, add self to players (if room is waiting)
-        if (data.status === 'waiting' && !data.players[window.myUserId]) {
-            if (Object.keys(data.players).length < 6) {
-                const newPlayers = { ...data.players, [window.myUserId]: 'Player' };
-                await updateDoc(roomRef, { players: newPlayers });
-                return; // Will trigger snapshot again
-            } else {
-                showMessage("ルームは満員です");
-                unsubscribeRoom();
+        function hideProcessing() {
+            document.getElementById('processing-modal').classList.add('hidden');
+        }
+
+        function getRoleData(roleId) {
+            return CONSTANTS.ROLES.find(r => r.id === roleId);
+        }
+
+        function getRoleName(roleId) {
+            const r = getRoleData(roleId);
+            return r ? r.name : '不明';
+        }
+
+        // Initialization & Room Logic
+        function resetLocalState() {
+            gameState.players = CONSTANTS.ROLES.map(r => ({
+                id: null,
+                clientId: null,
+                name: 'CPU (待機)',
+                role: r.id,
+                money: CONSTANTS.START_MONEY,
+                lock: 0,
+                isCPU: true
+            }));
+            gameState.status = 'lobby';
+            gameState.turn = 1;
+            gameState.phase = 'estimate';
+            gameState.turnData = { estimates: {}, bids: {}, results: {m1:null, m2:null}, ready: {} };
+        }
+
+        function createRoom() {
+            if (!supabase) { alert('Supabase未接続'); return; }
+            const name = document.getElementById('player-name-input').value.trim() || 'ホスト';
+            resetLocalState();
+            
+            isHost = true;
+            myRoleIndex = 0; // Host is always PrimeA initially (randomized on start)
+            
+            gameState.players[0] = { ...gameState.players[0], clientId: myClientId, name: name, isCPU: false };
+            
+            onlineRoomId = Math.floor(100000 + Math.random() * 900000).toString();
+            document.getElementById('display-room-code').textContent = onlineRoomId;
+            document.getElementById('room-status-box').classList.remove('hidden');
+            document.getElementById('start-online-game-btn').classList.remove('hidden');
+            
+            initChannel();
+            updateLobbyUI();
+            updateHeader();
+        }
+
+        function joinRoom() {
+            if (!supabase) return;
+            const code = document.getElementById('room-code-input').value.trim().toUpperCase();
+            if (!code) return;
+            const name = document.getElementById('player-name-input').value.trim() || 'ゲスト';
+            
+            isHost = false;
+            onlineRoomId = code;
+            
+            document.getElementById('join-btn-text').textContent = '接続中...';
+            
+            initChannel(() => {
+                onlineChannel.send({ type: 'broadcast', event: 'req_join', payload: { clientId: myClientId, name: name } });
+            });
+        }
+
+        function leaveRoom(skipConfirm) {
+            if (!skipConfirm && !confirm('退出しますか？')) return;
+            if (onlineChannel) {
+                if (isHost) {
+                    onlineChannel.send({ type: 'broadcast', event: 'room_closed', payload: {} });
+                } else {
+                    onlineChannel.send({ type: 'broadcast', event: 'player_left', payload: { clientId: myClientId } });
+                }
+                supabase.removeChannel(onlineChannel);
+                onlineChannel = null;
+            }
+            location.reload();
+        }
+
+        function initChannel(onSubscribed) {
+            if (onlineChannel) supabase.removeChannel(onlineChannel);
+            
+            onlineChannel = supabase.channel(`room_${onlineRoomId}`, { config: { broadcast: { self: false } } });
+            
+            onlineChannel
+                .on('broadcast', { event: 'room_closed' }, () => {
+                    alert('ホストが退出しました。'); location.reload();
+                })
+                .on('broadcast', { event: 'req_join' }, p => {
+                    if (!isHost || gameState.status !== 'lobby') return;
+                    const { clientId, name } = p.payload;
+                    const emptyIdx = gameState.players.findIndex(pl => pl.isCPU);
+                    if (emptyIdx !== -1) {
+                        gameState.players[emptyIdx] = { ...gameState.players[emptyIdx], clientId, name, isCPU: false };
+                        onlineChannel.send({ type: 'broadcast', event: 'join_accept', payload: { state: gameState, targetClient: clientId, assignedIdx: emptyIdx } });
+                        updateLobbyUI();
+                    }
+                })
+                .on('broadcast', { event: 'join_accept' }, p => {
+                    if (p.payload.targetClient === myClientId) {
+                        gameState = p.payload.state;
+                        myRoleIndex = p.payload.assignedIdx;
+                        document.getElementById('lobby-modal').classList.add('hidden');
+                        showToast(`ルーム ${onlineRoomId} に参加しました`);
+                        updateHeader();
+                        renderSidebar();
+                    }
+                })
+                .on('broadcast', { event: 'player_left' }, p => {
+                    if (isHost) {
+                        const { clientId } = p.payload;
+                        const idx = gameState.players.findIndex(pl => pl.clientId === clientId);
+                        if (idx !== -1) {
+                            gameState.players[idx].isCPU = true;
+                            gameState.players[idx].name = 'CPU (退出済)';
+                            updateLobbyUI();
+                            syncState();
+                            
+                            // 進行中のスタック解消確認
+                            if (gameState.status === 'playing') checkHostTriggers();
+                        }
+                    }
+                })
+                .on('broadcast', { event: 'state_sync' }, p => {
+                    if (!isHost) {
+                        gameState = p.payload.state;
+                        updateHeader();
+                        renderSidebar();
+                        renderCurrentPhase();
+                    }
+                })
+                .on('broadcast', { event: 'action_est' }, p => {
+                    if (isHost) {
+                        const { role, est } = p.payload;
+                        gameState.turnData.estimates[role] = est;
+                        checkHostTriggers();
+                    }
+                })
+                .on('broadcast', { event: 'action_bid' }, p => {
+                    if (isHost) {
+                        const { role, bid } = p.payload;
+                        gameState.turnData.bids[role] = bid;
+                        checkHostTriggers();
+                    }
+                })
+                .on('broadcast', { event: 'action_ready' }, p => {
+                    if (isHost) {
+                        gameState.turnData.ready[p.payload.clientId] = true;
+                        checkHostTriggers();
+                    }
+                })
+                .subscribe(status => {
+                    if (status === 'SUBSCRIBED' && onSubscribed) onSubscribed();
+                });
+        }
+
+        function syncState() {
+            if (isHost && onlineChannel) {
+                onlineChannel.send({ type: 'broadcast', event: 'state_sync', payload: { state: gameState } });
+            }
+            updateHeader();
+            renderSidebar();
+            renderCurrentPhase();
+        }
+
+        function updateLobbyUI() {
+            const humans = gameState.players.filter(p => !p.isCPU).length;
+            document.getElementById('room-member-count').textContent = `参加メンバー: ${humans} / 6人`;
+            const list = document.getElementById('lobby-member-list');
+            list.innerHTML = gameState.players.map(p => `<li>${p.isCPU ? '🤖' : '👤'} ${p.name}</li>`).join('');
+        }
+
+        function startOnlineGameHost() {
+            if (!isHost) return;
+            document.getElementById('lobby-modal').classList.add('hidden');
+            
+            // Shuffle Roles among connected players
+            const connected = gameState.players.filter(p => !p.isCPU);
+            const cpuCount = 6 - connected.length;
+            let pool = [...connected, ...Array(cpuCount).fill({isCPU:true, name:'CPU'})];
+            pool.sort(() => Math.random() - 0.5);
+            
+            gameState.players = pool.map((p, i) => ({
+                id: p.clientId || `cpu_${i}`,
+                clientId: p.clientId,
+                name: p.name,
+                role: CONSTANTS.ROLES[i].id,
+                money: CONSTANTS.START_MONEY,
+                lock: 0,
+                isCPU: p.isCPU
+            }));
+            
+            myRoleIndex = gameState.players.findIndex(p => p.clientId === myClientId);
+            
+            gameState.status = 'playing';
+            setupNewTurn();
+        }
+
+        function setupNewTurn() {
+            gameState.markets = {
+                m1: Math.random() < 0.5 ? '大工事' : '小工事',
+                m2: Math.random() < 0.5 ? '大工事' : '小工事'
+            };
+            
+            // Lock reduction done at end of previous turn.
+            
+            gameState.phase = 'estimate';
+            gameState.turnData = { estimates: {}, bids: {}, results: {m1:null, m2:null}, ready: {} };
+            
+            syncState();
+            checkHostTriggers(); // Trigger CPU initial actions
+        }
+
+        function updateHeader() {
+            if (gameState.status === 'lobby') return;
+            const me = gameState.players[myRoleIndex];
+            if (!me) return;
+            
+            document.getElementById('turn-display').textContent = gameState.turn;
+            document.getElementById('header-room-id').textContent = onlineRoomId;
+            document.getElementById('header-player-name').textContent = me.name;
+            document.getElementById('header-money').textContent = me.money;
+            
+            const badge = document.getElementById('header-role-badge');
+            const rData = getRoleData(me.role);
+            badge.textContent = rData.name;
+            badge.className = `role-badge ${rData.type === 'prime' ? 'role-prime' : 'role-sub'}`;
+        }
+
+        function renderSidebar() {
+            const cont = document.getElementById('players-container');
+            cont.innerHTML = gameState.players.map(p => {
+                const rData = getRoleData(p.role);
+                const isMe = p.clientId === myClientId;
+                const lockText = p.lock > 0 ? `<span class="text-[10px] bg-rose-100 text-rose-700 px-1 rounded border border-rose-200">拘束:あと${p.lock}T</span>` : '';
+                return `
+                <div class="bg-white p-2 rounded-lg border ${isMe ? 'border-blue-400 ring-1 ring-blue-400' : 'border-slate-200'} shadow-sm text-sm">
+                    <div class="flex justify-between items-center border-b border-slate-100 pb-1 mb-1">
+                        <span class="font-bold truncate pr-1 ${isMe ? 'text-blue-700' : 'text-slate-700'}">${p.isCPU ? '🤖' : '👤'} ${p.name}</span>
+                        <span class="text-[10px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded font-bold">${rData.name}</span>
+                    </div>
+                    <div class="flex justify-between items-end">
+                        <span class="font-black font-mono ${p.money < 0 ? 'text-rose-600' : 'text-slate-800'}">${p.money}Y</span>
+                        ${lockText}
+                    </div>
+                </div>
+                `;
+            }).join('');
+            
+            // Market badges
+            if (gameState.status === 'playing') {
+                const m1Info = CONSTANTS.MARKETS[gameState.markets.m1];
+                const m2Info = CONSTANTS.MARKETS[gameState.markets.m2];
+                document.getElementById('m1-type-badge').className = `font-bold px-2 py-1 rounded bg-white border shadow-sm text-sm ${m1Info?.color} ${m1Info?.border}`;
+                document.getElementById('m1-type-badge').textContent = gameState.markets.m1 || '--';
+                document.getElementById('m2-type-badge').className = `font-bold px-2 py-1 rounded bg-white border shadow-sm text-sm ${m2Info?.color} ${m2Info?.border}`;
+                document.getElementById('m2-type-badge').textContent = gameState.markets.m2 || '--';
+            }
+        }
+
+        function renderCurrentPhase() {
+            ['phase-estimate', 'phase-bid', 'phase-result', 'phase-finished'].forEach(id => {
+                document.getElementById(id).classList.add('hidden');
+            });
+            hideProcessing();
+            
+            if (gameState.status === 'finished') {
+                renderFinishedPhase();
                 return;
             }
-        }
-        
-        window.gameState = data;
-        window.myRole = data.players[window.myUserId];
-        
-        renderState();
-        checkHostProgress();
-    }, (err) => {
-        console.error("Room Sync Error", err);
-    });
-}
 
-function renderState() {
-    const state = window.gameState;
-    
-    if (state.status === 'waiting') {
-        switchView('view-waiting');
-        document.getElementById('display-room-id').innerText = window.roomId;
-        const playerKeys = Object.keys(state.players);
-        document.getElementById('player-count').innerText = playerKeys.length;
-        
-        const list = document.getElementById('player-list');
-        list.innerHTML = '';
-        playerKeys.forEach((uid, i) => {
-            const li = document.createElement('li');
-            li.className = "py-1 border-b last:border-0" + (uid === window.myUserId ? " font-bold text-blue-600" : "");
-            li.innerText = `Player ${i+1} ${uid === window.myUserId ? '(あなた)' : ''}`;
-            list.appendChild(li);
-        });
-        
-    } else if (state.status === 'playing') {
-        switchView('view-game');
-        
-        // Update Header
-        document.getElementById('header-turn').innerText = state.turn;
-        document.getElementById('header-room').innerText = window.roomId;
-        document.getElementById('header-role').innerText = ROLE_NAMES[window.myRole] || window.myRole;
-        
-        if (state.state && state.state.capital) {
-            document.getElementById('header-capital').innerText = state.state.capital[window.myRole];
-        }
-        if (state.state && state.state.lockDuration && window.myRole.startsWith('Sub')) {
-            document.getElementById('header-lock').innerText = state.state.lockDuration[window.myRole];
-        } else {
-            document.getElementById('header-lock').innerText = '-';
-        }
-        
-        // Render specific phase
-        const isNewPhase = (currentRenderedTurn !== state.turn || currentRenderedPhase !== state.phase);
-        
-        if (state.phase === 'estimate') {
-            switchGamePhase('phase-estimate');
-            if (isNewPhase) renderEstimatePhase();
-        } else if (state.phase === 'bid') {
-            switchGamePhase('phase-bid');
-            if (isNewPhase) renderBidPhase();
-        } else if (state.phase === 'result') {
-            switchGamePhase('phase-result');
-            renderResultPhase(); // Update ready count constantly
-        }
-        
-        currentRenderedTurn = state.turn;
-        currentRenderedPhase = state.phase;
-        
-    } else if (state.status === 'finished') {
-        switchView('view-finished');
-        renderFinishedPhase();
-    }
-}
-
-function renderEstimatePhase() {
-    const state = window.gameState;
-    const isSub = window.myRole.startsWith('Sub');
-    
-    document.getElementById('estimate-market-info').innerHTML = `
-        <div class="flex-1">
-            <span class="font-bold text-blue-800">市場①:</span> ${state.markets.market1}
-            <div class="text-xs text-gray-600 mt-1">基準: ${MARKET_INFO[state.markets.market1].standard}Y / 上限: ${MARKET_INFO[state.markets.market1].max}Y</div>
-        </div>
-        <div class="flex-1">
-            <span class="font-bold text-green-800">市場②:</span> ${state.markets.market2}
-            <div class="text-xs text-gray-600 mt-1">基準: ${MARKET_INFO[state.markets.market2].standard}Y / 上限: ${MARKET_INFO[state.markets.market2].max}Y</div>
-        </div>
-    `;
-
-    document.getElementById('estimate-locked-msg').classList.add('hidden');
-    document.getElementById('estimate-form-container').classList.add('hidden');
-    document.getElementById('estimate-waiting-msg').classList.add('hidden');
-
-    if (!isSub) {
-        document.getElementById('estimate-waiting-msg').innerText = "下請けが見積もりを作成中です。待機してください...";
-        document.getElementById('estimate-waiting-msg').classList.remove('hidden');
-        return;
-    }
-
-    if (state.state.lockDuration[window.myRole] > 0) {
-        document.getElementById('estimate-locked-msg').classList.remove('hidden');
-        return;
-    }
-
-    if (state.turnData.estimates && state.turnData.estimates[window.myRole]) {
-        document.getElementById('estimate-waiting-msg').innerText = "見積もり提出完了。他のプレイヤーの操作を待機中...";
-        document.getElementById('estimate-waiting-msg').classList.remove('hidden');
-        return;
-    }
-
-    document.getElementById('estimate-form-container').classList.remove('hidden');
-    const inputsContainer = document.getElementById('estimate-inputs');
-    inputsContainer.innerHTML = '';
-
-    if (state.markets.market1 === state.markets.market2) {
-        // Same market type
-        const mType = state.markets.market1;
-        const cost = MARKET_INFO[mType].subCost;
-        
-        inputsContainer.innerHTML = `
-            <div class="flex-1 bg-gray-50 p-4 border rounded">
-                <label class="block font-bold mb-2">共通見積額 (市場①・②両方適用)</label>
-                <input type="number" id="est-common" class="w-full border p-2 rounded mb-2" placeholder="見積額を入力">
-                <div class="text-sm text-gray-600 mb-1">費用: ${cost} Y</div>
-                <div class="font-bold text-blue-700" id="est-profit-common">利益: -</div>
-            </div>
-        `;
-        document.getElementById('est-common').addEventListener('input', (e) => {
-            const val = parseInt(e.target.value) || 0;
-            document.getElementById('est-profit-common').innerText = `利益: ${val - cost} Y`;
-        });
-    } else {
-        // Different market types
-        const c1 = MARKET_INFO[state.markets.market1].subCost;
-        const c2 = MARKET_INFO[state.markets.market2].subCost;
-        
-        inputsContainer.innerHTML = `
-            <div class="flex-1 bg-blue-50 border border-blue-200 p-4 rounded">
-                <label class="block font-bold mb-2 text-blue-900">市場① (${state.markets.market1}) 用</label>
-                <input type="number" id="est-m1" class="w-full border p-2 rounded mb-2" placeholder="見積額">
-                <div class="text-sm text-gray-600 mb-1">費用: ${c1} Y</div>
-                <div class="font-bold text-blue-700" id="est-profit-m1">利益: -</div>
-            </div>
-            <div class="flex-1 bg-green-50 border border-green-200 p-4 rounded">
-                <label class="block font-bold mb-2 text-green-900">市場② (${state.markets.market2}) 用</label>
-                <input type="number" id="est-m2" class="w-full border p-2 rounded mb-2" placeholder="見積額">
-                <div class="text-sm text-gray-600 mb-1">費用: ${c2} Y</div>
-                <div class="font-bold text-green-700" id="est-profit-m2">利益: -</div>
-            </div>
-        `;
-        document.getElementById('est-m1').addEventListener('input', (e) => {
-            document.getElementById('est-profit-m1').innerText = `利益: ${(parseInt(e.target.value)||0) - c1} Y`;
-        });
-        document.getElementById('est-m2').addEventListener('input', (e) => {
-            document.getElementById('est-profit-m2').innerText = `利益: ${(parseInt(e.target.value)||0) - c2} Y`;
-        });
-    }
-}
-
-function renderBidPhase() {
-    const state = window.gameState;
-    const isPrime = window.myRole.startsWith('Prime');
-    
-    document.getElementById('bid-waiting-msg').classList.add('hidden');
-    document.getElementById('bid-form-container').classList.add('hidden');
-
-    if (!isPrime) {
-        document.getElementById('bid-waiting-msg').innerText = "元請けが入札を検討中です。待機してください...";
-        document.getElementById('bid-waiting-msg').classList.remove('hidden');
-        return;
-    }
-
-    if (state.turnData.bids && state.turnData.bids[window.myRole]) {
-        document.getElementById('bid-waiting-msg').innerText = "入札完了。他プレイヤーの完了を待機中...";
-        document.getElementById('bid-waiting-msg').classList.remove('hidden');
-        return;
-    }
-
-    document.getElementById('bid-form-container').classList.remove('hidden');
-    
-    // Reset local state
-    window.localBidState = { market1: { sub: null, price: '' }, market2: { sub: null, price: '' } };
-    
-    document.getElementById('bid-m1-title').innerText = `市場① (${state.markets.market1})`;
-    document.getElementById('bid-m2-title').innerText = `市場② (${state.markets.market2})`;
-    
-    // Clear slots
-    const slotUn = document.getElementById('slot-unassigned');
-    const slotM1 = document.getElementById('slot-market1');
-    const slotM2 = document.getElementById('slot-market2');
-    slotUn.innerHTML = '';
-    slotM1.innerHTML = '';
-    slotM2.innerHTML = '';
-    
-    // Generate Draggable Cards for my subs
-    const mySubs = window.myRole === 'PrimeA' ? ['SubA1', 'SubA2'] : ['SubB1', 'SubB2'];
-    mySubs.forEach(sub => {
-        const estData = state.turnData.estimates[sub];
-        if (estData && !estData.locked) {
-            const card = document.createElement('div');
-            card.id = `card-${sub}`;
-            card.draggable = true;
-            card.className = "p-3 bg-white border border-gray-300 rounded shadow cursor-grab mb-2 transform transition-transform hover:scale-105 active:scale-95";
+            const me = gameState.players[myRoleIndex];
+            const rData = getRoleData(me.role);
             
-            let estText = '';
-            if (state.markets.market1 === state.markets.market2) {
-                estText = `<div class="text-xs mt-1">見積額: ${estData.market1}Y</div>`;
-            } else {
-                estText = `<div class="text-xs mt-1">①: ${estData.market1}Y | ②: ${estData.market2}Y</div>`;
-            }
-            
-            card.innerHTML = `<div class="font-bold text-gray-800">${ROLE_NAMES[sub]}</div>${estText}`;
-            
-            card.addEventListener('dragstart', (e) => {
-                e.dataTransfer.setData('text/plain', sub);
-                setTimeout(() => card.classList.add('opacity-50'), 0);
-            });
-            card.addEventListener('dragend', () => {
-                card.classList.remove('opacity-50');
-            });
-            slotUn.appendChild(card);
-        }
-    });
-
-    // Reset inputs
-    const inputM1 = document.getElementById('input-bid-m1');
-    const inputM2 = document.getElementById('input-bid-m2');
-    inputM1.value = '';
-    inputM2.value = '';
-    
-    updateBidProfitDisplay('market1');
-    updateBidProfitDisplay('market2');
-    
-    inputM1.oninput = (e) => { window.localBidState.market1.price = e.target.value; updateBidProfitDisplay('market1'); };
-    inputM2.oninput = (e) => { window.localBidState.market2.price = e.target.value; updateBidProfitDisplay('market2'); };
-}
-
-// Global scope attach for D&D to avoid adding multiple listeners
-function setupDropZones() {
-    const zones = [
-        { id: 'slot-unassigned', key: 'unassigned' },
-        { id: 'slot-market1', key: 'market1' },
-        { id: 'slot-market2', key: 'market2' }
-    ];
-    
-    zones.forEach(z => {
-        const el = document.getElementById(z.id);
-        el.addEventListener('dragover', e => {
-            e.preventDefault();
-            el.classList.add('bg-gray-200');
-        });
-        el.addEventListener('dragleave', e => {
-            el.classList.remove('bg-gray-200');
-        });
-        el.addEventListener('drop', e => {
-            e.preventDefault();
-            el.classList.remove('bg-gray-200');
-            const subId = e.dataTransfer.getData('text/plain');
-            if (!subId) return;
-            
-            const card = document.getElementById(`card-${subId}`);
-            if (card) {
-                // Clear old assignments
-                if (window.localBidState.market1.sub === subId && z.key !== 'market1') window.localBidState.market1.sub = null;
-                if (window.localBidState.market2.sub === subId && z.key !== 'market2') window.localBidState.market2.sub = null;
+            if (gameState.phase === 'estimate') {
+                document.getElementById('phase-estimate').classList.remove('hidden');
+                document.getElementById('est-locked-msg').classList.add('hidden');
+                document.getElementById('est-prime-wait-msg').classList.add('hidden');
+                document.getElementById('est-form-container').classList.add('hidden');
                 
-                // If dropping into a market that already has a card, move the old card back to unassigned
-                if (z.key !== 'unassigned' && window.localBidState[z.key].sub && window.localBidState[z.key].sub !== subId) {
-                    const oldCardId = window.localBidState[z.key].sub;
-                    const oldCard = document.getElementById(`card-${oldCardId}`);
-                    if (oldCard) document.getElementById('slot-unassigned').appendChild(oldCard);
-                }
-                
-                el.appendChild(card);
-                
-                if (z.key === 'unassigned') {
-                    // already cleared above
+                if (rData.type === 'prime') {
+                    document.getElementById('est-prime-wait-msg').classList.remove('hidden');
                 } else {
-                    window.localBidState[z.key].sub = subId;
+                    if (me.lock > 0) {
+                        document.getElementById('est-locked-msg').classList.remove('hidden');
+                    } else if (gameState.turnData.estimates[me.role]) {
+                        showProcessing('提出完了', '他のプレイヤーの提出を待っています');
+                    } else {
+                        renderEstimateForm();
+                    }
                 }
-                updateBidProfitDisplay('market1');
-                updateBidProfitDisplay('market2');
+            } 
+            else if (gameState.phase === 'bid') {
+                document.getElementById('phase-bid').classList.remove('hidden');
+                document.getElementById('bid-sub-wait-msg').classList.add('hidden');
+                document.getElementById('bid-form-container').classList.add('hidden');
+                
+                if (rData.type === 'sub') {
+                    document.getElementById('bid-sub-wait-msg').classList.remove('hidden');
+                } else {
+                    if (gameState.turnData.bids[me.role]) {
+                        showProcessing('入札完了', '開札を待機しています');
+                    } else {
+                        renderBidForm();
+                    }
+                }
             }
-        });
-    });
-}
-
-function updateBidProfitDisplay(marketKey) {
-    const priceStr = window.localBidState[marketKey].price;
-    const price = parseInt(priceStr);
-    const subRole = window.localBidState[marketKey].sub;
-    const profitEl = document.getElementById(`profit-${marketKey}`);
-    
-    if (!subRole) {
-        profitEl.innerText = '下請けを割り当ててください';
-        profitEl.className = 'text-sm font-bold text-gray-500 bg-gray-100 p-2 border rounded';
-        return;
-    }
-    
-    const estVal = window.gameState.turnData.estimates[subRole][marketKey];
-    
-    if (isNaN(price)) {
-        profitEl.innerText = `見積額: ${estVal} Y (入札額を入力)`;
-        profitEl.className = 'text-sm font-bold text-blue-600 bg-blue-50 p-2 border border-blue-200 rounded';
-        return;
-    }
-    
-    // Profit calculation: Bid - 100(Fixed cost for prime per bid interpretation) - Estimate
-    const profit = price - 100 - estVal;
-    profitEl.innerText = `利益: ${profit} Y (入札 ${price} - 費100 - 見 ${estVal})`;
-    
-    if (profit >= 0) {
-        profitEl.className = 'text-sm font-bold text-green-700 bg-green-50 p-2 border border-green-200 rounded';
-    } else {
-        profitEl.className = 'text-sm font-bold text-red-700 bg-red-50 p-2 border border-red-200 rounded';
-    }
-}
-
-function renderResultPhase() {
-    const state = window.gameState;
-    document.getElementById('res-turn').innerText = state.turn;
-    
-    const readyCount = Object.keys(state.turnData.ready || {}).length;
-    document.getElementById('ready-count').innerText = readyCount;
-    
-    const btn = document.getElementById('btn-ready-next');
-    if (state.turnData.ready && state.turnData.ready[window.myUserId]) {
-        btn.innerText = "準備完了";
-        btn.disabled = true;
-        btn.classList.replace('bg-green-600', 'bg-gray-400');
-        btn.classList.replace('hover:bg-green-700', 'cursor-not-allowed');
-    } else {
-        btn.innerText = "次のターンへ進む";
-        btn.disabled = false;
-        btn.classList.replace('bg-gray-400', 'bg-green-600');
-        btn.classList.replace('cursor-not-allowed', 'hover:bg-green-700');
-    }
-
-    if (currentRenderedTurn === state.turn && currentRenderedPhase === state.phase && document.getElementById('res-m1-content').innerHTML !== '') {
-        return; // Contents already rendered
-    }
-    
-    const r1 = state.turnData.results.market1;
-    const r2 = state.turnData.results.market2;
-    
-    const renderMarketRes = (res, containerId, mType) => {
-        const cont = document.getElementById(containerId);
-        if (!res.winner) {
-            cont.innerHTML = `<div class="text-gray-500 p-4 text-center">入札なし / 落札者なし</div>`;
-            return;
+            else if (gameState.phase === 'result') {
+                document.getElementById('phase-result').classList.remove('hidden');
+                renderResultPhase();
+            }
         }
-        
-        let html = `<div class="bg-yellow-50 p-3 border border-yellow-300 rounded mb-3">
-            <div class="text-lg font-bold text-yellow-800">🎉 落札: ${ROLE_NAMES[res.winner]}</div>
-            <div>入札価格: <span class="font-bold">${res.price}Y</span></div>
-            <div>採用下請け: ${ROLE_NAMES[res.subContractor]} (見積 ${res.estimate}Y)</div>
-        </div>`;
-        
-        html += `<div class="mt-2"><div class="font-bold border-b mb-1">入札詳細</div>`;
-        ['PrimeA', 'PrimeB'].forEach(p => {
-            const b = res.allBids[p];
-            if (b) {
-                html += `<div class="flex justify-between py-1 border-b border-dashed border-gray-200">
-                    <span class="${res.winner===p?'font-bold text-blue-700':''}">${ROLE_NAMES[p]}</span>
-                    <span>${b.price}Y (総合点: ${b.score.toFixed(2)})</span>
-                </div>
-                <div class="text-xs text-gray-500 mb-1 pl-2">計算式: ${b.formula}</div>`;
+
+        function renderEstimateForm() {
+            const container = document.getElementById('est-form-container');
+            const inputsArea = document.getElementById('est-inputs-area');
+            container.classList.remove('hidden');
+            inputsArea.innerHTML = '';
+            
+            const m1 = gameState.markets.m1;
+            const m2 = gameState.markets.m2;
+            const c1 = CONSTANTS.MARKETS[m1].subCost;
+            const c2 = CONSTANTS.MARKETS[m2].subCost;
+
+            if (m1 === m2) {
+                inputsArea.innerHTML = `
+                    <div class="bg-slate-50 border border-slate-200 rounded-xl p-4">
+                        <h3 class="font-black text-slate-800 border-b pb-2 mb-4">共通見積額 (市場①＆②: ${m1})</h3>
+                        <label class="block text-sm font-bold text-slate-600 mb-1">見積額 (Y)</label>
+                        <input type="number" id="est-in-common" class="w-full border border-slate-300 rounded-lg p-3 text-lg font-mono font-bold focus:ring-2 focus:ring-blue-500 outline-none" placeholder="金額を入力">
+                        <div class="mt-2 text-sm text-slate-500">費用: ${c1}Y</div>
+                        <div id="est-prof-common" class="mt-3 bg-white border border-slate-200 p-2 rounded text-center font-black text-slate-400">利益: -</div>
+                    </div>
+                `;
+                document.getElementById('est-in-common').addEventListener('input', e => {
+                    const v = parseInt(e.target.value);
+                    const el = document.getElementById('est-prof-common');
+                    if (isNaN(v)) { el.textContent = '利益: -'; el.className="mt-3 bg-white border border-slate-200 p-2 rounded text-center font-black text-slate-400"; return; }
+                    const prof = v - c1;
+                    el.textContent = `利益: ${prof}Y`;
+                    el.className = `mt-3 bg-white border ${prof>=0?'border-emerald-200 text-emerald-600':'border-rose-200 text-rose-600'} p-2 rounded text-center font-black`;
+                });
             } else {
-                html += `<div class="flex justify-between py-1 border-b border-dashed border-gray-200 text-gray-400">
-                    <span>${ROLE_NAMES[p]}</span><span>入札なし</span>
-                </div>`;
+                inputsArea.innerHTML = `
+                    <div class="flex flex-col sm:flex-row gap-4">
+                        <div class="flex-1 bg-blue-50 border border-blue-200 rounded-xl p-4">
+                            <h3 class="font-black text-blue-900 border-b border-blue-200 pb-2 mb-4">市場① (${m1})</h3>
+                            <input type="number" id="est-in-m1" class="w-full border border-blue-300 rounded-lg p-2 text-lg font-mono font-bold outline-none" placeholder="金額">
+                            <div class="mt-2 text-sm text-slate-500">費用: ${c1}Y</div>
+                            <div id="est-prof-m1" class="mt-2 bg-white border border-blue-100 p-2 rounded text-center font-black text-slate-400">利益: -</div>
+                        </div>
+                        <div class="flex-1 bg-green-50 border border-green-200 rounded-xl p-4">
+                            <h3 class="font-black text-green-900 border-b border-green-200 pb-2 mb-4">市場② (${m2})</h3>
+                            <input type="number" id="est-in-m2" class="w-full border border-green-300 rounded-lg p-2 text-lg font-mono font-bold outline-none" placeholder="金額">
+                            <div class="mt-2 text-sm text-slate-500">費用: ${c2}Y</div>
+                            <div id="est-prof-m2" class="mt-2 bg-white border border-green-100 p-2 rounded text-center font-black text-slate-400">利益: -</div>
+                        </div>
+                    </div>
+                `;
+                document.getElementById('est-in-m1').addEventListener('input', e => {
+                    const prof = parseInt(e.target.value) - c1;
+                    const el = document.getElementById('est-prof-m1');
+                    el.textContent = isNaN(prof) ? '利益: -' : `利益: ${prof}Y`;
+                    el.style.color = prof >= 0 ? '#059669' : '#e11d48';
+                });
+                document.getElementById('est-in-m2').addEventListener('input', e => {
+                    const prof = parseInt(e.target.value) - c2;
+                    const el = document.getElementById('est-prof-m2');
+                    el.textContent = isNaN(prof) ? '利益: -' : `利益: ${prof}Y`;
+                    el.style.color = prof >= 0 ? '#059669' : '#e11d48';
+                });
+            }
+
+            document.getElementById('btn-submit-est').onclick = () => {
+                let est = {};
+                if (m1 === m2) {
+                    const v = parseInt(document.getElementById('est-in-common').value);
+                    if (isNaN(v) || v < 0) { alert('有効な数値を入力してください'); return; }
+                    est = { m1: v, m2: v };
+                } else {
+                    const v1 = parseInt(document.getElementById('est-in-m1').value);
+                    const v2 = parseInt(document.getElementById('est-in-m2').value);
+                    if (isNaN(v1) || v1<0 || isNaN(v2) || v2<0) { alert('有効な数値を入力してください'); return; }
+                    est = { m1: v1, m2: v2 };
+                }
+                
+                showProcessing('送信中...');
+                const role = gameState.players[myRoleIndex].role;
+                if(isHost) {
+                    gameState.turnData.estimates[role] = est;
+                    syncState();
+                    checkHostTriggers();
+                } else {
+                    onlineChannel.send({ type: 'broadcast', event: 'action_est', payload: { role, est } });
+                }
+            };
+        }
+
+        function renderBidForm() {
+            document.getElementById('bid-form-container').classList.remove('hidden');
+            const meRole = gameState.players[myRoleIndex].role; // PrimeA or PrimeB
+            const subs = CONSTANTS.ROLES.filter(r => r.parent === meRole).map(r => r.id);
+            
+            // Reset local state
+            localBidState = { m1: { subId: null, price: '' }, m2: { subId: null, price: '' } };
+            
+            const pool = document.getElementById('slot-pool');
+            const s1 = document.getElementById('slot-m1');
+            const s2 = document.getElementById('slot-m2');
+            
+            pool.innerHTML = '';
+            s1.innerHTML = '<span class="text-xs text-blue-400 font-bold pointer-events-none">ここにドロップ</span>';
+            s2.innerHTML = '<span class="text-xs text-green-400 font-bold pointer-events-none">ここにドロップ</span>';
+
+            document.getElementById('bid-m1-title').textContent = `市場① (${gameState.markets.m1})`;
+            document.getElementById('bid-m2-title').textContent = `市場② (${gameState.markets.m2})`;
+            document.getElementById('input-bid-m1').value = '';
+            document.getElementById('input-bid-m2').value = '';
+
+            subs.forEach(subId => {
+                const est = gameState.turnData.estimates[subId];
+                if (est) {
+                    const subName = getRoleName(subId);
+                    const card = document.createElement('div');
+                    card.id = `card-${subId}`;
+                    card.draggable = true;
+                    card.className = "bg-white p-2 border border-slate-300 rounded shadow-sm cursor-grab active:cursor-grabbing hover:border-indigo-400 hover:shadow transition relative select-none";
+                    
+                    let estText = gameState.markets.m1 === gameState.markets.m2 ? 
+                        `見: <span class="font-bold text-slate-800">${est.m1}Y</span>` : 
+                        `①:<span class="font-bold text-slate-800">${est.m1}</span> ②:<span class="font-bold text-slate-800">${est.m2}</span>`;
+                    
+                    card.innerHTML = `
+                        <div class="text-[10px] text-slate-500 font-bold mb-0.5">${subName}</div>
+                        <div class="text-sm font-mono">${estText}</div>
+                    `;
+                    
+                    card.addEventListener('dragstart', e => {
+                        e.dataTransfer.setData('text/plain', subId);
+                        card.classList.add('opacity-50');
+                    });
+                    card.addEventListener('dragend', () => {
+                        card.classList.remove('opacity-50');
+                    });
+                    
+                    pool.appendChild(card);
+                }
+            });
+
+            setupDropZones();
+            updateBidProfit('m1');
+            updateBidProfit('m2');
+
+            document.getElementById('input-bid-m1').oninput = e => { localBidState.m1.price = e.target.value; updateBidProfit('m1'); };
+            document.getElementById('input-bid-m2').oninput = e => { localBidState.m2.price = e.target.value; updateBidProfit('m2'); };
+
+            document.getElementById('btn-submit-bid').onclick = () => {
+                let bidData = { m1: null, m2: null };
+                
+                const p1 = parseInt(localBidState.m1.price);
+                const sub1 = localBidState.m1.subId;
+                if (sub1 && !isNaN(p1)) {
+                    bidData.m1 = { price: p1, sub: sub1, est: gameState.turnData.estimates[sub1].m1 };
+                }
+                
+                const p2 = parseInt(localBidState.m2.price);
+                const sub2 = localBidState.m2.subId;
+                if (sub2 && !isNaN(p2)) {
+                    bidData.m2 = { price: p2, sub: sub2, est: gameState.turnData.estimates[sub2].m2 };
+                }
+                
+                showProcessing('送信中...');
+                if(isHost) {
+                    gameState.turnData.bids[meRole] = bidData;
+                    syncState();
+                    checkHostTriggers();
+                } else {
+                    onlineChannel.send({ type: 'broadcast', event: 'action_bid', payload: { role: meRole, bid: bidData } });
+                }
+            };
+        }
+
+        function setupDropZones() {
+            const zones = [
+                { id: 'slot-pool', key: 'pool' },
+                { id: 'slot-m1', key: 'm1' },
+                { id: 'slot-m2', key: 'm2' }
+            ];
+            
+            zones.forEach(z => {
+                const el = document.getElementById(z.id);
+                // Remove old listeners to prevent duplication
+                const newEl = el.cloneNode(true);
+                el.parentNode.replaceChild(newEl, el);
+                
+                newEl.addEventListener('dragover', e => { e.preventDefault(); newEl.classList.add('drag-over'); });
+                newEl.addEventListener('dragleave', e => { newEl.classList.remove('drag-over'); });
+                newEl.addEventListener('drop', e => {
+                    e.preventDefault();
+                    newEl.classList.remove('drag-over');
+                    const subId = e.dataTransfer.getData('text/plain');
+                    if (!subId) return;
+                    
+                    const card = document.getElementById(`card-${subId}`);
+                    if (!card) return;
+
+                    // Remove hint text if dropping into market
+                    if (z.key !== 'pool' && newEl.querySelector('span.pointer-events-none')) {
+                        newEl.innerHTML = '';
+                    }
+
+                    // Clear old mapping
+                    if (localBidState.m1.subId === subId) localBidState.m1.subId = null;
+                    if (localBidState.m2.subId === subId) localBidState.m2.subId = null;
+
+                    // Handle existing card in target zone
+                    if (z.key !== 'pool' && localBidState[z.key].subId) {
+                        const oldId = localBidState[z.key].subId;
+                        const oldCard = document.getElementById(`card-${oldId}`);
+                        if (oldCard) document.getElementById('slot-pool').appendChild(oldCard);
+                    }
+
+                    newEl.appendChild(card);
+                    
+                    if (z.key !== 'pool') {
+                        localBidState[z.key].subId = subId;
+                    }
+                    
+                    // Re-add hints if empty
+                    ['m1', 'm2'].forEach(k => {
+                        const s = document.getElementById(`slot-${k}`);
+                        if (s.children.length === 0) s.innerHTML = `<span class="text-xs text-${k==='m1'?'blue':'green'}-400 font-bold pointer-events-none">ここにドロップ</span>`;
+                    });
+
+                    updateBidProfit('m1');
+                    updateBidProfit('m2');
+                });
+            });
+        }
+
+        function updateBidProfit(mKey) {
+            const state = localBidState[mKey];
+            const displayEst = document.getElementById(`bid-est-display-${mKey}`);
+            const profitEl = document.getElementById(`bid-profit-${mKey}`);
+            
+            if (!state.subId) {
+                displayEst.textContent = '下請費用: -';
+                profitEl.textContent = '下請けを配置してください';
+                profitEl.className = "text-sm font-black text-center p-1.5 rounded bg-slate-100 text-slate-500 border border-slate-200";
+                return;
+            }
+            
+            const estVal = gameState.turnData.estimates[state.subId][mKey];
+            displayEst.textContent = `下請費用: ${estVal}Y`;
+            
+            const price = parseInt(state.price);
+            if (isNaN(price)) {
+                profitEl.textContent = '入札額を入力';
+                profitEl.className = "text-sm font-black text-center p-1.5 rounded bg-slate-100 text-slate-400 border border-slate-200";
+                return;
+            }
+            
+            const profit = price - 100 - estVal;
+            profitEl.textContent = `利益: ${profit} Y`;
+            if (profit >= 0) {
+                profitEl.className = "text-sm font-black text-center p-1.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200";
+            } else {
+                profitEl.className = "text-sm font-black text-center p-1.5 rounded bg-rose-50 text-rose-700 border border-rose-200";
+            }
+        }
+
+        function renderResultPhase() {
+            document.getElementById('res-turn-disp').textContent = gameState.turn;
+            
+            const readyCount = Object.keys(gameState.turnData.ready).length;
+            document.getElementById('ready-count-disp').textContent = readyCount;
+            
+            const btn = document.getElementById('btn-ready');
+            if (gameState.turnData.ready[myClientId]) {
+                btn.disabled = true;
+                btn.textContent = '待機中...';
+                btn.className = "bg-slate-400 text-white font-black py-3 px-8 rounded-xl shadow cursor-not-allowed";
+            } else {
+                btn.disabled = false;
+                btn.textContent = '確認して次へ';
+                btn.className = "bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-black py-3 px-8 rounded-xl shadow-lg border-b-4 border-emerald-800 transition";
+                btn.onclick = () => {
+                    showProcessing('待機中...');
+                    if(isHost) {
+                        gameState.turnData.ready[myClientId] = true;
+                        syncState();
+                        checkHostTriggers();
+                    } else {
+                        onlineChannel.send({ type: 'broadcast', event: 'action_ready', payload: { clientId: myClientId } });
+                    }
+                };
+            }
+
+            const rData = gameState.turnData.results;
+            const renderMarket = (mKey, mType) => {
+                const res = rData[mKey];
+                const cont = document.getElementById(`res-content-${mKey}`);
+                const color = mKey === 'm1' ? 'blue' : 'green';
+                
+                if (!res || !res.winner) {
+                    cont.innerHTML = `<div class="text-center text-slate-400 font-bold py-4">落札者なし</div>`;
+                    return;
+                }
+                
+                const wName = getRoleName(res.winner);
+                const sName = getRoleName(res.sub);
+                
+                let html = `
+                    <div class="bg-yellow-50 border-2 border-yellow-300 rounded-lg p-3 mb-3 text-center">
+                        <div class="text-sm font-bold text-yellow-800 mb-1">🎉 落札者</div>
+                        <div class="text-xl font-black text-yellow-900 mb-2">${wName}</div>
+                        <div class="flex justify-center gap-4 text-sm font-bold text-slate-700">
+                            <div>入札: <span class="font-black text-lg">${res.price}Y</span></div>
+                            <div>採用: ${sName} (見:${res.est}Y)</div>
+                        </div>
+                    </div>
+                    <div class="text-xs text-slate-500 font-bold border-b pb-1 mb-2">入札詳細 (総合点 = 成績 × 上限 / 入札額)</div>
+                `;
+                
+                ['PrimeA', 'PrimeB'].forEach(pRole => {
+                    const b = gameState.turnData.bids[pRole]?.[mKey];
+                    if (b) {
+                        const isW = res.winner === pRole;
+                        const calc = calculateScore(b.price, mType);
+                        html += `
+                        <div class="flex justify-between items-center py-1 border-b border-dashed border-slate-200">
+                            <span class="${isW ? 'text-'+color+'-700 font-black' : 'text-slate-600'}">${getRoleName(pRole)}</span>
+                            <div class="text-right">
+                                <span class="font-bold mr-2">${b.price}Y</span>
+                                <span class="bg-slate-100 px-1.5 py-0.5 rounded text-[10px] text-slate-500">点:${calc.score.toFixed(1)}</span>
+                            </div>
+                        </div>
+                        <div class="text-[9px] text-slate-400 text-right mb-1">計算: ${calc.base} × ${calc.max} / ${b.price}</div>
+                        `;
+                    } else {
+                        html += `
+                        <div class="flex justify-between items-center py-1 border-b border-dashed border-slate-200 text-slate-400">
+                            <span>${getRoleName(pRole)}</span>
+                            <span>入札なし</span>
+                        </div>`;
+                    }
+                });
+                cont.innerHTML = html;
+            };
+            
+            renderMarket('m1', gameState.markets.m1);
+            renderMarket('m2', gameState.markets.m2);
+        }
+
+        function renderFinishedPhase() {
+            const cont = document.getElementById('final-ranking-container');
+            const sorted = [...gameState.players].sort((a, b) => b.money - a.money);
+            
+            cont.innerHTML = sorted.map((p, i) => {
+                const bg = i === 0 ? 'bg-gradient-to-r from-yellow-100 to-amber-50 border-2 border-yellow-300' : 'bg-slate-50 border border-slate-200';
+                const rText = i === 0 ? '🥇 1位' : (i === 1 ? '🥈 2位' : (i === 2 ? '🥉 3位' : `${i+1}位`));
+                const isMe = p.clientId === myClientId;
+                return `
+                <div class="flex justify-between items-center p-4 rounded-xl ${bg} ${isMe ? 'ring-2 ring-indigo-400' : ''}">
+                    <div class="font-black text-lg flex items-center gap-2">
+                        <span>${rText}</span>
+                        <span class="${isMe?'text-indigo-700':'text-slate-700'}">${p.isCPU ? '🤖' : '👤'} ${p.name}</span>
+                    </div>
+                    <div class="text-2xl font-black font-mono ${p.money<0?'text-rose-600':'text-slate-800'}">${p.money}<span class="text-sm">Y</span></div>
+                </div>
+                `;
+            }).join('');
+        }
+
+        // Game Logic Helpers (Host Only)
+        function calculateScore(bidPrice, marketType) {
+            const info = CONSTANTS.MARKETS[marketType];
+            const base = bidPrice < info.min ? 68 : 70;
+            const score = base * (info.max / bidPrice);
+            return { score, base, max: info.max };
+        }
+
+        function checkHostTriggers() {
+            if (!isHost || gameState.status !== 'playing') return;
+            
+            if (gameState.phase === 'estimate') {
+                // Auto-fill CPU estimates
+                gameState.players.filter(p => p.isCPU && getRoleData(p.role).type === 'sub').forEach(p => {
+                    if (p.lock === 0 && !gameState.turnData.estimates[p.role]) {
+                        // CPU Sub logic: base cost + random profit (50-150)
+                        const profit = Math.floor(Math.random() * 10) * 10 + 50;
+                        gameState.turnData.estimates[p.role] = {
+                            m1: CONSTANTS.MARKETS[gameState.markets.m1].subCost + profit,
+                            m2: CONSTANTS.MARKETS[gameState.markets.m2].subCost + profit
+                        };
+                    }
+                });
+                
+                // Check if all available subs have submitted
+                const reqSubs = gameState.players.filter(p => getRoleData(p.role).type === 'sub' && p.lock === 0);
+                const allDone = reqSubs.every(p => gameState.turnData.estimates[p.role]);
+                
+                if (allDone) {
+                    gameState.phase = 'bid';
+                    syncState();
+                    checkHostTriggers(); // Trigger CPU Primes
+                }
+            }
+            else if (gameState.phase === 'bid') {
+                // Auto-fill CPU bids
+                gameState.players.filter(p => p.isCPU && getRoleData(p.role).type === 'prime').forEach(p => {
+                    if (!gameState.turnData.bids[p.role]) {
+                        // CPU Prime logic: randomly assign available subs and bid at min price
+                        let bid = { m1: null, m2: null };
+                        const mySubs = CONSTANTS.ROLES.filter(r => r.parent === p.role).map(r => r.id);
+                        const available = mySubs.filter(s => gameState.turnData.estimates[s]);
+                        
+                        if (available.length > 0) {
+                            // Assign random sub to m1
+                            const s1 = available.splice(Math.floor(Math.random() * available.length), 1)[0];
+                            const m1Info = CONSTANTS.MARKETS[gameState.markets.m1];
+                            bid.m1 = { price: m1Info.min, sub: s1, est: gameState.turnData.estimates[s1].m1 };
+                            
+                            if (available.length > 0) {
+                                const s2 = available[0];
+                                const m2Info = CONSTANTS.MARKETS[gameState.markets.m2];
+                                bid.m2 = { price: m2Info.min, sub: s2, est: gameState.turnData.estimates[s2].m2 };
+                            }
+                        }
+                        gameState.turnData.bids[p.role] = bid;
+                    }
+                });
+                
+                const primes = ['PrimeA', 'PrimeB'];
+                const allDone = primes.every(role => gameState.turnData.bids[role]);
+                
+                if (allDone) {
+                    processResults();
+                }
+            }
+            else if (gameState.phase === 'result') {
+                // Auto-ready CPU
+                gameState.players.filter(p => p.isCPU).forEach(p => {
+                    gameState.turnData.ready[p.clientId] = true;
+                });
+                
+                const readyCount = Object.keys(gameState.turnData.ready).length;
+                if (readyCount === 6) {
+                    processEndOfTurn();
+                } else {
+                    // Just visual sync for ready count
+                    syncState(); 
+                }
+            }
+        }
+
+        function processResults() {
+            // Determine winners
+            const calcWinner = (mKey, mType) => {
+                const bA = gameState.turnData.bids.PrimeA?.[mKey];
+                const bB = gameState.turnData.bids.PrimeB?.[mKey];
+                
+                if (!bA && !bB) return null;
+                
+                const sA = bA ? calculateScore(bA.price, mType).score : -1;
+                const sB = bB ? calculateScore(bB.price, mType).score : -1;
+                
+                let winner = null;
+                if (sA > sB) winner = 'PrimeA';
+                else if (sB > sA) winner = 'PrimeB';
+                else winner = Math.random() < 0.5 ? 'PrimeA' : 'PrimeB';
+                
+                const winBid = winner === 'PrimeA' ? bA : bB;
+                return { winner, price: winBid.price, sub: winBid.sub, est: winBid.est, score: Math.max(sA, sB) };
+            };
+
+            gameState.turnData.results.m1 = calcWinner('m1', gameState.markets.m1);
+            gameState.turnData.results.m2 = calcWinner('m2', gameState.markets.m2);
+            
+            gameState.phase = 'result';
+            syncState();
+            checkHostTriggers();
+        }
+
+        function processEndOfTurn() {
+            // Apply rewards, costs, and locks
+            const res = gameState.turnData.results;
+            
+            const applyMarketRes = (mKey, mType) => {
+                const r = res[mKey];
+                if (!r) return;
+                
+                // Prime Reward
+                const primeIdx = gameState.players.findIndex(p => p.role === r.winner);
+                if (primeIdx !== -1) {
+                    gameState.players[primeIdx].money += (r.price - 100 - r.est);
+                }
+                
+                // Sub Reward & Lock
+                const subIdx = gameState.players.findIndex(p => p.role === r.sub);
+                if (subIdx !== -1) {
+                    const subCost = CONSTANTS.MARKETS[mType].subCost;
+                    const lockDur = CONSTANTS.MARKETS[mType].lock;
+                    gameState.players[subIdx].money += (r.est - subCost);
+                    // Next turn is turn+1. If lock=1, they miss turn+1. Meaning lock remains 1 at start of next turn.
+                    // We will set lock to lockDur+1 here, and decrement all by 1 in setupNewTurn? 
+                    // Actually, simpler: set lock = lockDur. At start of estimate, if lock>0 skip. At end of turn, decrement.
+                    // If lock=1 (小), sets to 1. Next turn estimate skips. End of next turn, becomes 0. Perfect.
+                    gameState.players[subIdx].lock = Math.max(gameState.players[subIdx].lock, lockDur);
+                }
+            };
+
+            applyMarketRes('m1', gameState.markets.m1);
+            applyMarketRes('m2', gameState.markets.m2);
+
+            // Apply Fixed Costs and Decrement Locks
+            gameState.players.forEach(p => {
+                p.money -= CONSTANTS.FIXED_COST;
+                if (p.lock > 0) p.lock--;
+            });
+
+            if (gameState.turn >= CONSTANTS.TOTAL_TURNS) {
+                gameState.status = 'finished';
+                gameState.phase = 'finished';
+            } else {
+                gameState.turn++;
+                setupNewTurn();
+                return; // setupNewTurn handles sync and triggers
+            }
+            
+            syncState();
+        }
+
+        // Init
+        document.addEventListener('DOMContentLoaded', () => {
+            resetLocalState();
+            if(!supabase) {
+                document.getElementById('lobby-modal').innerHTML = '<div class="p-8 text-center"><h2 class="text-xl text-rose-600 font-bold">Supabase is not initialized.</h2><p class="text-sm">Please check configuration.</p></div>';
             }
         });
-        html += `</div>`;
-        cont.innerHTML = html;
-    };
-    
-    renderMarketRes(r1, 'res-m1-content', state.markets.market1);
-    renderMarketRes(r2, 'res-m2-content', state.markets.market2);
-}
-
-function renderFinishedPhase() {
-    const state = window.gameState;
-    const tbody = document.getElementById('final-ranking-body');
-    tbody.innerHTML = '';
-    
-    const caps = state.state.capital;
-    const sorted = Object.keys(caps).sort((a,b) => caps[b] - caps[a]);
-    
-    sorted.forEach((role, idx) => {
-        let tr = document.createElement('tr');
-        tr.className = "border-b " + (role === window.myRole ? "bg-yellow-100 font-bold" : "");
-        tr.innerHTML = `
-            <td class="py-2 px-4">${idx + 1}</td>
-            <td class="py-2 px-4">${ROLE_NAMES[role]} ${role === window.myRole ? '(あなた)' : ''}</td>
-            <td class="py-2 px-4 text-right">${caps[role]} Y</td>
-        `;
-        tbody.appendChild(tr);
-    });
-}
-
-
-async function checkHostProgress() {
-    const state = window.gameState;
-    if (!state || state.host !== window.myUserId) return;
-    
-    const roomRef = getRoomRef(window.roomId);
-
-    if (state.status === 'waiting') {
-        if (Object.keys(state.players).length === 6) {
-            // Init Game
-            const userIds = Object.keys(state.players);
-            for(let i = userIds.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [userIds[i], userIds[j]] = [userIds[j], userIds[i]];
-            }
-            const rolesList = ['PrimeA', 'SubA1', 'SubA2', 'PrimeB', 'SubB1', 'SubB2'];
-            const newPlayers = {};
-            userIds.forEach((id, idx) => newPlayers[id] = rolesList[idx]);
-
-            await updateDoc(roomRef, {
-                status: 'playing',
-                players: newPlayers,
-                turn: 1,
-                phase: 'estimate',
-                markets: {
-                    market1: Math.random() < 0.5 ? '大工事' : '小工事',
-                    market2: Math.random() < 0.5 ? '大工事' : '小工事'
-                },
-                state: {
-                    capital: { PrimeA: 1000, SubA1: 1000, SubA2: 1000, PrimeB: 1000, SubB1: 1000, SubB2: 1000 },
-                    lockDuration: { SubA1: 0, SubA2: 0, SubB1: 0, SubB2: 0 }
-                },
-                turnData: { estimates: {}, bids: {}, results: {}, ready: {} }
-            });
-        }
-    } else if (state.status === 'playing') {
-        if (state.phase === 'estimate') {
-            const subs = ['SubA1', 'SubA2', 'SubB1', 'SubB2'];
-            const allSubmitted = subs.every(sub => {
-                if (state.state.lockDuration[sub] > 0) return true; // locked
-                return state.turnData.estimates && state.turnData.estimates[sub] != null;
-            });
-            if (allSubmitted) {
-                await updateDoc(roomRef, { phase: 'bid' });
-            }
-        } else if (state.phase === 'bid') {
-            if (state.turnData.bids && state.turnData.bids.PrimeA && state.turnData.bids.PrimeB) {
-                processBids(state, roomRef);
-            }
-        } else if (state.phase === 'result') {
-            const readyCount = Object.keys(state.turnData.ready || {}).length;
-            if (readyCount === 6) {
-                moveToNextTurn(state, roomRef);
-            }
-        }
-    }
-}
-
-function calculateScore(price, marketType) {
-    const info = MARKET_INFO[marketType];
-    let baseScore = (price < info.standard) ? 68 : 70;
-    let score = baseScore * (info.max / price);
-    return { score, formula: `${baseScore} × (${info.max} / ${price})` };
-}
-
-function resolveMarket(marketKey, bidsA, bidsB, marketType) {
-    const bidA = bidsA ? bidsA[marketKey] : null;
-    const bidB = bidsB ? bidsB[marketKey] : null;
-    
-    if (!bidA && !bidB) return { winner: null, allBids: {} };
-    
-    let scoreA = bidA ? calculateScore(bidA.price, marketType) : { score: -1 };
-    let scoreB = bidB ? calculateScore(bidB.price, marketType) : { score: -1 };
-    
-    let winner = null;
-    let winBid = null;
-    
-    if (scoreA.score > scoreB.score) {
-        winner = 'PrimeA'; winBid = bidA;
-    } else if (scoreB.score > scoreA.score) {
-        winner = 'PrimeB'; winBid = bidB;
-    } else {
-        winner = Math.random() < 0.5 ? 'PrimeA' : 'PrimeB';
-        winBid = winner === 'PrimeA' ? bidA : bidB;
-    }
-    
-    return {
-        winner,
-        price: winBid.price,
-        score: winner === 'PrimeA' ? scoreA.score : scoreB.score,
-        formula: winner === 'PrimeA' ? scoreA.formula : scoreB.formula,
-        subContractor: winBid.subContractor,
-        estimate: winBid.estimate,
-        allBids: {
-            PrimeA: bidA ? { ...bidA, score: scoreA.score, formula: scoreA.formula } : null,
-            PrimeB: bidB ? { ...bidB, score: scoreB.score, formula: scoreB.formula } : null,
-        }
-    };
-}
-
-async function processBids(state, roomRef) {
-    const bids = state.turnData.bids;
-    const results = {
-        market1: resolveMarket('market1', bids.PrimeA, bids.PrimeB, state.markets.market1),
-        market2: resolveMarket('market2', bids.PrimeA, bids.PrimeB, state.markets.market2)
-    };
-    
-    const newCapital = { ...state.state.capital };
-    const newLock = { ...state.state.lockDuration };
-    
-    // Fixed cost
-    Object.keys(newCapital).forEach(k => newCapital[k] -= 100);
-    
-    const applyRes = (res, mType) => {
-        if (res.winner) {
-            newCapital[res.winner] += (res.price - 100 - res.estimate);
-            const cost = MARKET_INFO[mType].subCost;
-            newCapital[res.subContractor] += (res.estimate - cost);
-            newLock[res.subContractor] = Math.max(newLock[res.subContractor], MARKET_INFO[mType].lock);
-        }
-    };
-    
-    applyRes(results.market1, state.markets.market1);
-    applyRes(results.market2, state.markets.market2);
-    
-    await updateDoc(roomRef, {
-        phase: 'result',
-        'turnData.results': results,
-        'state.capital': newCapital,
-        'state.lockDuration': newLock,
-        'turnData.ready': {}
-    });
-}
-
-async function moveToNextTurn(state, roomRef) {
-    let newTurn = state.turn + 1;
-    if (newTurn > 10) {
-        await updateDoc(roomRef, { status: 'finished' });
-        return;
-    }
-    
-    const newLock = { ...state.state.lockDuration };
-    for (let key in newLock) {
-        if (newLock[key] > 0) newLock[key]--;
-    }
-    
-    const newMarkets = {
-        market1: Math.random() < 0.5 ? '大工事' : '小工事',
-        market2: Math.random() < 0.5 ? '大工事' : '小工事'
-    };
-    
-    await updateDoc(roomRef, {
-        turn: newTurn,
-        phase: 'estimate',
-        markets: newMarkets,
-        'state.lockDuration': newLock,
-        turnData: { estimates: {}, bids: {}, results: {}, ready: {} }
-    });
-}
-
-function setupEventListeners() {
-    document.getElementById('btn-create-room').onclick = createRoom;
-    document.getElementById('btn-join-room').onclick = () => joinRoom(document.getElementById('input-room-id').value);
-    
-    document.getElementById('btn-submit-estimate').onclick = async () => {
-        const state = window.gameState;
-        let estimateData = {};
-        if (state.markets.market1 === state.markets.market2) {
-            const val = parseInt(document.getElementById('est-common').value);
-            if (!val || val <= 0) { showMessage("有効な見積額を入力してください"); return; }
-            estimateData = { market1: val, market2: val };
-        } else {
-            const v1 = parseInt(document.getElementById('est-m1').value);
-            const v2 = parseInt(document.getElementById('est-m2').value);
-            if (!v1 || v1 <= 0 || !v2 || v2 <= 0) { showMessage("有効な見積額を入力してください"); return; }
-            estimateData = { market1: v1, market2: v2 };
-        }
-        
-        try {
-            await updateDoc(getRoomRef(window.roomId), {
-                [`turnData.estimates.${window.myRole}`]: estimateData
-            });
-        } catch (e) { console.error(e); showMessage("送信エラー"); }
-    };
-    
-    document.getElementById('btn-submit-bid').onclick = async () => {
-        const p1 = parseInt(window.localBidState.market1.price);
-        const p2 = parseInt(window.localBidState.market2.price);
-        
-        let bidData = { market1: null, market2: null };
-        
-        if (window.localBidState.market1.sub && p1 > 0) {
-            bidData.market1 = {
-                price: p1,
-                subContractor: window.localBidState.market1.sub,
-                estimate: window.gameState.turnData.estimates[window.localBidState.market1.sub].market1
-            };
-        }
-        if (window.localBidState.market2.sub && p2 > 0) {
-            bidData.market2 = {
-                price: p2,
-                subContractor: window.localBidState.market2.sub,
-                estimate: window.gameState.turnData.estimates[window.localBidState.market2.sub].market2
-            };
-        }
-        
-        // Ensure they are not bidding if they didn't input properly (though allowing empty bid is ok -> no bid)
-        try {
-            await updateDoc(getRoomRef(window.roomId), {
-                [`turnData.bids.${window.myRole}`]: bidData
-            });
-        } catch (e) { console.error(e); showMessage("送信エラー"); }
-    };
-    
-    document.getElementById('btn-ready-next').onclick = async () => {
-        try {
-            await updateDoc(getRoomRef(window.roomId), {
-                [`turnData.ready.${window.myUserId}`]: true
-            });
-        } catch (e) { console.error(e); }
-    };
-
-    setupDropZones();
-}
-
-window.onload = initAuth;
-
-</script>
+    </script>
 </body>
 </html>
