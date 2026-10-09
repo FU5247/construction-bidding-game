@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>建設入札ゲーム ver.7.0 - 4人オンライン対戦 (理論モデル実装版)</title>
+    <title>建設入札ゲーム ver.8.0 - 4人オンライン対戦 (理論モデル実装版)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
@@ -14,7 +14,6 @@
         .draggable:active { cursor: grabbing; }
         .dropzone { min-height: 50px; border: 2px dashed #cbd5e1; border-radius: 0.5rem; padding: 0.5rem; transition: background-color 0.2s; }
         .dropzone.dragover { background-color: #e2e8f0; border-color: #3b82f6; }
-        .dropzone * { pointer-events: none; } /* 子要素へのドロップ干渉を防ぐ */
         .fade-in-out { animation: fadeInOut 2.5s ease-in-out forwards; }
         @keyframes fadeInOut { 0% { opacity: 0; transform: scale(0.9); } 20% { opacity: 1; transform: scale(1); } 80% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(1.1); } }
     </style>
@@ -24,7 +23,7 @@
     <!-- ヘッダー -->
     <header class="bg-slate-900 text-white p-3 shadow-md flex justify-between items-center z-50 shrink-0">
         <div>
-            <h1 class="text-lg font-bold">建設入札ゲーム ver.7.0 <span class="text-xs font-normal text-slate-400">理論モデル実装版</span></h1>
+            <h1 class="text-lg font-bold">建設入札ゲーム ver.8.0 <span class="text-xs font-normal text-slate-400">理論モデル実装版</span></h1>
             <p class="text-xs text-slate-300">第 <span id="current-turn" class="text-yellow-400 font-bold text-lg">0</span> / 10 ターン</p>
         </div>
         <div class="flex items-center gap-3">
@@ -81,9 +80,9 @@
                         <div id="m1-lock-overlay" class="hidden absolute inset-0 bg-slate-100/80 backdrop-blur-sm z-10 flex items-center justify-center rounded-xl font-bold text-slate-500">キャパシティ不足</div>
                         <h3 id="m1-header" class="font-bold text-center rounded py-1 mb-2">市場①: <span id="main-m1-type"></span></h3>
                         
-                        <!-- 入力ボックスへのドロップを禁止 (ondrop="return false;" ondragover="return false;") -->
                         <label class="block text-sm font-bold mb-1 text-slate-700">入札額 (Y)</label>
-                        <input type="number" id="main-m1-bid" class="border-2 p-2 rounded w-full font-bold text-lg mb-2 focus:ring-4 focus:ring-green-200 outline-none" oninput="calculateMainProfit(1)" ondrop="return false;" ondragover="return false;">
+                        <!-- ドロップ防止 -->
+                        <input type="number" id="main-m1-bid" class="border-2 p-2 rounded w-full font-bold text-lg mb-2 focus:ring-4 focus:ring-green-200 outline-none" oninput="calculateMainProfit(1)" ondrop="event.preventDefault(); event.stopPropagation(); return false;" ondragover="event.preventDefault(); event.stopPropagation(); return false;">
                         
                         <label class="block text-sm font-bold mb-1 text-slate-600">下請けを割り当て</label>
                         <div id="m1-sub-drop" class="dropzone flex-1 flex flex-col gap-1 mb-2 bg-slate-50"></div>
@@ -100,9 +99,9 @@
                         <div id="m2-lock-overlay" class="hidden absolute inset-0 bg-slate-100/80 backdrop-blur-sm z-10 flex items-center justify-center rounded-xl font-bold text-slate-500">キャパシティ不足</div>
                         <h3 id="m2-header" class="font-bold text-center rounded py-1 mb-2">市場②: <span id="main-m2-type"></span></h3>
                         
-                        <!-- 入力ボックスへのドロップを禁止 (ondrop="return false;" ondragover="return false;") -->
                         <label class="block text-sm font-bold mb-1 text-slate-700">入札額 (Y)</label>
-                        <input type="number" id="main-m2-bid" class="border-2 p-2 rounded w-full font-bold text-lg mb-2 focus:ring-4 focus:ring-green-200 outline-none" oninput="calculateMainProfit(2)" ondrop="return false;" ondragover="return false;">
+                        <!-- ドロップ防止 -->
+                        <input type="number" id="main-m2-bid" class="border-2 p-2 rounded w-full font-bold text-lg mb-2 focus:ring-4 focus:ring-green-200 outline-none" oninput="calculateMainProfit(2)" ondrop="event.preventDefault(); event.stopPropagation(); return false;" ondragover="event.preventDefault(); event.stopPropagation(); return false;">
                         
                         <label class="block text-sm font-bold mb-1 text-slate-600">下請けを割り当て</label>
                         <div id="m2-sub-drop" class="dropzone flex-1 flex flex-col gap-1 mb-2 bg-slate-50"></div>
@@ -433,8 +432,16 @@
                     let canBidM1 = availCap >= config[state.market.m1].cap;
                     let canBidM2 = availCap >= config[state.market.m2].cap;
                     
-                    if (canBidM1) bids['m1'] = config[state.market.m1].cost + Math.floor(Math.random()*150+50);
-                    if (canBidM2) bids['m2'] = config[state.market.m2].cost + Math.floor(Math.random()*150+50);
+                    if (state.market.m1 === 'large' && state.market.m2 === 'large') {
+                        if (canBidM1) {
+                            let val = config['large'].cost + Math.floor(Math.random()*200+100);
+                            bids['m1'] = val;
+                            bids['m2'] = val;
+                        }
+                    } else {
+                        if (canBidM1) bids['m1'] = config[state.market.m1].cost + Math.floor(Math.random()*150+50);
+                        if (canBidM2) bids['m2'] = config[state.market.m2].cost + Math.floor(Math.random()*150+50);
+                    }
                     
                     if(Object.keys(bids).length === 0) bids.pass = true;
                     handleSubSubmit(id, bids);
@@ -496,13 +503,11 @@
             const m2Type = state.market.m2;
             let res = { m1: { winner: null, log: '', detail: '' }, m2: { winner: null, log: '', detail: '' }, profits: {} };
 
-            // 固定費
             Object.keys(state.players).forEach(id => {
                 state.players[id].money -= config.turnFixedCost;
                 res.profits[id] = -config.turnFixedCost;
             });
 
-            // 拘束減少
             Object.values(state.players).forEach(p => {
                 p.activeProjects.forEach(proj => proj.remain--);
                 p.activeProjects = p.activeProjects.filter(proj => proj.remain > 0);
@@ -750,8 +755,14 @@
             };
 
             let html = "";
-            html += createInput('m1', m1, config[m1].cap, '市場①');
-            html += createInput('m2', m2, config[m2].cap, '市場②');
+            if (m1 === 'large' && m2 === 'large') {
+                container.className = "grid grid-cols-1 gap-4"; // 1つだけなので全幅に
+                html += createInput('large', 'large', config['large'].cap, '大工事 (市場①・②共通)');
+            } else {
+                container.className = "grid grid-cols-2 gap-4";
+                html += createInput('m1', m1, config[m1].cap, '市場①');
+                html += createInput('m2', m2, config[m2].cap, '市場②');
+            }
             container.innerHTML = html;
         }
 
@@ -771,11 +782,19 @@
                 return isNaN(val) || val <= 0 ? null : val;
             };
 
-            let v1 = getVal('sub-est-m1');
-            if (v1 && availCap >= config[state.market.m1].cap) bids['m1'] = v1;
+            if (state.market.m1 === 'large' && state.market.m2 === 'large') {
+                let v = getVal('sub-est-large');
+                if (v && availCap >= config['large'].cap) {
+                    bids['m1'] = v;
+                    bids['m2'] = v; // 同じ金額を両方の市場に提示
+                }
+            } else {
+                let v1 = getVal('sub-est-m1');
+                if (v1 && availCap >= config[state.market.m1].cap) bids['m1'] = v1;
 
-            let v2 = getVal('sub-est-m2');
-            if (v2 && availCap >= config[state.market.m2].cap) bids['m2'] = v2;
+                let v2 = getVal('sub-est-m2');
+                if (v2 && availCap >= config[state.market.m2].cap) bids['m2'] = v2;
+            }
 
             if(Object.keys(bids).length === 0) bids.pass = true;
 
@@ -787,7 +806,6 @@
         }
 
         function renderMainForm() {
-            // 前ターンのクリア
             document.getElementById('main-m1-bid').value = '';
             document.getElementById('main-m2-bid').value = '';
             document.getElementById('m1-sub-drop').innerHTML = '';
@@ -800,7 +818,6 @@
             document.getElementById('main-m1-type').textContent = state.market.m1 === 'large' ? '大工事' : '小工事';
             document.getElementById('main-m2-type').textContent = state.market.m2 === 'large' ? '大工事' : '小工事';
             
-            // 色分け適用
             const s1 = getStyles(state.market.m1);
             const s2 = getStyles(state.market.m2);
             document.getElementById('m1-panel').className = `bg-white border-2 rounded-xl p-3 flex flex-col relative transition-colors ${s1.border}`;
@@ -820,8 +837,6 @@
                 let subData = state.subBids[sid];
                 if(subData && !subData.pass) {
                     let div = document.createElement('div');
-                    // 初期カードのベーススタイル
-                    div.className = "bg-white p-2 rounded-lg border-2 border-slate-300 draggable text-sm cursor-grab active:cursor-grabbing font-bold shadow-md w-36 hover:bg-slate-50 transition-colors";
                     div.draggable = true;
                     div.id = `sub-card-${sid}`;
                     div.dataset.id = sid;
@@ -843,7 +858,6 @@
             setupDropzone('m2-sub-drop', 2);
         }
 
-        // ドロップされた場所に応じて表示金額や色分けを切り替える関数
         function updateSubCardDisplay(card, zoneId) {
             const p1 = parseInt(card.dataset.p1) || 0;
             const p2 = parseInt(card.dataset.p2) || 0;
@@ -877,7 +891,9 @@
                 e.preventDefault();
                 zone.classList.remove('dragover');
                 const sid = e.dataTransfer.getData('text/plain');
+                if (!sid) return;
                 const el = document.getElementById(`sub-card-${sid}`);
+                if (!el) return;
                 
                 if (id === 'm1-sub-drop' && (!el.dataset.p1 || parseInt(el.dataset.p1) <= 0)) {
                     alert('この下請けは市場①に見積もりを出していません。');
@@ -888,12 +904,17 @@
                     return;
                 }
 
-                if(el && (zone.children.length === 0 || id === 'unassigned-subs')) {
-                    zone.appendChild(el);
-                    updateSubCardDisplay(el, id);
-                    calculateMainProfit(1);
-                    calculateMainProfit(2);
+                // すでに別の下請けが枠内にいる場合、それを unassigned-subs に戻す入れ替え処理
+                if (id !== 'unassigned-subs' && zone.children.length > 0 && zone.children[0] !== el) {
+                    const existing = zone.children[0];
+                    document.getElementById('unassigned-subs').appendChild(existing);
+                    updateSubCardDisplay(existing, 'unassigned-subs');
                 }
+
+                zone.appendChild(el);
+                updateSubCardDisplay(el, id);
+                calculateMainProfit(1);
+                calculateMainProfit(2);
             };
         }
 
