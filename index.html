@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>建設入札ゲーム ver.4.0 - 4人オンライン対戦 (理論モデル実装版)</title>
+    <title>建設入札ゲーム ver.5.0 - 4人オンライン対戦 (理論モデル実装版)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
@@ -23,7 +23,7 @@
     <!-- ヘッダー -->
     <header class="bg-slate-900 text-white p-3 shadow-md flex justify-between items-center z-50 shrink-0">
         <div>
-            <h1 class="text-lg font-bold">建設入札ゲーム ver.4.0 <span class="text-xs font-normal text-slate-400">理論モデル実装版</span></h1>
+            <h1 class="text-lg font-bold">建設入札ゲーム ver.5.0 <span class="text-xs font-normal text-slate-400">理論モデル実装版</span></h1>
             <p class="text-xs text-slate-300">第 <span id="current-turn" class="text-yellow-400 font-bold text-lg">0</span> / 10 ターン</p>
         </div>
         <div class="flex items-center gap-3">
@@ -88,6 +88,7 @@
                             固定費(毎T): 50 Y<br>
                             下請見積額: <span id="m1-sub-cost" class="font-bold">0</span> Y<br>
                             <span class="font-bold text-green-700 text-sm block mt-1">予想粗利: <span id="m1-profit">0</span> Y</span>
+                            <span class="font-bold text-blue-700 text-sm block mt-1 border-t pt-1 border-slate-300">予想総合点: <span id="m1-score">0.00</span></span>
                         </div>
                     </div>
                     <!-- 市場② -->
@@ -104,6 +105,7 @@
                             固定費(毎T): 50 Y<br>
                             下請見積額: <span id="m2-sub-cost" class="font-bold">0</span> Y<br>
                             <span class="font-bold text-green-700 text-sm block mt-1">予想粗利: <span id="m2-profit">0</span> Y</span>
+                            <span class="font-bold text-blue-700 text-sm block mt-1 border-t pt-1 border-slate-300">予想総合点: <span id="m2-score">0.00</span></span>
                         </div>
                     </div>
                 </div>
@@ -184,6 +186,10 @@
         let myId = null;
         let roomId = null;
         
+        // 描画済みターンの記録用（入力消去バグ防止）
+        let renderedSubTurn = 0;
+        let renderedMainTurn = 0;
+        
         // 理論モデルに基づく4人構成
         const ROLES = [
             { id: 'M_A', name: '元請けA (大工事特化)', type: 'main' },
@@ -192,7 +198,6 @@
             { id: 'P_2', name: '一次下請けP2', type: 'sub' }
         ];
 
-        // ゲームステート
         let state = {
             turn: 0,
             phase: 'waiting',
@@ -202,7 +207,6 @@
             mainBids: {}
         };
 
-        // 理論モデルパラメータ
         const config = {
             large: { limit: 3000, base: 2700, cost: 2400, cap: 3, restraint: 3 },
             small: { limit: 1000, base: 900, cost: 800, cap: 1, restraint: 1 },
@@ -255,7 +259,7 @@
                 .on('broadcast', { event: 'state_sync' }, payload => { 
                     state = payload.payload; 
                     renderGame(); 
-                    updateLobbyUI(); // ゲスト側でもロビーUIを即座に更新
+                    updateLobbyUI(); 
                 })
                 .on('broadcast', { event: 'sub_submit' }, payload => { if (isHost) handleSubSubmit(payload.payload.id, payload.payload.bids); })
                 .on('broadcast', { event: 'main_submit' }, payload => { if (isHost) handleMainSubmit(payload.payload.id, payload.payload.bids); })
@@ -305,7 +309,6 @@
             pIds.forEach((id, index) => { 
                 let r = rolesCopy[index].id;
                 state.players[id].role = r;
-                // 初期スコア設定
                 if(r === 'M_A') state.players[id].scores = { large: 70, small: 64 };
                 else if(r === 'M_B') state.players[id].scores = { large: 68, small: 70 };
             });
@@ -354,7 +357,6 @@
                         if (canBidM1 && state.market.m1 === 'small') bids['small'] = config['small'].cost + Math.floor(Math.random()*100+50);
                         else if (canBidM2 && state.market.m2 === 'small') bids['small'] = config['small'].cost + Math.floor(Math.random()*100+50);
                     }
-                    
                     if(Object.keys(bids).length === 0) bids.pass = true;
                     handleSubSubmit(id, bids);
                 }
@@ -380,7 +382,6 @@
                     const availCap = config.maxCapacity - getUsedCap(p);
                     let bidObj = { m1: { bid: 0, subId: null, subPrice: 0 }, m2: { bid: 0, subId: null, subPrice: 0 } };
                     
-                    // シンプルなCPUロジック: 基準価格で入札
                     const pickSub = (mType) => {
                         let bestSub = null, bestPrice = 9999;
                         Object.entries(state.subBids).forEach(([sid, sb]) => {
@@ -399,7 +400,6 @@
                         let subInfo = pickSub(state.market.m2);
                         if(subInfo.subId) bidObj.m2 = { bid: config[state.market.m2].base, subId: subInfo.subId, subPrice: subInfo.subPrice };
                     }
-                    
                     handleMainSubmit(id, bidObj);
                 }
             });
@@ -415,16 +415,15 @@
         function calculateResults() {
             const m1Type = state.market.m1;
             const m2Type = state.market.m2;
-            
             let res = { m1: { winner: null, log: '', detail: '' }, m2: { winner: null, log: '', detail: '' }, profits: {} };
 
-            // 毎ターン固定費 50Y
+            // 毎ターン固定費減算
             Object.keys(state.players).forEach(id => {
                 state.players[id].money -= config.turnFixedCost;
                 res.profits[id] = -config.turnFixedCost;
             });
 
-            // 拘束ターンの減少と削除
+            // 拘束ターンの減少と完了プロジェクト削除
             Object.values(state.players).forEach(p => {
                 p.activeProjects.forEach(proj => proj.remain--);
                 p.activeProjects = p.activeProjects.filter(proj => proj.remain > 0);
@@ -449,7 +448,7 @@
                     bids.sort((a, b) => b.score - a.score);
                     if (bids.length > 1 && bids[0].score === bids[1].score) {
                         let top = bids.filter(b => b.score === bids[0].score);
-                        bids = [top[Math.floor(Math.random() * top.length)]]; // 同点ランダム
+                        bids = [top[Math.floor(Math.random() * top.length)]]; 
                     }
                     return bids[0];
                 }
@@ -459,25 +458,25 @@
             let w1 = evaluateMarket('m1', m1Type);
             let w2 = evaluateMarket('m2', m2Type);
 
-            // ホールドアップ・キャパシティバッティングの処理
+            // キャパシティ超過チェック（下請けが同一ターンで2件落札候補になった場合）
             if (w1 && w2 && w1.subId === w2.subId) {
-                const subId = w1.subId;
-                const subPlayer = state.players[subId];
-                const availCap = config.maxCapacity - getUsedCap(subPlayer);
-                const needCap = config[m1Type].cap + config[m2Type].cap;
-                
-                if (availCap < needCap) {
-                    // 下請けのキャパ不足 -> 利益の高い方を選択
-                    const p1Profit = w1.subPrice - config[m1Type].cost;
-                    const p2Profit = w2.subPrice - config[m2Type].cost;
-                    if (p1Profit >= p2Profit) w2 = null; // M2破綻
-                    else w1 = null; // M1破綻
+                const subPlayer = state.players[w1.subId];
+                if (config.maxCapacity - getUsedCap(subPlayer) < config[m1Type].cap + config[m2Type].cap) {
+                    if ((w1.subPrice - config[m1Type].cost) >= (w2.subPrice - config[m2Type].cost)) w2 = null; 
+                    else w1 = null; 
+                }
+            }
+            // キャパシティ超過チェック（元請けが同一ターンで2件落札候補になった場合）
+            if (w1 && w2 && w1.id === w2.id) {
+                const mainPlayer = state.players[w1.id];
+                if (config.maxCapacity - getUsedCap(mainPlayer) < config[m1Type].cap + config[m2Type].cap) {
+                    if ((w1.bid - w1.subPrice) >= (w2.bid - w2.subPrice)) w2 = null;
+                    else w1 = null;
                 }
             }
 
             const applyWinner = (mKey, type, winner) => {
                 if (winner) {
-                    // 動的ペナルティ判定
                     let penaltyLog = "";
                     if (winner.bid < config[type].base) {
                         state.players[winner.id].scores[type] = Math.max(0, state.players[winner.id].scores[type] - 2);
@@ -498,9 +497,8 @@
                     state.players[winner.subId].money += subProfit;
                     res.profits[winner.subId] += subProfit;
                     state.players[winner.subId].activeProjects.push({ cap: config[type].cap, remain: config[type].restraint });
-
                 } else {
-                    res[mKey].log = `入札者なし (または下請けのキャパ超過による破綻)`;
+                    res[mKey].log = `入札者なし (またはキャパ超過による破綻)`;
                     res[mKey].detail = `-`;
                 }
             };
@@ -528,12 +526,9 @@
             if(state.phase === 'waiting') return;
             document.getElementById('lobby-modal').classList.add('hidden');
             
-            // リザルト画面でなければモーダルを強制的に閉じる（ゲストの待機スタック防止）
             if(state.phase !== 'results') {
                 document.getElementById('result-modal').classList.add('hidden');
             }
-            // 基本的にオーバーレイは非表示スタート（必要なフェーズでのみ表示させる）
-            document.getElementById('action-overlay').classList.add('hidden');
             
             if(state.phase === 'role_reveal') {
                 const tbody = document.getElementById('role-table-body');
@@ -558,6 +553,7 @@
                 document.getElementById('my-role-badge').classList.remove('hidden');
             }
 
+            // サイドパネルのプレイヤー情報は常に最新に更新
             const pContainer = document.getElementById('players-container');
             pContainer.innerHTML = '';
             Object.entries(state.players).forEach(([id, p]) => {
@@ -579,42 +575,61 @@
                 mContainer.innerHTML = `
                     <div class="bg-blue-50 p-2 rounded border border-blue-200 shadow-sm">
                         <span class="font-bold text-blue-900">市場①: ${state.market.m1 === 'large' ? '大工事' : '小工事'}</span>
-                        <div class="text-xs text-slate-700 mt-1 font-semibold">調査基準価格: ${config[state.market.m1].base}Y / 上限: ${config[state.market.m1].limit}Y / 消費キャパ: ${config[state.market.m1].cap} (拘束${config[state.market.m1].restraint}T)</div>
+                        <div class="text-xs text-slate-700 mt-1 font-semibold">基準価格: ${config[state.market.m1].base}Y / 上限: ${config[state.market.m1].limit}Y / 消費キャパ: ${config[state.market.m1].cap} (拘束${config[state.market.m1].restraint}T)</div>
                     </div>
                     <div class="bg-blue-50 p-2 rounded border border-blue-200 shadow-sm">
                         <span class="font-bold text-blue-900">市場②: ${state.market.m2 === 'large' ? '大工事' : '小工事'}</span>
-                        <div class="text-xs text-slate-700 mt-1 font-semibold">調査基準価格: ${config[state.market.m2].base}Y / 上限: ${config[state.market.m2].limit}Y / 消費キャパ: ${config[state.market.m2].cap} (拘束${config[state.market.m2].restraint}T)</div>
+                        <div class="text-xs text-slate-700 mt-1 font-semibold">基準価格: ${config[state.market.m2].base}Y / 上限: ${config[state.market.m2].limit}Y / 消費キャパ: ${config[state.market.m2].cap} (拘束${config[state.market.m2].restraint}T)</div>
                     </div>
                 `;
             }
 
-            document.getElementById('sub-action-form').classList.add('hidden');
-            document.getElementById('main-action-form').classList.add('hidden');
-            
             if (!myData || !myData.role) return;
             const roleInfo = ROLES.find(r => r.id === myData.role);
 
+            // フォームの表示制御（ターンごとに1回だけ描画することで、入力途中の消去を防ぐ）
             if (state.phase === 'sub_bidding' && roleInfo.type === 'sub') {
+                document.getElementById('main-action-form').classList.add('hidden');
                 if (state.subBids[myId]) {
+                    document.getElementById('sub-action-form').classList.add('hidden');
                     showOverlay('提出完了。元請けの入札を待っています...');
                 } else {
-                    renderSubForm();
+                    document.getElementById('action-overlay').classList.add('hidden');
+                    document.getElementById('sub-action-form').classList.remove('hidden');
+                    if (renderedSubTurn !== state.turn) {
+                        renderSubForm();
+                        renderedSubTurn = state.turn;
+                    }
                 }
             } 
             else if (state.phase === 'sub_bidding' && roleInfo.type === 'main') {
+                document.getElementById('sub-action-form').classList.add('hidden');
+                document.getElementById('main-action-form').classList.add('hidden');
                 showOverlay('下請けの見積もり提出を待っています...');
             }
             else if (state.phase === 'main_bidding' && roleInfo.type === 'main') {
+                document.getElementById('sub-action-form').classList.add('hidden');
                 if (state.mainBids[myId]) {
+                    document.getElementById('main-action-form').classList.add('hidden');
                     showOverlay('他の元請けの提出を待っています...');
                 } else {
-                    renderMainForm();
+                    document.getElementById('action-overlay').classList.add('hidden');
+                    document.getElementById('main-action-form').classList.remove('hidden');
+                    if (renderedMainTurn !== state.turn) {
+                        renderMainForm();
+                        renderedMainTurn = state.turn;
+                    }
                 }
             }
             else if (state.phase === 'main_bidding' && roleInfo.type === 'sub') {
+                document.getElementById('sub-action-form').classList.add('hidden');
+                document.getElementById('main-action-form').classList.add('hidden');
                 showOverlay('元請けが入札・割り当てを行っています...');
             }
             else if (state.phase === 'results') {
+                document.getElementById('sub-action-form').classList.add('hidden');
+                document.getElementById('main-action-form').classList.add('hidden');
+                document.getElementById('action-overlay').classList.add('hidden');
                 renderResults();
             }
         }
@@ -625,10 +640,8 @@
         }
 
         function renderSubForm() {
-            document.getElementById('sub-action-form').classList.remove('hidden');
             const container = document.getElementById('sub-inputs');
             container.innerHTML = '';
-
             const availCap = config.maxCapacity - getUsedCap(state.players[myId]);
             const m1 = state.market.m1;
             const m2 = state.market.m2;
@@ -638,11 +651,11 @@
                 let name = type === 'large' ? '大工事' : '小工事';
                 let disabled = availCap < capNeeded;
                 
-                // キャパ不足を明示するUI
-                let overlayHTML = disabled ? `<div class="absolute inset-0 z-10 flex items-center justify-center bg-slate-200/80 rounded-xl"><span class="font-bold text-red-600 text-lg border-2 border-red-500 bg-white px-3 py-1 rounded shadow-sm">キャパ不足 (必要:${capNeeded} / 残り:${availCap})</span></div>` : '';
+                // キャパ不足時はオーバーレイで完全にブロック
+                let overlayHTML = disabled ? `<div class="absolute inset-0 z-10 flex flex-col items-center justify-center bg-slate-200/90 rounded-xl"><span class="font-black text-red-600 text-lg border-2 border-red-500 bg-white px-3 py-1 rounded shadow-sm">キャパ不足</span><span class="text-xs font-bold text-slate-700 mt-1">(必要:${capNeeded} / 残り:${availCap})</span></div>` : '';
                 
                 return `
-                    <div class="p-4 rounded-xl border ${disabled ? 'bg-slate-200 border-slate-300 opacity-80' : 'bg-slate-50 border-slate-300 shadow-inner'} relative">
+                    <div class="p-4 rounded-xl border ${disabled ? 'bg-slate-200 border-slate-300' : 'bg-slate-50 border-slate-300 shadow-inner'} relative">
                         ${overlayHTML}
                         <h3 class="font-bold mb-2 text-slate-800">${name} の見積額</h3>
                         <input type="number" id="sub-est-${key}" class="w-full border border-slate-300 p-3 rounded mb-2 font-bold text-xl text-right" oninput="updateSubProfit('${key}', ${cost})" ${disabled?'disabled':''}>
@@ -661,7 +674,6 @@
                 html += createInput('large', 'large', config['large'].cap);
                 html += createInput('small', 'small', config['small'].cap);
             }
-            
             container.innerHTML = html;
         }
 
@@ -674,7 +686,6 @@
             let bids = {};
             const availCap = config.maxCapacity - getUsedCap(state.players[myId]);
             
-            // 未入力や0以下の入札を弾く関数
             const getVal = (id) => {
                 const el = document.getElementById(id);
                 if(!el || el.disabled || el.value === '') return null;
@@ -704,11 +715,21 @@
             if(isHost) handleSubSubmit(myId, bids);
             else onlineChannel.send({ type: 'broadcast', event: 'sub_submit', payload: { id: myId, bids } });
             
+            document.getElementById('sub-action-form').classList.add('hidden');
             showOverlay('提出完了。元請けの入札を待っています...');
         }
 
         function renderMainForm() {
-            document.getElementById('main-action-form').classList.remove('hidden');
+            // 前ターンの入力を完全にクリア
+            document.getElementById('main-m1-bid').value = '';
+            document.getElementById('main-m2-bid').value = '';
+            document.getElementById('m1-sub-drop').innerHTML = '';
+            document.getElementById('m2-sub-drop').innerHTML = '';
+            document.getElementById('m1-score').textContent = '0.00';
+            document.getElementById('m2-score').textContent = '0.00';
+            calculateMainProfit(1);
+            calculateMainProfit(2);
+
             document.getElementById('main-m1-type').textContent = state.market.m1 === 'large' ? '大工事' : '小工事';
             document.getElementById('main-m2-type').textContent = state.market.m2 === 'large' ? '大工事' : '小工事';
             
@@ -717,7 +738,6 @@
             document.getElementById('m2-lock-overlay').classList.toggle('hidden', availCap >= config[state.market.m2].cap);
 
             const allSubs = Object.entries(state.players).filter(([id, p]) => ROLES.find(r=>r.id===p.role).type === 'sub');
-            
             const unassigned = document.getElementById('unassigned-subs');
             unassigned.innerHTML = '';
             
@@ -736,9 +756,7 @@
                     div.dataset.p1 = p1;
                     div.dataset.p2 = p2;
                     
-                    // 初期状態の表示
                     updateSubCardDisplay(div, 'unassigned-subs');
-                    
                     div.ondragstart = (e) => { e.dataTransfer.setData('text/plain', sid); };
                     unassigned.appendChild(div);
                 }
@@ -749,7 +767,6 @@
             setupDropzone('m2-sub-drop', 2);
         }
 
-        // ドロップされた場所に応じて表示金額を切り替える関数
         function updateSubCardDisplay(card, zoneId) {
             const p1 = parseInt(card.dataset.p1) || 0;
             const p2 = parseInt(card.dataset.p2) || 0;
@@ -774,7 +791,6 @@
                 const sid = e.dataTransfer.getData('text/plain');
                 const el = document.getElementById(`sub-card-${sid}`);
                 
-                // その市場に有効な入札（0円より大きい）を行っていない場合はドロップを弾く
                 if (id === 'm1-sub-drop' && (!el.dataset.p1 || parseInt(el.dataset.p1) <= 0)) {
                     alert('この下請けはこの市場に見積もりを出していません。');
                     return;
@@ -804,6 +820,16 @@
             }
             document.getElementById(`m${mIdx}-sub-cost`).textContent = subCost;
             document.getElementById(`m${mIdx}-profit`).textContent = bid - config.turnFixedCost - subCost;
+
+            // 総合点の計算
+            let score = 0;
+            if (bid > 0) {
+                const mType = mIdx === 1 ? state.market.m1 : state.market.m2;
+                const c = config[mType];
+                const sBase = state.players[myId].scores[mType];
+                score = (sBase * c.limit) / bid;
+            }
+            document.getElementById(`m${mIdx}-score`).textContent = score > 0 ? score.toFixed(2) : '0.00';
         }
 
         function submitMainBid() {
@@ -827,6 +853,7 @@
             if(isHost) handleMainSubmit(myId, bids);
             else onlineChannel.send({ type: 'broadcast', event: 'main_submit', payload: { id: myId, bids } });
             
+            document.getElementById('main-action-form').classList.add('hidden');
             showOverlay('提出完了。結果を待機中...');
         }
 
@@ -874,9 +901,6 @@
                 if (state.phase === 'results') {
                     document.getElementById('result-modal').classList.add('hidden');
                     showOverlay('ホストが次のターンへ進むのを待っています...');
-                } else {
-                    // 既にホストがターンを進めていた場合は、再描画して次ターンの画面を表示
-                    renderGame();
                 }
             }
         }
