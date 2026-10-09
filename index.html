@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>建設入札ゲーム ver.3.0 - 4人オンライン対戦 (理論モデル実装版)</title>
+    <title>建設入札ゲーム ver.4.0 - 4人オンライン対戦 (理論モデル実装版)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
@@ -23,7 +23,7 @@
     <!-- ヘッダー -->
     <header class="bg-slate-900 text-white p-3 shadow-md flex justify-between items-center z-50 shrink-0">
         <div>
-            <h1 class="text-lg font-bold">建設入札ゲーム ver.3.0 <span class="text-xs font-normal text-slate-400">理論モデル実装版</span></h1>
+            <h1 class="text-lg font-bold">建設入札ゲーム ver.4.0 <span class="text-xs font-normal text-slate-400">理論モデル実装版</span></h1>
             <p class="text-xs text-slate-300">第 <span id="current-turn" class="text-yellow-400 font-bold text-lg">0</span> / 10 ターン</p>
         </div>
         <div class="flex items-center gap-3">
@@ -252,7 +252,11 @@
             onlineChannel = supabaseClient.channel(`room_${roomId}`, { config: { presence: { key: myId } } });
 
             onlineChannel
-                .on('broadcast', { event: 'state_sync' }, payload => { state = payload.payload; renderGame(); })
+                .on('broadcast', { event: 'state_sync' }, payload => { 
+                    state = payload.payload; 
+                    renderGame(); 
+                    updateLobbyUI(); // ゲスト側でもロビーUIを即座に更新
+                })
                 .on('broadcast', { event: 'sub_submit' }, payload => { if (isHost) handleSubSubmit(payload.payload.id, payload.payload.bids); })
                 .on('broadcast', { event: 'main_submit' }, payload => { if (isHost) handleMainSubmit(payload.payload.id, payload.payload.bids); })
                 .on('broadcast', { event: 'join_request' }, payload => {
@@ -380,7 +384,7 @@
                     const pickSub = (mType) => {
                         let bestSub = null, bestPrice = 9999;
                         Object.entries(state.subBids).forEach(([sid, sb]) => {
-                            if(!sb.pass && sb[mType] && sb[mType] < bestPrice) {
+                            if(!sb.pass && sb[mType] && sb[mType] > 0 && sb[mType] < bestPrice) {
                                 bestPrice = sb[mType]; bestSub = sid;
                             }
                         });
@@ -437,7 +441,7 @@
                 let bids = [];
                 Object.entries(state.mainBids).forEach(([mId, data]) => {
                     let b = data[mKey];
-                    if (b && b.bid > 0 && b.subId) {
+                    if (b && b.bid > 0 && b.subId && b.subPrice > 0) {
                         bids.push({ id: mId, bid: b.bid, subId: b.subId, subPrice: b.subPrice, score: getScore(b.bid, type, mId) });
                     }
                 });
@@ -524,6 +528,13 @@
             if(state.phase === 'waiting') return;
             document.getElementById('lobby-modal').classList.add('hidden');
             
+            // リザルト画面でなければモーダルを強制的に閉じる（ゲストの待機スタック防止）
+            if(state.phase !== 'results') {
+                document.getElementById('result-modal').classList.add('hidden');
+            }
+            // 基本的にオーバーレイは非表示スタート（必要なフェーズでのみ表示させる）
+            document.getElementById('action-overlay').classList.add('hidden');
+            
             if(state.phase === 'role_reveal') {
                 const tbody = document.getElementById('role-table-body');
                 tbody.innerHTML = '';
@@ -579,7 +590,6 @@
 
             document.getElementById('sub-action-form').classList.add('hidden');
             document.getElementById('main-action-form').classList.add('hidden');
-            document.getElementById('action-overlay').classList.add('hidden');
             
             if (!myData || !myData.role) return;
             const roleInfo = ROLES.find(r => r.id === myData.role);
@@ -627,9 +637,13 @@
                 let cost = config[type].cost;
                 let name = type === 'large' ? '大工事' : '小工事';
                 let disabled = availCap < capNeeded;
+                
+                // キャパ不足を明示するUI
+                let overlayHTML = disabled ? `<div class="absolute inset-0 z-10 flex items-center justify-center bg-slate-200/80 rounded-xl"><span class="font-bold text-red-600 text-lg border-2 border-red-500 bg-white px-3 py-1 rounded shadow-sm">キャパ不足 (必要:${capNeeded} / 残り:${availCap})</span></div>` : '';
+                
                 return `
-                    <div class="p-4 rounded-xl border ${disabled ? 'bg-slate-200 border-slate-300 opacity-60' : 'bg-slate-50 border-slate-300 shadow-inner'} relative">
-                        ${disabled ? '<div class="absolute inset-0 z-10 flex items-center justify-center font-bold text-red-600 text-lg">キャパ不足</div>' : ''}
+                    <div class="p-4 rounded-xl border ${disabled ? 'bg-slate-200 border-slate-300 opacity-80' : 'bg-slate-50 border-slate-300 shadow-inner'} relative">
+                        ${overlayHTML}
                         <h3 class="font-bold mb-2 text-slate-800">${name} の見積額</h3>
                         <input type="number" id="sub-est-${key}" class="w-full border border-slate-300 p-3 rounded mb-2 font-bold text-xl text-right" oninput="updateSubProfit('${key}', ${cost})" ${disabled?'disabled':''}>
                         <div class="text-sm text-slate-700 bg-white p-2 border rounded">
@@ -660,19 +674,37 @@
             let bids = {};
             const availCap = config.maxCapacity - getUsedCap(state.players[myId]);
             
+            // 未入力や0以下の入札を弾く関数
+            const getVal = (id) => {
+                const el = document.getElementById(id);
+                if(!el || el.disabled || el.value === '') return null;
+                const val = parseInt(el.value);
+                return isNaN(val) || val <= 0 ? null : val;
+            };
+
             if (state.market.m1 === state.market.m2) {
                 let type = state.market.m1;
-                if(availCap >= config[type].cap) bids[type] = parseInt(document.getElementById(`sub-est-${type}`).value) || 0;
+                if(availCap >= config[type].cap) {
+                    let v = getVal(`sub-est-${type}`);
+                    if(v) bids[type] = v;
+                }
             } else {
-                if(availCap >= config['large'].cap) bids['large'] = parseInt(document.getElementById('sub-est-large').value) || 0;
-                if(availCap >= config['small'].cap) bids['small'] = parseInt(document.getElementById('sub-est-small').value) || 0;
+                if(availCap >= config['large'].cap) {
+                    let v = getVal('sub-est-large');
+                    if(v) bids['large'] = v;
+                }
+                if(availCap >= config['small'].cap) {
+                    let v = getVal('sub-est-small');
+                    if(v) bids['small'] = v;
+                }
             }
 
             if(Object.keys(bids).length === 0) bids.pass = true;
 
             if(isHost) handleSubSubmit(myId, bids);
             else onlineChannel.send({ type: 'broadcast', event: 'sub_submit', payload: { id: myId, bids } });
-            showOverlay('提出完了。');
+            
+            showOverlay('提出完了。元請けの入札を待っています...');
         }
 
         function renderMainForm() {
@@ -684,7 +716,6 @@
             document.getElementById('m1-lock-overlay').classList.toggle('hidden', availCap >= config[state.market.m1].cap);
             document.getElementById('m2-lock-overlay').classList.toggle('hidden', availCap >= config[state.market.m2].cap);
 
-            // 理論モデルでは両方の下請けが見える
             const allSubs = Object.entries(state.players).filter(([id, p]) => ROLES.find(r=>r.id===p.role).type === 'sub');
             
             const unassigned = document.getElementById('unassigned-subs');
@@ -698,12 +729,15 @@
                     div.draggable = true;
                     div.id = `sub-card-${sid}`;
                     div.dataset.id = sid;
+                    div.dataset.name = p.name;
                     
                     let p1 = subData[state.market.m1] || 0;
                     let p2 = subData[state.market.m2] || 0;
                     div.dataset.p1 = p1;
                     div.dataset.p2 = p2;
-                    div.innerHTML = `👷 ${p.name} <br><span class="text-[11px] font-normal text-slate-700 block mt-1 bg-white p-1 rounded border">①:${p1>0?p1+'Y':'-'}<br>②:${p2>0?p2+'Y':'-'}</span>`;
+                    
+                    // 初期状態の表示
+                    updateSubCardDisplay(div, 'unassigned-subs');
                     
                     div.ondragstart = (e) => { e.dataTransfer.setData('text/plain', sid); };
                     unassigned.appendChild(div);
@@ -715,6 +749,21 @@
             setupDropzone('m2-sub-drop', 2);
         }
 
+        // ドロップされた場所に応じて表示金額を切り替える関数
+        function updateSubCardDisplay(card, zoneId) {
+            const p1 = parseInt(card.dataset.p1) || 0;
+            const p2 = parseInt(card.dataset.p2) || 0;
+            const name = card.dataset.name;
+
+            if (zoneId === 'm1-sub-drop') {
+                card.innerHTML = `👷 ${name} <br><span class="text-xs font-bold text-blue-700 block mt-1 bg-white p-1 rounded border text-center shadow-sm">提示額: ${p1 > 0 ? p1 + 'Y' : '辞退'}</span>`;
+            } else if (zoneId === 'm2-sub-drop') {
+                card.innerHTML = `👷 ${name} <br><span class="text-xs font-bold text-blue-700 block mt-1 bg-white p-1 rounded border text-center shadow-sm">提示額: ${p2 > 0 ? p2 + 'Y' : '辞退'}</span>`;
+            } else {
+                card.innerHTML = `👷 ${name} <br><span class="text-[11px] font-normal text-slate-700 block mt-1 bg-white p-1 rounded border">①:${p1 > 0 ? p1 + 'Y' : '辞退'}<br>②:${p2 > 0 ? p2 + 'Y' : '辞退'}</span>`;
+            }
+        }
+
         function setupDropzone(id, marketIndex) {
             const zone = document.getElementById(id);
             zone.ondragover = (e) => { e.preventDefault(); zone.classList.add('dragover'); };
@@ -724,8 +773,20 @@
                 zone.classList.remove('dragover');
                 const sid = e.dataTransfer.getData('text/plain');
                 const el = document.getElementById(`sub-card-${sid}`);
+                
+                // その市場に有効な入札（0円より大きい）を行っていない場合はドロップを弾く
+                if (id === 'm1-sub-drop' && (!el.dataset.p1 || parseInt(el.dataset.p1) <= 0)) {
+                    alert('この下請けはこの市場に見積もりを出していません。');
+                    return;
+                }
+                if (id === 'm2-sub-drop' && (!el.dataset.p2 || parseInt(el.dataset.p2) <= 0)) {
+                    alert('この下請けはこの市場に見積もりを出していません。');
+                    return;
+                }
+
                 if(el && (zone.children.length === 0 || id === 'unassigned-subs')) {
                     zone.appendChild(el);
+                    updateSubCardDisplay(el, id);
                     calculateMainProfit(1);
                     calculateMainProfit(2);
                 }
@@ -805,10 +866,18 @@
         }
 
         function closeResult() {
-            document.getElementById('result-modal').classList.add('hidden');
-            showOverlay('次のターンへ移行中...');
             if(isHost) {
+                document.getElementById('result-modal').classList.add('hidden');
+                showOverlay('次のターンへ移行中...');
                 setTimeout(hostNextTurn, 1000);
+            } else {
+                if (state.phase === 'results') {
+                    document.getElementById('result-modal').classList.add('hidden');
+                    showOverlay('ホストが次のターンへ進むのを待っています...');
+                } else {
+                    // 既にホストがターンを進めていた場合は、再描画して次ターンの画面を表示
+                    renderGame();
+                }
             }
         }
     </script>
