@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>建設入札ゲーム ver.6.0 - 4人オンライン対戦 (理論モデル実装版)</title>
+    <title>建設入札ゲーム ver.7.0 - 4人オンライン対戦 (理論モデル実装版)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
@@ -24,7 +24,7 @@
     <!-- ヘッダー -->
     <header class="bg-slate-900 text-white p-3 shadow-md flex justify-between items-center z-50 shrink-0">
         <div>
-            <h1 class="text-lg font-bold">建設入札ゲーム ver.6.0 <span class="text-xs font-normal text-slate-400">理論モデル実装版</span></h1>
+            <h1 class="text-lg font-bold">建設入札ゲーム ver.7.0 <span class="text-xs font-normal text-slate-400">理論モデル実装版</span></h1>
             <p class="text-xs text-slate-300">第 <span id="current-turn" class="text-yellow-400 font-bold text-lg">0</span> / 10 ターン</p>
         </div>
         <div class="flex items-center gap-3">
@@ -71,7 +71,7 @@
                 <h2 class="text-xl font-black border-b-2 border-green-500 pb-2">入札・下請け割り当て</h2>
                 
                 <div class="bg-slate-50 p-2 rounded border mb-2 shadow-inner">
-                    <h3 class="text-sm font-bold text-slate-700 mb-1">市場の見積もり (ドラッグ＆ドロップで選択)</h3>
+                    <h3 class="text-sm font-bold text-slate-700 mb-1">市場の見積もり (下枠の点線エリアにドラッグ＆ドロップ)</h3>
                     <div id="unassigned-subs" class="dropzone flex gap-2 flex-wrap"></div>
                 </div>
 
@@ -80,8 +80,10 @@
                     <div id="m1-panel" class="bg-white border-2 rounded-xl p-3 flex flex-col relative transition-colors">
                         <div id="m1-lock-overlay" class="hidden absolute inset-0 bg-slate-100/80 backdrop-blur-sm z-10 flex items-center justify-center rounded-xl font-bold text-slate-500">キャパシティ不足</div>
                         <h3 id="m1-header" class="font-bold text-center rounded py-1 mb-2">市場①: <span id="main-m1-type"></span></h3>
+                        
+                        <!-- 入力ボックスへのドロップを禁止 (ondrop="return false;" ondragover="return false;") -->
                         <label class="block text-sm font-bold mb-1 text-slate-700">入札額 (Y)</label>
-                        <input type="number" id="main-m1-bid" class="border-2 p-2 rounded w-full font-bold text-lg mb-2 focus:ring-4 focus:ring-green-200 outline-none" oninput="calculateMainProfit(1)">
+                        <input type="number" id="main-m1-bid" class="border-2 p-2 rounded w-full font-bold text-lg mb-2 focus:ring-4 focus:ring-green-200 outline-none" oninput="calculateMainProfit(1)" ondrop="return false;" ondragover="return false;">
                         
                         <label class="block text-sm font-bold mb-1 text-slate-600">下請けを割り当て</label>
                         <div id="m1-sub-drop" class="dropzone flex-1 flex flex-col gap-1 mb-2 bg-slate-50"></div>
@@ -97,8 +99,10 @@
                     <div id="m2-panel" class="bg-white border-2 rounded-xl p-3 flex flex-col relative transition-colors">
                         <div id="m2-lock-overlay" class="hidden absolute inset-0 bg-slate-100/80 backdrop-blur-sm z-10 flex items-center justify-center rounded-xl font-bold text-slate-500">キャパシティ不足</div>
                         <h3 id="m2-header" class="font-bold text-center rounded py-1 mb-2">市場②: <span id="main-m2-type"></span></h3>
+                        
+                        <!-- 入力ボックスへのドロップを禁止 (ondrop="return false;" ondragover="return false;") -->
                         <label class="block text-sm font-bold mb-1 text-slate-700">入札額 (Y)</label>
-                        <input type="number" id="main-m2-bid" class="border-2 p-2 rounded w-full font-bold text-lg mb-2 focus:ring-4 focus:ring-green-200 outline-none" oninput="calculateMainProfit(2)">
+                        <input type="number" id="main-m2-bid" class="border-2 p-2 rounded w-full font-bold text-lg mb-2 focus:ring-4 focus:ring-green-200 outline-none" oninput="calculateMainProfit(2)" ondrop="return false;" ondragover="return false;">
                         
                         <label class="block text-sm font-bold mb-1 text-slate-600">下請けを割り当て</label>
                         <div id="m2-sub-drop" class="dropzone flex-1 flex flex-col gap-1 mb-2 bg-slate-50"></div>
@@ -390,7 +394,6 @@
             pIds.forEach((id, index) => { 
                 let r = rolesCopy[index].id;
                 state.players[id].role = r;
-                // 初期スコアの適用
                 if(r === 'M_A') state.players[id].scores = { large: state.settings.maLargeScore, small: state.settings.maSmallScore };
                 else if(r === 'M_B') state.players[id].scores = { large: state.settings.mbLargeScore, small: state.settings.mbSmallScore };
             });
@@ -414,7 +417,6 @@
             state.subBids = {};
             state.mainBids = {};
             
-            // 確率設定の適用
             state.market.m1 = (Math.random() * 100) < state.settings.m1LargeProb ? 'large' : 'small';
             state.market.m2 = (Math.random() * 100) < state.settings.m2LargeProb ? 'large' : 'small';
 
@@ -747,7 +749,6 @@
                 `;
             };
 
-            // 種類に関わらずm1, m2別々にフォームを生成
             let html = "";
             html += createInput('m1', m1, config[m1].cap, '市場①');
             html += createInput('m2', m2, config[m2].cap, '市場②');
@@ -819,7 +820,8 @@
                 let subData = state.subBids[sid];
                 if(subData && !subData.pass) {
                     let div = document.createElement('div');
-                    div.className = "bg-slate-100 p-2 rounded-lg border-2 border-slate-300 draggable text-sm cursor-grab active:cursor-grabbing font-bold shadow-md w-36 hover:bg-slate-200 transition-colors";
+                    // 初期カードのベーススタイル
+                    div.className = "bg-white p-2 rounded-lg border-2 border-slate-300 draggable text-sm cursor-grab active:cursor-grabbing font-bold shadow-md w-36 hover:bg-slate-50 transition-colors";
                     div.draggable = true;
                     div.id = `sub-card-${sid}`;
                     div.dataset.id = sid;
@@ -841,28 +843,34 @@
             setupDropzone('m2-sub-drop', 2);
         }
 
+        // ドロップされた場所に応じて表示金額や色分けを切り替える関数
         function updateSubCardDisplay(card, zoneId) {
             const p1 = parseInt(card.dataset.p1) || 0;
             const p2 = parseInt(card.dataset.p2) || 0;
             const name = card.dataset.name;
+            const s1 = getStyles(state.market.m1);
+            const s2 = getStyles(state.market.m2);
+            const n1 = state.market.m1 === 'large' ? '大' : '小';
+            const n2 = state.market.m2 === 'large' ? '大' : '小';
 
             if (zoneId === 'm1-sub-drop') {
-                const s = getStyles(state.market.m1);
-                card.className = `p-2 rounded-lg border-2 draggable text-sm cursor-grab active:cursor-grabbing font-bold shadow-md w-full ${s.bg} ${s.border}`;
-                card.innerHTML = `👷 ${name} <br><span class="text-xs font-bold ${s.text} block mt-1 bg-white p-1 rounded border text-center shadow-sm">提示額: ${p1 > 0 ? p1 + 'Y' : '辞退'}</span>`;
+                card.className = `p-2 rounded-lg border-2 draggable text-sm cursor-grab active:cursor-grabbing font-bold shadow-md w-full ${s1.bg} ${s1.border} transition-colors`;
+                card.innerHTML = `👷 ${name} <br><span class="text-xs font-bold ${s1.text} block mt-1 bg-white p-1 rounded border text-center shadow-sm">提示額: ${p1 > 0 ? p1 + 'Y' : '辞退'}</span>`;
             } else if (zoneId === 'm2-sub-drop') {
-                const s = getStyles(state.market.m2);
-                card.className = `p-2 rounded-lg border-2 draggable text-sm cursor-grab active:cursor-grabbing font-bold shadow-md w-full ${s.bg} ${s.border}`;
-                card.innerHTML = `👷 ${name} <br><span class="text-xs font-bold ${s.text} block mt-1 bg-white p-1 rounded border text-center shadow-sm">提示額: ${p2 > 0 ? p2 + 'Y' : '辞退'}</span>`;
+                card.className = `p-2 rounded-lg border-2 draggable text-sm cursor-grab active:cursor-grabbing font-bold shadow-md w-full ${s2.bg} ${s2.border} transition-colors`;
+                card.innerHTML = `👷 ${name} <br><span class="text-xs font-bold ${s2.text} block mt-1 bg-white p-1 rounded border text-center shadow-sm">提示額: ${p2 > 0 ? p2 + 'Y' : '辞退'}</span>`;
             } else {
-                card.className = "bg-slate-100 p-2 rounded-lg border-2 border-slate-300 draggable text-sm cursor-grab active:cursor-grabbing font-bold shadow-md w-36 hover:bg-slate-200 transition-colors";
-                card.innerHTML = `👷 ${name} <br><span class="text-[11px] font-normal text-slate-700 block mt-1 bg-white p-1 rounded border">①:${p1 > 0 ? p1 + 'Y' : '辞退'}<br>②:${p2 > 0 ? p2 + 'Y' : '辞退'}</span>`;
+                card.className = "bg-white p-2 rounded-lg border-2 border-slate-300 draggable text-sm cursor-grab active:cursor-grabbing font-bold shadow-md w-36 hover:bg-slate-50 transition-colors";
+                card.innerHTML = `👷 ${name} 
+                    <div class="mt-1 flex flex-col gap-1 text-[11px]">
+                        <div class="${s1.bg} ${s1.border} border ${s1.text} p-1 rounded text-center leading-tight">①${n1}: ${p1 > 0 ? p1 + 'Y' : '辞退'}</div>
+                        <div class="${s2.bg} ${s2.border} border ${s2.text} p-1 rounded text-center leading-tight">②${n2}: ${p2 > 0 ? p2 + 'Y' : '辞退'}</div>
+                    </div>`;
             }
         }
 
         function setupDropzone(id, marketIndex) {
             const zone = document.getElementById(id);
-            // 余計なondragoverをクリア
             zone.ondragover = (e) => { e.preventDefault(); zone.classList.add('dragover'); };
             zone.ondragleave = (e) => { zone.classList.remove('dragover'); };
             zone.ondrop = (e) => {
@@ -926,7 +934,6 @@
             const b1 = parseInt(document.getElementById(`main-m1-bid`).value) || 0;
             const b2 = parseInt(document.getElementById(`main-m2-bid`).value) || 0;
 
-            // バリデーション（入札と下請けはセット必須）
             if ((b1 > 0 && !z1.subId) || (b1 <= 0 && z1.subId)) {
                 alert('市場①：入札額と下請けの割り当ては両方同時に行う必要があります。'); return;
             }
