@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>建設入札ゲーム ver.5.0 - 4人オンライン対戦 (理論モデル実装版)</title>
+    <title>建設入札ゲーム ver.6.0 - 4人オンライン対戦 (理論モデル実装版)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
@@ -14,6 +14,7 @@
         .draggable:active { cursor: grabbing; }
         .dropzone { min-height: 50px; border: 2px dashed #cbd5e1; border-radius: 0.5rem; padding: 0.5rem; transition: background-color 0.2s; }
         .dropzone.dragover { background-color: #e2e8f0; border-color: #3b82f6; }
+        .dropzone * { pointer-events: none; } /* 子要素へのドロップ干渉を防ぐ */
         .fade-in-out { animation: fadeInOut 2.5s ease-in-out forwards; }
         @keyframes fadeInOut { 0% { opacity: 0; transform: scale(0.9); } 20% { opacity: 1; transform: scale(1); } 80% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(1.1); } }
     </style>
@@ -23,12 +24,13 @@
     <!-- ヘッダー -->
     <header class="bg-slate-900 text-white p-3 shadow-md flex justify-between items-center z-50 shrink-0">
         <div>
-            <h1 class="text-lg font-bold">建設入札ゲーム ver.5.0 <span class="text-xs font-normal text-slate-400">理論モデル実装版</span></h1>
+            <h1 class="text-lg font-bold">建設入札ゲーム ver.6.0 <span class="text-xs font-normal text-slate-400">理論モデル実装版</span></h1>
             <p class="text-xs text-slate-300">第 <span id="current-turn" class="text-yellow-400 font-bold text-lg">0</span> / 10 ターン</p>
         </div>
         <div class="flex items-center gap-3">
             <div id="my-role-badge" class="hidden px-3 py-1 rounded bg-blue-600 font-bold text-sm shadow">役職未定</div>
             <button id="room-badge" class="hidden px-2 py-1 bg-indigo-600 rounded text-xs font-bold text-white shadow">ルーム: <span id="header-room-id">---</span></button>
+            <button onclick="openSettings()" class="bg-slate-700 hover:bg-slate-600 text-white font-bold py-1 px-3 rounded text-sm transition-colors shadow">⚙️ 設定</button>
             <button onclick="openLobby()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-1 px-3 rounded text-sm transition-colors shadow">🌐 ロビー</button>
         </div>
     </header>
@@ -75,11 +77,11 @@
 
                 <div class="grid grid-cols-2 gap-4 flex-1">
                     <!-- 市場① -->
-                    <div class="bg-white border-2 border-slate-200 rounded-xl p-3 flex flex-col relative">
+                    <div id="m1-panel" class="bg-white border-2 rounded-xl p-3 flex flex-col relative transition-colors">
                         <div id="m1-lock-overlay" class="hidden absolute inset-0 bg-slate-100/80 backdrop-blur-sm z-10 flex items-center justify-center rounded-xl font-bold text-slate-500">キャパシティ不足</div>
-                        <h3 class="font-bold text-center bg-slate-100 text-slate-800 rounded py-1 mb-2">市場①: <span id="main-m1-type"></span></h3>
+                        <h3 id="m1-header" class="font-bold text-center rounded py-1 mb-2">市場①: <span id="main-m1-type"></span></h3>
                         <label class="block text-sm font-bold mb-1 text-slate-700">入札額 (Y)</label>
-                        <input type="number" id="main-m1-bid" class="border p-2 rounded w-full font-bold text-lg mb-2 focus:ring-2 focus:ring-green-400" oninput="calculateMainProfit(1)">
+                        <input type="number" id="main-m1-bid" class="border-2 p-2 rounded w-full font-bold text-lg mb-2 focus:ring-4 focus:ring-green-200 outline-none" oninput="calculateMainProfit(1)">
                         
                         <label class="block text-sm font-bold mb-1 text-slate-600">下請けを割り当て</label>
                         <div id="m1-sub-drop" class="dropzone flex-1 flex flex-col gap-1 mb-2 bg-slate-50"></div>
@@ -92,11 +94,11 @@
                         </div>
                     </div>
                     <!-- 市場② -->
-                    <div class="bg-white border-2 border-slate-200 rounded-xl p-3 flex flex-col relative">
+                    <div id="m2-panel" class="bg-white border-2 rounded-xl p-3 flex flex-col relative transition-colors">
                         <div id="m2-lock-overlay" class="hidden absolute inset-0 bg-slate-100/80 backdrop-blur-sm z-10 flex items-center justify-center rounded-xl font-bold text-slate-500">キャパシティ不足</div>
-                        <h3 class="font-bold text-center bg-slate-100 text-slate-800 rounded py-1 mb-2">市場②: <span id="main-m2-type"></span></h3>
+                        <h3 id="m2-header" class="font-bold text-center rounded py-1 mb-2">市場②: <span id="main-m2-type"></span></h3>
                         <label class="block text-sm font-bold mb-1 text-slate-700">入札額 (Y)</label>
-                        <input type="number" id="main-m2-bid" class="border p-2 rounded w-full font-bold text-lg mb-2 focus:ring-2 focus:ring-green-400" oninput="calculateMainProfit(2)">
+                        <input type="number" id="main-m2-bid" class="border-2 p-2 rounded w-full font-bold text-lg mb-2 focus:ring-4 focus:ring-green-200 outline-none" oninput="calculateMainProfit(2)">
                         
                         <label class="block text-sm font-bold mb-1 text-slate-600">下請けを割り当て</label>
                         <div id="m2-sub-drop" class="dropzone flex-1 flex flex-col gap-1 mb-2 bg-slate-50"></div>
@@ -119,6 +121,39 @@
             </div>
         </section>
     </main>
+
+    <!-- 設定モーダル -->
+    <div id="settings-modal" class="fixed inset-0 modal-bg flex justify-center items-center z-[130] p-4 hidden">
+        <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-lg relative">
+            <button onclick="closeSettings()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700 font-bold text-xl">✕</button>
+            <h2 class="text-2xl font-black mb-4 border-b pb-2 text-slate-800">⚙️ ゲーム初期設定</h2>
+            <div class="space-y-4">
+                <p class="text-xs text-red-600 font-bold" id="settings-warn">※設定変更はホストのみ可能です。初期スコアの反映は「ゲーム開始前」にのみ有効です。</p>
+                <div class="bg-slate-50 p-3 rounded border">
+                    <h3 class="font-bold text-sm mb-2">大工事の発生確率 (%)</h3>
+                    <div class="flex gap-4">
+                        <label class="flex items-center gap-2 text-sm"><span class="font-bold">市場①:</span> <input type="number" id="set-m1-prob" class="border p-1 w-16 text-center rounded" value="50"> %</label>
+                        <label class="flex items-center gap-2 text-sm"><span class="font-bold">市場②:</span> <input type="number" id="set-m2-prob" class="border p-1 w-16 text-center rounded" value="50"> %</label>
+                    </div>
+                </div>
+                <div class="bg-slate-50 p-3 rounded border">
+                    <h3 class="font-bold text-sm mb-2">元請けAの初期スコア</h3>
+                    <div class="flex gap-4">
+                        <label class="flex items-center gap-2 text-sm"><span class="font-bold">大工事:</span> <input type="number" id="set-ma-large" class="border p-1 w-16 text-center rounded" value="70"></label>
+                        <label class="flex items-center gap-2 text-sm"><span class="font-bold">小工事:</span> <input type="number" id="set-ma-small" class="border p-1 w-16 text-center rounded" value="64"></label>
+                    </div>
+                </div>
+                <div class="bg-slate-50 p-3 rounded border">
+                    <h3 class="font-bold text-sm mb-2">元請けBの初期スコア</h3>
+                    <div class="flex gap-4">
+                        <label class="flex items-center gap-2 text-sm"><span class="font-bold">大工事:</span> <input type="number" id="set-mb-large" class="border p-1 w-16 text-center rounded" value="68"></label>
+                        <label class="flex items-center gap-2 text-sm"><span class="font-bold">小工事:</span> <input type="number" id="set-mb-small" class="border p-1 w-16 text-center rounded" value="70"></label>
+                    </div>
+                </div>
+                <button id="save-settings-btn" onclick="saveSettings()" class="w-full bg-slate-800 text-white font-bold py-3 rounded-lg mt-2 shadow transition-colors">設定を保存・共有</button>
+            </div>
+        </div>
+    </div>
 
     <!-- ロビーモーダル -->
     <div id="lobby-modal" class="fixed inset-0 modal-bg flex justify-center items-center z-[100] p-4 hidden">
@@ -186,14 +221,12 @@
         let myId = null;
         let roomId = null;
         
-        // 描画済みターンの記録用（入力消去バグ防止）
         let renderedSubTurn = 0;
         let renderedMainTurn = 0;
         
-        // 理論モデルに基づく4人構成
         const ROLES = [
-            { id: 'M_A', name: '元請けA (大工事特化)', type: 'main' },
-            { id: 'M_B', name: '元請けB (小工事特化)', type: 'main' },
+            { id: 'M_A', name: '元請けA (大特化)', type: 'main' },
+            { id: 'M_B', name: '元請けB (小特化)', type: 'main' },
             { id: 'P_1', name: '一次下請けP1', type: 'sub' },
             { id: 'P_2', name: '一次下請けP2', type: 'sub' }
         ];
@@ -204,7 +237,15 @@
             market: { m1: null, m2: null },
             players: {}, 
             subBids: {}, 
-            mainBids: {}
+            mainBids: {},
+            settings: {
+                m1LargeProb: 50,
+                m2LargeProb: 50,
+                maLargeScore: 70,
+                maSmallScore: 64,
+                mbLargeScore: 68,
+                mbSmallScore: 70
+            }
         };
 
         const config = {
@@ -214,8 +255,48 @@
             maxCapacity: 4
         };
 
-        function openLobby() {
-            document.getElementById('lobby-modal').classList.remove('hidden');
+        // --- 色分けユーティリティ ---
+        function getStyles(type) {
+            return type === 'large' 
+                ? { bg: 'bg-red-50', border: 'border-red-400', text: 'text-red-900', label: 'bg-red-100 text-red-800' }
+                : { bg: 'bg-blue-50', border: 'border-blue-400', text: 'text-blue-900', label: 'bg-blue-100 text-blue-800' };
+        }
+
+        function openLobby() { document.getElementById('lobby-modal').classList.remove('hidden'); }
+        function openSettings() { 
+            document.getElementById('set-m1-prob').value = state.settings.m1LargeProb;
+            document.getElementById('set-m2-prob').value = state.settings.m2LargeProb;
+            document.getElementById('set-ma-large').value = state.settings.maLargeScore;
+            document.getElementById('set-ma-small').value = state.settings.maSmallScore;
+            document.getElementById('set-mb-large').value = state.settings.mbLargeScore;
+            document.getElementById('set-mb-small').value = state.settings.mbSmallScore;
+
+            if(!isHost) {
+                document.getElementById('settings-warn').textContent = "※設定変更はホストのみ可能です。現在の設定を閲覧中です。";
+                document.querySelectorAll('#settings-modal input').forEach(el => el.disabled = true);
+                document.getElementById('save-settings-btn').classList.add('hidden');
+            } else {
+                document.getElementById('settings-warn').textContent = "※初期スコアの反映は「ゲーム開始前」にのみ有効です。確率は次のターンから適用されます。";
+                document.querySelectorAll('#settings-modal input').forEach(el => el.disabled = false);
+                document.getElementById('save-settings-btn').classList.remove('hidden');
+            }
+            document.getElementById('settings-modal').classList.remove('hidden'); 
+        }
+        function closeSettings() { document.getElementById('settings-modal').classList.add('hidden'); }
+        
+        function saveSettings() {
+            if(!isHost) return;
+            state.settings = {
+                m1LargeProb: parseInt(document.getElementById('set-m1-prob').value) || 50,
+                m2LargeProb: parseInt(document.getElementById('set-m2-prob').value) || 50,
+                maLargeScore: parseInt(document.getElementById('set-ma-large').value) || 70,
+                maSmallScore: parseInt(document.getElementById('set-ma-small').value) || 64,
+                mbLargeScore: parseInt(document.getElementById('set-mb-large').value) || 68,
+                mbSmallScore: parseInt(document.getElementById('set-mb-small').value) || 70
+            };
+            broadcastState();
+            closeSettings();
+            alert('設定を保存し、全員に共有しました。');
         }
 
         function createRoom() {
@@ -309,8 +390,9 @@
             pIds.forEach((id, index) => { 
                 let r = rolesCopy[index].id;
                 state.players[id].role = r;
-                if(r === 'M_A') state.players[id].scores = { large: 70, small: 64 };
-                else if(r === 'M_B') state.players[id].scores = { large: 68, small: 70 };
+                // 初期スコアの適用
+                if(r === 'M_A') state.players[id].scores = { large: state.settings.maLargeScore, small: state.settings.maSmallScore };
+                else if(r === 'M_B') state.players[id].scores = { large: state.settings.mbLargeScore, small: state.settings.mbSmallScore };
             });
 
             document.getElementById('lobby-modal').classList.add('hidden');
@@ -332,8 +414,9 @@
             state.subBids = {};
             state.mainBids = {};
             
-            state.market.m1 = Math.random() < 0.5 ? 'large' : 'small';
-            state.market.m2 = Math.random() < 0.5 ? 'large' : 'small';
+            // 確率設定の適用
+            state.market.m1 = (Math.random() * 100) < state.settings.m1LargeProb ? 'large' : 'small';
+            state.market.m2 = (Math.random() * 100) < state.settings.m2LargeProb ? 'large' : 'small';
 
             broadcastState();
             setTimeout(processBotSubmits, 2000);
@@ -348,15 +431,9 @@
                     let canBidM1 = availCap >= config[state.market.m1].cap;
                     let canBidM2 = availCap >= config[state.market.m2].cap;
                     
-                    if (state.market.m1 === state.market.m2) {
-                        if (canBidM1) bids[state.market.m1] = config[state.market.m1].cost + Math.floor(Math.random()*150+50);
-                    } else {
-                        if (canBidM1 && state.market.m1 === 'large') bids['large'] = config['large'].cost + Math.floor(Math.random()*200+100);
-                        else if (canBidM2 && state.market.m2 === 'large') bids['large'] = config['large'].cost + Math.floor(Math.random()*200+100);
-                        
-                        if (canBidM1 && state.market.m1 === 'small') bids['small'] = config['small'].cost + Math.floor(Math.random()*100+50);
-                        else if (canBidM2 && state.market.m2 === 'small') bids['small'] = config['small'].cost + Math.floor(Math.random()*100+50);
-                    }
+                    if (canBidM1) bids['m1'] = config[state.market.m1].cost + Math.floor(Math.random()*150+50);
+                    if (canBidM2) bids['m2'] = config[state.market.m2].cost + Math.floor(Math.random()*150+50);
+                    
                     if(Object.keys(bids).length === 0) bids.pass = true;
                     handleSubSubmit(id, bids);
                 }
@@ -382,22 +459,22 @@
                     const availCap = config.maxCapacity - getUsedCap(p);
                     let bidObj = { m1: { bid: 0, subId: null, subPrice: 0 }, m2: { bid: 0, subId: null, subPrice: 0 } };
                     
-                    const pickSub = (mType) => {
+                    const pickSub = (mKey) => {
                         let bestSub = null, bestPrice = 9999;
                         Object.entries(state.subBids).forEach(([sid, sb]) => {
-                            if(!sb.pass && sb[mType] && sb[mType] > 0 && sb[mType] < bestPrice) {
-                                bestPrice = sb[mType]; bestSub = sid;
+                            if(!sb.pass && sb[mKey] && sb[mKey] > 0 && sb[mKey] < bestPrice) {
+                                bestPrice = sb[mKey]; bestSub = sid;
                             }
                         });
                         return { subId: bestSub, subPrice: bestSub ? bestPrice : 0 };
                     };
 
                     if (availCap >= config[state.market.m1].cap) {
-                        let subInfo = pickSub(state.market.m1);
+                        let subInfo = pickSub('m1');
                         if(subInfo.subId) bidObj.m1 = { bid: config[state.market.m1].base, subId: subInfo.subId, subPrice: subInfo.subPrice };
                     }
                     if (availCap >= config[state.market.m2].cap && (availCap - config[state.market.m1].cap >= config[state.market.m2].cap || !bidObj.m1.subId)) {
-                        let subInfo = pickSub(state.market.m2);
+                        let subInfo = pickSub('m2');
                         if(subInfo.subId) bidObj.m2 = { bid: config[state.market.m2].base, subId: subInfo.subId, subPrice: subInfo.subPrice };
                     }
                     handleMainSubmit(id, bidObj);
@@ -417,13 +494,13 @@
             const m2Type = state.market.m2;
             let res = { m1: { winner: null, log: '', detail: '' }, m2: { winner: null, log: '', detail: '' }, profits: {} };
 
-            // 毎ターン固定費減算
+            // 固定費
             Object.keys(state.players).forEach(id => {
                 state.players[id].money -= config.turnFixedCost;
                 res.profits[id] = -config.turnFixedCost;
             });
 
-            // 拘束ターンの減少と完了プロジェクト削除
+            // 拘束減少
             Object.values(state.players).forEach(p => {
                 p.activeProjects.forEach(proj => proj.remain--);
                 p.activeProjects = p.activeProjects.filter(proj => proj.remain > 0);
@@ -458,7 +535,7 @@
             let w1 = evaluateMarket('m1', m1Type);
             let w2 = evaluateMarket('m2', m2Type);
 
-            // キャパシティ超過チェック（下請けが同一ターンで2件落札候補になった場合）
+            // キャパ超過処理（下請け）
             if (w1 && w2 && w1.subId === w2.subId) {
                 const subPlayer = state.players[w1.subId];
                 if (config.maxCapacity - getUsedCap(subPlayer) < config[m1Type].cap + config[m2Type].cap) {
@@ -466,7 +543,7 @@
                     else w1 = null; 
                 }
             }
-            // キャパシティ超過チェック（元請けが同一ターンで2件落札候補になった場合）
+            // キャパ超過処理（元請け）
             if (w1 && w2 && w1.id === w2.id) {
                 const mainPlayer = state.players[w1.id];
                 if (config.maxCapacity - getUsedCap(mainPlayer) < config[m1Type].cap + config[m2Type].cap) {
@@ -535,7 +612,7 @@
                 tbody.innerHTML = '';
                 Object.values(state.players).forEach(p => {
                     let rName = ROLES.find(r=>r.id === p.role)?.name || '';
-                    tbody.innerHTML += `<tr><td class="px-4 py-3 border-b">${p.name}</td><td class="px-4 py-3 border-b text-center text-blue-700">${rName}</td></tr>`;
+                    tbody.innerHTML += `<tr><td class="px-4 py-3 border-b">${p.name}</td><td class="px-4 py-3 border-b text-center font-bold text-slate-800">${rName}</td></tr>`;
                 });
                 document.getElementById('role-reveal-modal').classList.remove('hidden');
                 return;
@@ -553,7 +630,6 @@
                 document.getElementById('my-role-badge').classList.remove('hidden');
             }
 
-            // サイドパネルのプレイヤー情報は常に最新に更新
             const pContainer = document.getElementById('players-container');
             pContainer.innerHTML = '';
             Object.entries(state.players).forEach(([id, p]) => {
@@ -564,21 +640,23 @@
                 let scoreStr = roleInfo?.type === 'main' ? `<span class="text-[10px] text-slate-500 block">スコア(大${p.scores.large}/小${p.scores.small})</span>` : '';
                 
                 pContainer.innerHTML += `
-                    <div class="flex justify-between items-center p-2 bg-slate-50 border rounded text-sm shadow-sm ${id===myId?'border-blue-400 ring-1 ring-blue-200':''}">
+                    <div class="flex justify-between items-center p-2 bg-slate-50 border rounded text-sm shadow-sm ${id===myId?'border-blue-400 ring-2 ring-blue-200':''}">
                         <div><span class="font-bold text-slate-800">${p.name}</span> <span class="text-xs text-slate-500">(${roleName})</span>${capStr}${scoreStr}</div>
                         <div class="font-black text-lg ${p.money<0?'text-red-600':'text-slate-800'}">${p.money} Y</div>
                     </div>`;
             });
 
             if (state.market.m1) {
-                const mContainer = document.getElementById('market-container');
-                mContainer.innerHTML = `
-                    <div class="bg-blue-50 p-2 rounded border border-blue-200 shadow-sm">
-                        <span class="font-bold text-blue-900">市場①: ${state.market.m1 === 'large' ? '大工事' : '小工事'}</span>
+                const s1 = getStyles(state.market.m1);
+                const s2 = getStyles(state.market.m2);
+                
+                document.getElementById('market-container').innerHTML = `
+                    <div class="${s1.bg} p-2 rounded-lg border-2 ${s1.border} shadow-sm">
+                        <span class="font-black ${s1.text}">市場①: ${state.market.m1 === 'large' ? '大工事' : '小工事'}</span>
                         <div class="text-xs text-slate-700 mt-1 font-semibold">基準価格: ${config[state.market.m1].base}Y / 上限: ${config[state.market.m1].limit}Y / 消費キャパ: ${config[state.market.m1].cap} (拘束${config[state.market.m1].restraint}T)</div>
                     </div>
-                    <div class="bg-blue-50 p-2 rounded border border-blue-200 shadow-sm">
-                        <span class="font-bold text-blue-900">市場②: ${state.market.m2 === 'large' ? '大工事' : '小工事'}</span>
+                    <div class="${s2.bg} p-2 rounded-lg border-2 ${s2.border} shadow-sm">
+                        <span class="font-black ${s2.text}">市場②: ${state.market.m2 === 'large' ? '大工事' : '小工事'}</span>
                         <div class="text-xs text-slate-700 mt-1 font-semibold">基準価格: ${config[state.market.m2].base}Y / 上限: ${config[state.market.m2].limit}Y / 消費キャパ: ${config[state.market.m2].cap} (拘束${config[state.market.m2].restraint}T)</div>
                     </div>
                 `;
@@ -587,7 +665,6 @@
             if (!myData || !myData.role) return;
             const roleInfo = ROLES.find(r => r.id === myData.role);
 
-            // フォームの表示制御（ターンごとに1回だけ描画することで、入力途中の消去を防ぐ）
             if (state.phase === 'sub_bidding' && roleInfo.type === 'sub') {
                 document.getElementById('main-action-form').classList.add('hidden');
                 if (state.subBids[myId]) {
@@ -646,19 +723,22 @@
             const m1 = state.market.m1;
             const m2 = state.market.m2;
             
-            const createInput = (key, type, capNeeded) => {
+            const createInput = (key, type, capNeeded, labelName) => {
                 let cost = config[type].cost;
                 let name = type === 'large' ? '大工事' : '小工事';
                 let disabled = availCap < capNeeded;
+                let s = getStyles(type);
                 
-                // キャパ不足時はオーバーレイで完全にブロック
                 let overlayHTML = disabled ? `<div class="absolute inset-0 z-10 flex flex-col items-center justify-center bg-slate-200/90 rounded-xl"><span class="font-black text-red-600 text-lg border-2 border-red-500 bg-white px-3 py-1 rounded shadow-sm">キャパ不足</span><span class="text-xs font-bold text-slate-700 mt-1">(必要:${capNeeded} / 残り:${availCap})</span></div>` : '';
                 
                 return `
-                    <div class="p-4 rounded-xl border ${disabled ? 'bg-slate-200 border-slate-300' : 'bg-slate-50 border-slate-300 shadow-inner'} relative">
+                    <div class="p-4 rounded-xl border-2 ${disabled ? 'bg-slate-200 border-slate-300' : s.bg + ' ' + s.border} relative shadow-sm">
                         ${overlayHTML}
-                        <h3 class="font-bold mb-2 text-slate-800">${name} の見積額</h3>
-                        <input type="number" id="sub-est-${key}" class="w-full border border-slate-300 p-3 rounded mb-2 font-bold text-xl text-right" oninput="updateSubProfit('${key}', ${cost})" ${disabled?'disabled':''}>
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="${s.label} px-2 py-1 rounded text-xs font-bold">${labelName}</span>
+                            <h3 class="font-bold text-lg ${s.text}">${name}</h3>
+                        </div>
+                        <input type="number" id="sub-est-${key}" class="w-full border-2 border-slate-300 p-3 rounded mb-2 font-bold text-xl text-right outline-none focus:border-blue-500" placeholder="見積額を入力" oninput="updateSubProfit('${key}', ${cost})" ${disabled?'disabled':''}>
                         <div class="text-sm text-slate-700 bg-white p-2 border rounded">
                             末端原価: ${cost} Y<br>
                             利益: <span id="sub-prof-${key}" class="font-black text-blue-600 text-base">0</span> Y
@@ -667,13 +747,10 @@
                 `;
             };
 
+            // 種類に関わらずm1, m2別々にフォームを生成
             let html = "";
-            if (m1 === m2) {
-                html += createInput(m1, m1, config[m1].cap);
-            } else {
-                html += createInput('large', 'large', config['large'].cap);
-                html += createInput('small', 'small', config['small'].cap);
-            }
+            html += createInput('m1', m1, config[m1].cap, '市場①');
+            html += createInput('m2', m2, config[m2].cap, '市場②');
             container.innerHTML = html;
         }
 
@@ -693,22 +770,11 @@
                 return isNaN(val) || val <= 0 ? null : val;
             };
 
-            if (state.market.m1 === state.market.m2) {
-                let type = state.market.m1;
-                if(availCap >= config[type].cap) {
-                    let v = getVal(`sub-est-${type}`);
-                    if(v) bids[type] = v;
-                }
-            } else {
-                if(availCap >= config['large'].cap) {
-                    let v = getVal('sub-est-large');
-                    if(v) bids['large'] = v;
-                }
-                if(availCap >= config['small'].cap) {
-                    let v = getVal('sub-est-small');
-                    if(v) bids['small'] = v;
-                }
-            }
+            let v1 = getVal('sub-est-m1');
+            if (v1 && availCap >= config[state.market.m1].cap) bids['m1'] = v1;
+
+            let v2 = getVal('sub-est-m2');
+            if (v2 && availCap >= config[state.market.m2].cap) bids['m2'] = v2;
 
             if(Object.keys(bids).length === 0) bids.pass = true;
 
@@ -720,7 +786,7 @@
         }
 
         function renderMainForm() {
-            // 前ターンの入力を完全にクリア
+            // 前ターンのクリア
             document.getElementById('main-m1-bid').value = '';
             document.getElementById('main-m2-bid').value = '';
             document.getElementById('m1-sub-drop').innerHTML = '';
@@ -733,6 +799,14 @@
             document.getElementById('main-m1-type').textContent = state.market.m1 === 'large' ? '大工事' : '小工事';
             document.getElementById('main-m2-type').textContent = state.market.m2 === 'large' ? '大工事' : '小工事';
             
+            // 色分け適用
+            const s1 = getStyles(state.market.m1);
+            const s2 = getStyles(state.market.m2);
+            document.getElementById('m1-panel').className = `bg-white border-2 rounded-xl p-3 flex flex-col relative transition-colors ${s1.border}`;
+            document.getElementById('m2-panel').className = `bg-white border-2 rounded-xl p-3 flex flex-col relative transition-colors ${s2.border}`;
+            document.getElementById('m1-header').className = `font-bold text-center rounded py-1 mb-2 ${s1.bg} ${s1.text}`;
+            document.getElementById('m2-header').className = `font-bold text-center rounded py-1 mb-2 ${s2.bg} ${s2.text}`;
+
             const availCap = config.maxCapacity - getUsedCap(state.players[myId]);
             document.getElementById('m1-lock-overlay').classList.toggle('hidden', availCap >= config[state.market.m1].cap);
             document.getElementById('m2-lock-overlay').classList.toggle('hidden', availCap >= config[state.market.m2].cap);
@@ -745,14 +819,14 @@
                 let subData = state.subBids[sid];
                 if(subData && !subData.pass) {
                     let div = document.createElement('div');
-                    div.className = "bg-blue-100 p-2 rounded-lg border-2 border-blue-300 draggable text-sm cursor-grab active:cursor-grabbing font-bold shadow-md w-36 hover:bg-blue-200 transition-colors";
+                    div.className = "bg-slate-100 p-2 rounded-lg border-2 border-slate-300 draggable text-sm cursor-grab active:cursor-grabbing font-bold shadow-md w-36 hover:bg-slate-200 transition-colors";
                     div.draggable = true;
                     div.id = `sub-card-${sid}`;
                     div.dataset.id = sid;
                     div.dataset.name = p.name;
                     
-                    let p1 = subData[state.market.m1] || 0;
-                    let p2 = subData[state.market.m2] || 0;
+                    let p1 = subData.m1 || 0;
+                    let p2 = subData.m2 || 0;
                     div.dataset.p1 = p1;
                     div.dataset.p2 = p2;
                     
@@ -773,16 +847,22 @@
             const name = card.dataset.name;
 
             if (zoneId === 'm1-sub-drop') {
-                card.innerHTML = `👷 ${name} <br><span class="text-xs font-bold text-blue-700 block mt-1 bg-white p-1 rounded border text-center shadow-sm">提示額: ${p1 > 0 ? p1 + 'Y' : '辞退'}</span>`;
+                const s = getStyles(state.market.m1);
+                card.className = `p-2 rounded-lg border-2 draggable text-sm cursor-grab active:cursor-grabbing font-bold shadow-md w-full ${s.bg} ${s.border}`;
+                card.innerHTML = `👷 ${name} <br><span class="text-xs font-bold ${s.text} block mt-1 bg-white p-1 rounded border text-center shadow-sm">提示額: ${p1 > 0 ? p1 + 'Y' : '辞退'}</span>`;
             } else if (zoneId === 'm2-sub-drop') {
-                card.innerHTML = `👷 ${name} <br><span class="text-xs font-bold text-blue-700 block mt-1 bg-white p-1 rounded border text-center shadow-sm">提示額: ${p2 > 0 ? p2 + 'Y' : '辞退'}</span>`;
+                const s = getStyles(state.market.m2);
+                card.className = `p-2 rounded-lg border-2 draggable text-sm cursor-grab active:cursor-grabbing font-bold shadow-md w-full ${s.bg} ${s.border}`;
+                card.innerHTML = `👷 ${name} <br><span class="text-xs font-bold ${s.text} block mt-1 bg-white p-1 rounded border text-center shadow-sm">提示額: ${p2 > 0 ? p2 + 'Y' : '辞退'}</span>`;
             } else {
+                card.className = "bg-slate-100 p-2 rounded-lg border-2 border-slate-300 draggable text-sm cursor-grab active:cursor-grabbing font-bold shadow-md w-36 hover:bg-slate-200 transition-colors";
                 card.innerHTML = `👷 ${name} <br><span class="text-[11px] font-normal text-slate-700 block mt-1 bg-white p-1 rounded border">①:${p1 > 0 ? p1 + 'Y' : '辞退'}<br>②:${p2 > 0 ? p2 + 'Y' : '辞退'}</span>`;
             }
         }
 
         function setupDropzone(id, marketIndex) {
             const zone = document.getElementById(id);
+            // 余計なondragoverをクリア
             zone.ondragover = (e) => { e.preventDefault(); zone.classList.add('dragover'); };
             zone.ondragleave = (e) => { zone.classList.remove('dragover'); };
             zone.ondrop = (e) => {
@@ -792,11 +872,11 @@
                 const el = document.getElementById(`sub-card-${sid}`);
                 
                 if (id === 'm1-sub-drop' && (!el.dataset.p1 || parseInt(el.dataset.p1) <= 0)) {
-                    alert('この下請けはこの市場に見積もりを出していません。');
+                    alert('この下請けは市場①に見積もりを出していません。');
                     return;
                 }
                 if (id === 'm2-sub-drop' && (!el.dataset.p2 || parseInt(el.dataset.p2) <= 0)) {
-                    alert('この下請けはこの市場に見積もりを出していません。');
+                    alert('この下請けは市場②に見積もりを出していません。');
                     return;
                 }
 
@@ -819,9 +899,8 @@
                 subCost = parseInt(mIdx === 1 ? el.dataset.p1 : el.dataset.p2);
             }
             document.getElementById(`m${mIdx}-sub-cost`).textContent = subCost;
-            document.getElementById(`m${mIdx}-profit`).textContent = bid - config.turnFixedCost - subCost;
+            document.getElementById(`m${mIdx}-profit`).textContent = bid > 0 ? (bid - config.turnFixedCost - subCost) : 0;
 
-            // 総合点の計算
             let score = 0;
             if (bid > 0) {
                 const mType = mIdx === 1 ? state.market.m1 : state.market.m2;
@@ -844,10 +923,20 @@
 
             const z1 = getZoneData(1);
             const z2 = getZoneData(2);
+            const b1 = parseInt(document.getElementById(`main-m1-bid`).value) || 0;
+            const b2 = parseInt(document.getElementById(`main-m2-bid`).value) || 0;
+
+            // バリデーション（入札と下請けはセット必須）
+            if ((b1 > 0 && !z1.subId) || (b1 <= 0 && z1.subId)) {
+                alert('市場①：入札額と下請けの割り当ては両方同時に行う必要があります。'); return;
+            }
+            if ((b2 > 0 && !z2.subId) || (b2 <= 0 && z2.subId)) {
+                alert('市場②：入札額と下請けの割り当ては両方同時に行う必要があります。'); return;
+            }
 
             let bids = {
-                m1: { bid: parseInt(document.getElementById(`main-m1-bid`).value) || 0, subId: z1.subId, subPrice: z1.subPrice },
-                m2: { bid: parseInt(document.getElementById(`main-m2-bid`).value) || 0, subId: z2.subId, subPrice: z2.subPrice }
+                m1: { bid: b1, subId: z1.subId, subPrice: z1.subPrice },
+                m2: { bid: b2, subId: z2.subId, subPrice: z2.subPrice }
             };
 
             if(isHost) handleMainSubmit(myId, bids);
@@ -863,16 +952,19 @@
             
             if(!state.lastResults) return;
 
+            const s1 = getStyles(state.market.m1);
+            const s2 = getStyles(state.market.m2);
+
             let html = `
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div class="bg-blue-50 p-4 rounded-xl border border-blue-200 shadow-sm">
-                        <h3 class="font-black text-blue-900 text-lg border-b border-blue-200 pb-1 mb-2">市場① (${state.market.m1==='large'?'大工事':'小工事'})</h3>
-                        <p class="text-base text-slate-800 mb-2">${state.lastResults.m1.log}</p>
+                    <div class="${s1.bg} p-4 rounded-xl border-2 ${s1.border} shadow-sm">
+                        <h3 class="font-black ${s1.text} text-lg border-b ${s1.border} pb-1 mb-2">市場① (${state.market.m1==='large'?'大工事':'小工事'})</h3>
+                        <p class="text-base text-slate-800 mb-2 font-bold">${state.lastResults.m1.log}</p>
                         <p class="text-sm text-slate-700 bg-white p-3 rounded-lg border shadow-inner leading-relaxed">${state.lastResults.m1.detail}</p>
                     </div>
-                    <div class="bg-blue-50 p-4 rounded-xl border border-blue-200 shadow-sm">
-                        <h3 class="font-black text-blue-900 text-lg border-b border-blue-200 pb-1 mb-2">市場② (${state.market.m2==='large'?'大工事':'小工事'})</h3>
-                        <p class="text-base text-slate-800 mb-2">${state.lastResults.m2.log}</p>
+                    <div class="${s2.bg} p-4 rounded-xl border-2 ${s2.border} shadow-sm">
+                        <h3 class="font-black ${s2.text} text-lg border-b ${s2.border} pb-1 mb-2">市場② (${state.market.m2==='large'?'大工事':'小工事'})</h3>
+                        <p class="text-base text-slate-800 mb-2 font-bold">${state.lastResults.m2.log}</p>
                         <p class="text-sm text-slate-700 bg-white p-3 rounded-lg border shadow-inner leading-relaxed">${state.lastResults.m2.detail}</p>
                     </div>
                 </div>
