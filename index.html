@@ -3,93 +3,120 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>建設入札ゲーム ver.8.0 - 4人オンライン対戦 (理論モデル実装版)</title>
+    <title>建設入札ゲーム ver.23.0 - 結果画面復旧・下限上限修正版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&display=swap');
         body { font-family: 'Noto Sans JP', sans-serif; background-color: #f3f4f6; }
         .modal-bg { background-color: rgba(0, 0, 0, 0.6); }
-        .draggable { cursor: grab; }
-        .draggable:active { cursor: grabbing; }
-        .dropzone { min-height: 50px; border: 2px dashed #cbd5e1; border-radius: 0.5rem; padding: 0.5rem; transition: background-color 0.2s; }
-        .dropzone.dragover { background-color: #e2e8f0; border-color: #3b82f6; }
         .fade-in-out { animation: fadeInOut 2.5s ease-in-out forwards; }
         @keyframes fadeInOut { 0% { opacity: 0; transform: scale(0.9); } 20% { opacity: 1; transform: scale(1); } 80% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(1.1); } }
+        .btn { @apply font-bold py-2 px-4 rounded-xl shadow transition-colors; }
     </style>
 </head>
 <body class="text-gray-800 h-screen flex flex-col overflow-hidden">
-
-    <!-- ヘッダー -->
     <header class="bg-slate-900 text-white p-3 shadow-md flex justify-between items-center z-50 shrink-0">
         <div>
-            <h1 class="text-lg font-bold">建設入札ゲーム ver.8.0 <span class="text-xs font-normal text-slate-400">理論モデル実装版</span></h1>
+            <h1 class="text-lg font-bold">建設入札ゲーム ver.23.0</h1>
             <p class="text-xs text-slate-300">第 <span id="current-turn" class="text-yellow-400 font-bold text-lg">0</span> / 10 ターン</p>
         </div>
         <div class="flex items-center gap-3">
             <div id="my-role-badge" class="hidden px-3 py-1 rounded bg-blue-600 font-bold text-sm shadow">役職未定</div>
             <button id="room-badge" class="hidden px-2 py-1 bg-indigo-600 rounded text-xs font-bold text-white shadow">ルーム: <span id="header-room-id">---</span></button>
-            <button onclick="openSettings()" class="bg-slate-700 hover:bg-slate-600 text-white font-bold py-1 px-3 rounded text-sm transition-colors shadow">⚙️ 設定</button>
-            <button onclick="openLobby()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-1 px-3 rounded text-sm transition-colors shadow">🌐 ロビー</button>
+            <button onclick="openHelp()" class="bg-emerald-600 hover:bg-emerald-700 btn text-sm py-1 px-3">❓ ヘルプ</button>
+            <button onclick="openSettings('game')" class="bg-slate-700 hover:bg-slate-600 btn text-sm py-1 px-3">⚙️ 設定</button>
+            <button onclick="leaveRoom()" class="bg-red-600 hover:bg-red-700 btn text-sm py-1 px-3">🚪 退出</button>
         </div>
     </header>
 
-    <!-- メイン画面 -->
     <main class="flex-1 flex overflow-hidden p-2 gap-2 relative">
-        <!-- 左側：情報パネル -->
-        <section class="w-1/3 bg-white p-3 rounded-xl shadow border border-gray-200 overflow-y-auto flex flex-col gap-4">
-            <div class="border-b pb-2">
-                <h2 class="font-bold text-slate-800 flex items-center gap-1"><span>🏗️</span> 今ターンの入札公告</h2>
-                <div id="market-container" class="mt-2 space-y-2">
-                    <p class="text-sm text-slate-500">ゲーム開始をお待ちください...</p>
+        <section class="w-1/3 bg-white p-3 rounded-xl shadow border border-gray-200 flex flex-col gap-4 relative">
+            <div class="overflow-y-auto flex-1 flex flex-col gap-4">
+                <div class="border-b pb-2">
+                    <h2 class="font-bold text-slate-800 flex items-center gap-1"><span>🏗️</span> 今ターンの入札公告</h2>
+                    <div id="market-container" class="mt-2 space-y-2"><p class="text-sm text-slate-500">ゲーム開始をお待ちください...</p></div>
+                </div>
+                <div>
+                    <h2 class="font-bold text-slate-800 flex items-center gap-1 mb-2"><span>👥</span> プレイヤー状況</h2>
+                    <div id="players-container" class="space-y-2"></div>
                 </div>
             </div>
-            <div>
-                <h2 class="font-bold text-slate-800 flex items-center gap-1 mb-2"><span>👥</span> プレイヤー状況 (最大キャパ: 4)</h2>
-                <div id="players-container" class="space-y-2"></div>
+            <div class="mt-auto pt-3 border-t shrink-0">
+                <button onclick="showBidStatus()" class="w-full bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold py-2 rounded shadow transition-colors text-sm">📊 全ターンの入札状況を見る</button>
             </div>
         </section>
 
-        <!-- 右側：アクションパネル -->
         <section class="w-2/3 bg-white p-4 rounded-xl shadow border border-gray-200 overflow-y-auto relative" id="action-area">
+            <!-- スタート画面 -->
             <div class="flex h-full items-center justify-center flex-col text-center" id="waiting-screen">
                 <span class="text-5xl mb-4">🏢</span>
-                <h2 class="text-xl font-bold text-slate-700">ロビーからルームに参加・作成してください</h2>
-            </div>
-
-            <!-- 下請け用：見積もり入力フォーム -->
-            <div id="sub-action-form" class="hidden flex flex-col gap-4">
-                <h2 class="text-xl font-black border-b-2 border-blue-500 pb-2">見積もり提出</h2>
-                <p class="text-sm text-slate-600 font-bold mb-2">※ キャパシティ上限(4)を超過する案件には入札できません。<br>※ 提示した見積額はすべての元請けに開示されます。</p>
-                <div id="sub-inputs" class="grid grid-cols-2 gap-4"></div>
-                <button id="sub-submit-btn" onclick="submitSubEstimate()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl shadow-lg mt-4 transition-colors">見積もりを提出する</button>
-            </div>
-
-            <!-- 元請け用：入札フォーム -->
-            <div id="main-action-form" class="hidden flex flex-col gap-4 h-full">
-                <h2 class="text-xl font-black border-b-2 border-green-500 pb-2">入札・下請け割り当て</h2>
-                
-                <div class="bg-slate-50 p-2 rounded border mb-2 shadow-inner">
-                    <h3 class="text-sm font-bold text-slate-700 mb-1">市場の見積もり (下枠の点線エリアにドラッグ＆ドロップ)</h3>
-                    <div id="unassigned-subs" class="dropzone flex gap-2 flex-wrap"></div>
+                <h2 class="text-2xl font-black text-slate-700 mb-4">建設入札ゲーム</h2>
+                <div class="bg-slate-50 border-2 border-slate-200 rounded-xl p-4 mb-6 text-left text-sm max-w-lg shadow-sm">
+                    <h3 class="font-bold text-lg border-b pb-1 mb-2 text-indigo-800">📋 基本ルール</h3>
+                    <ul class="list-disc pl-5 space-y-1 text-slate-700 font-semibold">
+                        <li><b>請負型</b>は下請けに「希望価格」を提示し、合意（または別額提案）を得た下請けを選んで入札します。</li>
+                        <li><b>正社員型</b>は下請け不要（自社施工）ですが、毎ターンの固定費が高額です。</li>
+                        <li><b>下請け</b>は毎ターン固定費が引かれます(初期10Y)。</li>
+                        <li>大工事を受注するとキャパを3消費し、<b>3ターン拘束</b>されます。</li>
+                        <li>小工事を受注するとキャパを1消費し、<b>1ターン拘束</b>されます。</li>
+                        <li>「総合点 (技術点×上限÷入札額)」が最も高い人が落札します。<br><span class="text-red-600">※同額・同点時は完全抽選となります。<br>※基準価格未満で落札すると次からスコア-2、基準以上なら+2。</span></li>
+                    </ul>
                 </div>
+                <div class="flex gap-4">
+                    <button onclick="openSettings('solo')" class="bg-blue-600 hover:bg-blue-700 text-white btn py-4 px-8 text-lg border-2 border-blue-700">👤 ソロプレイ設定＆開始</button>
+                    <button onclick="openLobby()" class="bg-indigo-600 hover:bg-indigo-700 text-white btn py-4 px-8 text-lg border-2 border-indigo-700">🌐 オンライン対戦ロビー</button>
+                </div>
+            </div>
 
+            <!-- フェーズ1: 元請け希望価格提示 -->
+            <div id="main-target-form" class="hidden flex flex-col gap-4 h-full">
+                <h2 class="text-xl font-black border-b-2 border-indigo-500 pb-2">下請けへの希望価格提示</h2>
+                <p class="text-sm text-slate-600 mb-2">下請けを募集するにあたり、希望する契約額を入力してください。（0Yにするとその市場では募集しません）</p>
+                <div class="grid grid-cols-2 gap-4 flex-1">
+                    <div class="bg-white border-2 rounded-xl p-3 border-blue-400">
+                        <h3 class="font-bold mb-2 bg-blue-100 text-blue-800 text-center rounded py-1">市場①: <span id="target-m1-type"></span></h3>
+                        <label class="block text-sm font-bold text-slate-700 mb-1">希望価格 (Y)</label>
+                        <input type="number" id="target-m1-price" class="border-2 p-3 rounded w-full font-bold text-xl text-center outline-none focus:ring-4 focus:ring-blue-200" placeholder="例: 2000" min="0">
+                    </div>
+                    <div class="bg-white border-2 rounded-xl p-3 border-blue-400">
+                        <h3 class="font-bold mb-2 bg-blue-100 text-blue-800 text-center rounded py-1">市場②: <span id="target-m2-type"></span></h3>
+                        <label class="block text-sm font-bold text-slate-700 mb-1">希望価格 (Y)</label>
+                        <input type="number" id="target-m2-price" class="border-2 p-3 rounded w-full font-bold text-xl text-center outline-none focus:ring-4 focus:ring-blue-200" placeholder="例: 900" min="0">
+                    </div>
+                </div>
+                <button onclick="submitMainTarget()" class="bg-indigo-600 hover:bg-indigo-700 text-white btn py-4 mt-2 shadow-md text-lg">希望価格を提示する</button>
+            </div>
+
+            <!-- フェーズ2: 下請け応答 -->
+            <div id="sub-response-form" class="hidden flex flex-col gap-4 h-full">
+                <h2 class="text-xl font-black border-b-2 border-blue-500 pb-2">元請けへの応答（受注判断）</h2>
+                <div id="sub-response-list" class="flex-1 overflow-y-auto grid grid-cols-1 md:grid-cols-2 gap-3 pr-2"></div>
+                <button onclick="submitSubResponse()" class="bg-blue-600 hover:bg-blue-700 text-white btn py-4 mt-2 shadow-md text-lg shrink-0">応答を確定する</button>
+            </div>
+
+            <!-- フェーズ3: 元請け入札 -->
+            <div id="main-action-form" class="hidden flex flex-col gap-4 h-full">
+                <h2 class="text-xl font-black border-b-2 border-green-500 pb-2">最終入札・下請け選定</h2>
                 <div class="grid grid-cols-2 gap-4 flex-1">
                     <!-- 市場① -->
                     <div id="m1-panel" class="bg-white border-2 rounded-xl p-3 flex flex-col relative transition-colors">
                         <div id="m1-lock-overlay" class="hidden absolute inset-0 bg-slate-100/80 backdrop-blur-sm z-10 flex items-center justify-center rounded-xl font-bold text-slate-500">キャパシティ不足</div>
                         <h3 id="m1-header" class="font-bold text-center rounded py-1 mb-2">市場①: <span id="main-m1-type"></span></h3>
                         
-                        <label class="block text-sm font-bold mb-1 text-slate-700">入札額 (Y)</label>
-                        <!-- ドロップ防止 -->
-                        <input type="number" id="main-m1-bid" class="border-2 p-2 rounded w-full font-bold text-lg mb-2 focus:ring-4 focus:ring-green-200 outline-none" oninput="calculateMainProfit(1)" ondrop="event.preventDefault(); event.stopPropagation(); return false;" ondragover="event.preventDefault(); event.stopPropagation(); return false;">
+                        <label class="block text-sm font-bold mb-1 text-slate-700">市場への入札額 (Y)</label>
+                        <input type="number" min="0" id="main-m1-bid" class="border-2 p-2 rounded w-full font-bold text-lg mb-3 focus:ring-4 focus:ring-green-200 outline-none" oninput="calculateMainProfit(1)">
                         
-                        <label class="block text-sm font-bold mb-1 text-slate-600">下請けを割り当て</label>
-                        <div id="m1-sub-drop" class="dropzone flex-1 flex flex-col gap-1 mb-2 bg-slate-50"></div>
+                        <div id="m1-emp-note"></div>
+                        <div id="m1-sub-select-wrap">
+                            <label class="block text-xs font-bold text-slate-600 mb-1">契約する下請けの選択</label>
+                            <select id="m1-sub-select" class="w-full border-2 p-2 rounded mb-3 bg-slate-50 font-bold outline-none focus:border-blue-400" onchange="calculateMainProfit(1)"></select>
+                        </div>
                         
-                        <div class="text-xs text-slate-700 bg-slate-100 p-2 rounded border border-slate-200">
-                            固定費(毎T): 50 Y<br>
-                            下請見積額: <span id="m1-sub-cost" class="font-bold">0</span> Y<br>
+                        <div class="text-xs text-slate-700 bg-slate-100 p-2 rounded border mt-auto">
+                            固定費: <span id="m1-fixed-cost-label" class="font-bold text-red-600"></span><br>
+                            下請け費用: <span id="m1-sub-cost" class="font-bold">0</span> Y<br>
                             <span class="font-bold text-green-700 text-sm block mt-1">予想粗利: <span id="m1-profit">0</span> Y</span>
                             <span class="font-bold text-blue-700 text-sm block mt-1 border-t pt-1 border-slate-300">予想総合点: <span id="m1-score">0.00</span></span>
                         </div>
@@ -99,419 +126,839 @@
                         <div id="m2-lock-overlay" class="hidden absolute inset-0 bg-slate-100/80 backdrop-blur-sm z-10 flex items-center justify-center rounded-xl font-bold text-slate-500">キャパシティ不足</div>
                         <h3 id="m2-header" class="font-bold text-center rounded py-1 mb-2">市場②: <span id="main-m2-type"></span></h3>
                         
-                        <label class="block text-sm font-bold mb-1 text-slate-700">入札額 (Y)</label>
-                        <!-- ドロップ防止 -->
-                        <input type="number" id="main-m2-bid" class="border-2 p-2 rounded w-full font-bold text-lg mb-2 focus:ring-4 focus:ring-green-200 outline-none" oninput="calculateMainProfit(2)" ondrop="event.preventDefault(); event.stopPropagation(); return false;" ondragover="event.preventDefault(); event.stopPropagation(); return false;">
+                        <label class="block text-sm font-bold mb-1 text-slate-700">市場への入札額 (Y)</label>
+                        <input type="number" min="0" id="main-m2-bid" class="border-2 p-2 rounded w-full font-bold text-lg mb-3 focus:ring-4 focus:ring-green-200 outline-none" oninput="calculateMainProfit(2)">
                         
-                        <label class="block text-sm font-bold mb-1 text-slate-600">下請けを割り当て</label>
-                        <div id="m2-sub-drop" class="dropzone flex-1 flex flex-col gap-1 mb-2 bg-slate-50"></div>
+                        <div id="m2-emp-note"></div>
+                        <div id="m2-sub-select-wrap">
+                            <label class="block text-xs font-bold text-slate-600 mb-1">契約する下請けの選択</label>
+                            <select id="m2-sub-select" class="w-full border-2 p-2 rounded mb-3 bg-slate-50 font-bold outline-none focus:border-blue-400" onchange="calculateMainProfit(2)"></select>
+                        </div>
                         
-                        <div class="text-xs text-slate-700 bg-slate-100 p-2 rounded border border-slate-200">
-                            固定費(毎T): 50 Y<br>
-                            下請見積額: <span id="m2-sub-cost" class="font-bold">0</span> Y<br>
+                        <div class="text-xs text-slate-700 bg-slate-100 p-2 rounded border mt-auto">
+                            固定費: <span id="m2-fixed-cost-label" class="font-bold text-red-600"></span><br>
+                            下請け費用: <span id="m2-sub-cost" class="font-bold">0</span> Y<br>
                             <span class="font-bold text-green-700 text-sm block mt-1">予想粗利: <span id="m2-profit">0</span> Y</span>
                             <span class="font-bold text-blue-700 text-sm block mt-1 border-t pt-1 border-slate-300">予想総合点: <span id="m2-score">0.00</span></span>
                         </div>
                     </div>
                 </div>
-                <button onclick="submitMainBid()" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl shadow-lg mt-2 transition-colors">入札を確定する</button>
+
+                <!-- スコアシミュレータ -->
+                <div class="mt-1 bg-slate-100 p-3 rounded border shadow-inner shrink-0">
+                    <h3 class="font-bold text-slate-700 text-sm mb-2 flex justify-between items-center">
+                        <span>🧮 スコアシミュレータ</span>
+                        <button onclick="toggleSimulator()" type="button" class="text-xs bg-slate-300 hover:bg-slate-400 px-2 py-1 rounded font-bold">開閉</button>
+                    </h3>
+                    <div id="simulator-body" class="hidden flex flex-col gap-2 text-sm">
+                        <div class="flex gap-2">
+                            <select id="sim-target" class="border p-1 rounded flex-1"></select>
+                            <select id="sim-market" class="border p-1 rounded w-24">
+                                <option value="large">大工事</option>
+                                <option value="small">小工事</option>
+                            </select>
+                        </div>
+                        <div class="flex gap-2 items-center">
+                            <label class="font-bold text-slate-700">目標総合点:</label>
+                            <input type="number" id="sim-score" class="border p-1 rounded w-24 outline-none focus:ring-2 focus:ring-blue-300" step="0.01">
+                            <button onclick="runSimulation()" type="button" class="bg-blue-500 text-white px-3 py-1 rounded font-bold hover:bg-blue-600 shadow">計算</button>
+                        </div>
+                        <div class="mt-1 font-bold text-slate-800 bg-white p-2 rounded border">
+                            予測入札額: <span id="sim-result" class="text-red-600 text-lg">---</span> Y
+                        </div>
+                    </div>
+                </div>
+
+                <button onclick="submitMainBid()" class="bg-green-600 hover:bg-green-700 text-white btn py-4 mt-2 shadow-md text-lg shrink-0">入札を確定する</button>
             </div>
             
-            <!-- 待機オーバーレイ -->
             <div id="action-overlay" class="hidden absolute inset-0 bg-white/80 backdrop-blur-sm z-10 flex flex-col items-center justify-center">
                 <div class="animate-spin text-4xl mb-4">⏳</div>
-                <h3 class="text-xl font-bold text-slate-700" id="overlay-text">他のプレイヤーを待機中...</h3>
+                <h3 class="text-xl font-bold text-slate-700" id="overlay-text">待機中...</h3>
             </div>
         </section>
     </main>
 
-    <!-- 設定モーダル -->
-    <div id="settings-modal" class="fixed inset-0 modal-bg flex justify-center items-center z-[130] p-4 hidden">
-        <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-lg relative">
-            <button onclick="closeSettings()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700 font-bold text-xl">✕</button>
-            <h2 class="text-2xl font-black mb-4 border-b pb-2 text-slate-800">⚙️ ゲーム初期設定</h2>
-            <div class="space-y-4">
-                <p class="text-xs text-red-600 font-bold" id="settings-warn">※設定変更はホストのみ可能です。初期スコアの反映は「ゲーム開始前」にのみ有効です。</p>
-                <div class="bg-slate-50 p-3 rounded border">
-                    <h3 class="font-bold text-sm mb-2">大工事の発生確率 (%)</h3>
-                    <div class="flex gap-4">
-                        <label class="flex items-center gap-2 text-sm"><span class="font-bold">市場①:</span> <input type="number" id="set-m1-prob" class="border p-1 w-16 text-center rounded" value="50"> %</label>
-                        <label class="flex items-center gap-2 text-sm"><span class="font-bold">市場②:</span> <input type="number" id="set-m2-prob" class="border p-1 w-16 text-center rounded" value="50"> %</label>
-                    </div>
+    <!-- モーダル群 -->
+    <div id="player-graph-modal" class="fixed inset-0 modal-bg flex justify-center items-center z-[165] p-4 hidden">
+        <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-2xl relative">
+            <button onclick="document.getElementById('player-graph-modal').classList.add('hidden')" class="absolute top-4 right-4 text-slate-400 font-bold text-xl">✕</button>
+            <h2 id="player-graph-title" class="text-xl font-black mb-4 border-b pb-2 text-slate-800">📈 プレイヤーの資金推移</h2>
+            <div class="w-full h-64"><canvas id="playerMoneyChart"></canvas></div>
+        </div>
+    </div>
+
+    <div id="help-modal" class="fixed inset-0 modal-bg flex justify-center items-center z-[140] p-4 hidden">
+        <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-2xl relative max-h-[90vh] overflow-y-auto">
+            <button onclick="document.getElementById('help-modal').classList.add('hidden')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700 font-bold text-xl">✕</button>
+            <h2 class="text-2xl font-black mb-4 border-b pb-2 text-slate-800">❓ ゲームの詳細ルール</h2>
+            <div class="space-y-4 text-sm text-slate-700 font-medium">
+                <div>
+                    <h3 class="font-bold text-indigo-800 text-base mb-1">【役職と事業形態について】</h3>
+                    <p><b>元請け（請負型）:</b> 下請けに希望価格を提示し、応答のあった下請けを選択して市場に入札します。</p>
+                    <p><b>元請け（正社員型）:</b> 下請けに頼らず「自社施工(原価0Y)」で入札可能ですが、毎ターンの固定費が請負型より大幅に高くなります。</p>
+                    <p><b>下請け:</b> 元請けからの希望価格に対して受諾・辞退・別額提案を行い、元請けが落札すると利益を得ます。</p>
                 </div>
-                <div class="bg-slate-50 p-3 rounded border">
-                    <h3 class="font-bold text-sm mb-2">元請けAの初期スコア</h3>
-                    <div class="flex gap-4">
-                        <label class="flex items-center gap-2 text-sm"><span class="font-bold">大工事:</span> <input type="number" id="set-ma-large" class="border p-1 w-16 text-center rounded" value="70"></label>
-                        <label class="flex items-center gap-2 text-sm"><span class="font-bold">小工事:</span> <input type="number" id="set-ma-small" class="border p-1 w-16 text-center rounded" value="64"></label>
-                    </div>
+                <div>
+                    <h3 class="font-bold text-indigo-800 text-base mb-1">【工事とキャパシティ】</h3>
+                    <p><b>大工事:</b> 落札するとキャパシティを「3」消費し、「3ターン」拘束されます。</p>
+                    <p><b>小工事:</b> 落札するとキャパシティを「1」消費し、「1ターン」拘束されます。</p>
+                    <p class="text-xs text-red-600 font-bold mt-1">※拘束期間中も毎ターンの固定費は支払う必要があります。最終ターン終了時も残余分が精算されます。</p>
                 </div>
-                <div class="bg-slate-50 p-3 rounded border">
-                    <h3 class="font-bold text-sm mb-2">元請けBの初期スコア</h3>
-                    <div class="flex gap-4">
-                        <label class="flex items-center gap-2 text-sm"><span class="font-bold">大工事:</span> <input type="number" id="set-mb-large" class="border p-1 w-16 text-center rounded" value="68"></label>
-                        <label class="flex items-center gap-2 text-sm"><span class="font-bold">小工事:</span> <input type="number" id="set-mb-small" class="border p-1 w-16 text-center rounded" value="70"></label>
-                    </div>
+                <div>
+                    <h3 class="font-bold text-indigo-800 text-base mb-1">【落札の仕組み（総合評価方式）】</h3>
+                    <p>単に安いだけでなく、技術点を含めた「総合点」が最も高いプレイヤーが落札します。</p>
+                    <p class="bg-slate-100 p-2 rounded mt-1 font-bold text-center">総合点 ＝ (技術点スコア × 市場の入札上限) ÷ あなたの入札額</p>
+                    <p class="text-xs mt-1 text-red-600 font-bold">
+                        ※技術点スコアの最大値は「70」です。<br>
+                        ※基準価格未満の入札で落札した場合、次ターンからのスコアが「-2」されます。逆に基準価格以上で落札した場合は「+2」されます。<br>
+                        ※同価格かつ同スコアで総合点が全く同じになった場合は「完全抽選」で落札者を決定します。
+                    </p>
                 </div>
-                <button id="save-settings-btn" onclick="saveSettings()" class="w-full bg-slate-800 text-white font-bold py-3 rounded-lg mt-2 shadow transition-colors">設定を保存・共有</button>
             </div>
         </div>
     </div>
 
-    <!-- ロビーモーダル -->
+    <div id="settings-modal" class="fixed inset-0 modal-bg flex justify-center items-center z-[130] p-4 hidden">
+        <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-lg relative max-h-[90vh] overflow-y-auto">
+            <button onclick="closeSettings()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700 font-bold text-xl">✕</button>
+            <h2 id="settings-title" class="text-2xl font-black mb-4 border-b pb-2 text-slate-800">⚙️ ゲーム設定</h2>
+            <div class="space-y-3">
+                <div class="bg-slate-50 p-3 rounded border">
+                    <h3 class="font-bold text-sm mb-2 text-indigo-800">1. プレイヤー構成</h3>
+                    <div class="flex gap-4 mb-2">
+                        <label class="text-sm">元請け数: <input type="number" id="set-num-main" min="1" max="4" class="border p-1 w-12 text-center" onchange="updateSettingsUI()"></label>
+                        <label class="text-sm">下請け数: <input type="number" id="set-num-sub" min="0" max="4" class="border p-1 w-12 text-center" onchange="updateSettingsUI()"></label>
+                    </div>
+                    <div id="main-settings-container" class="space-y-2 max-h-48 overflow-y-auto pr-1"></div>
+                    <div class="mt-3 text-sm grid grid-cols-2 gap-2 bg-white p-2 border rounded">
+                        <div><span class="font-bold text-blue-700 text-xs block">【正社員型】</span>
+                            固定費: <input type="number" min="0" id="set-emp-cost" class="border p-1 w-14"> Y<br>
+                            キャパ: <input type="number" min="1" id="set-emp-cap" class="border p-1 w-12">
+                        </div>
+                        <div><span class="font-bold text-slate-700 text-xs block">【請負型】</span>
+                            固定費: <input type="number" min="0" id="set-out-cost" class="border p-1 w-14"> Y<br>
+                            キャパ: <input type="number" min="1" id="set-out-cap" class="border p-1 w-12">
+                        </div>
+                        <div class="col-span-2 border-t pt-2 mt-1"><span class="font-bold text-emerald-700 text-xs block">【下請け】</span>
+                            固定費: <input type="number" min="0" id="set-sub-cost" class="border p-1 w-14"> Y
+                        </div>
+                    </div>
+                    <div id="solo-role-wrap" class="mt-2 text-sm">
+                        <label class="font-bold">自分がプレイする役割: <select id="set-solo-role" class="border p-1"></select></label>
+                    </div>
+                </div>
+                <div class="bg-slate-50 p-3 rounded border">
+                    <h3 class="font-bold text-sm mb-2 text-indigo-800">2. 環境設定</h3>
+                    <div class="flex gap-4">
+                        <label class="text-sm">市場①大工事: <input type="number" id="set-m1-prob" min="0" max="100" class="border p-1 w-14 text-center">%</label>
+                        <label class="text-sm">市場②大工事: <input type="number" id="set-m2-prob" min="0" max="100" class="border p-1 w-14 text-center">%</label>
+                    </div>
+                </div>
+                <div id="start-solo-btn-wrap" class="hidden mt-4">
+                    <button onclick="startSoloGameSubmit()" class="w-full bg-blue-600 hover:bg-blue-700 text-white btn py-3">この設定でソロプレイ開始</button>
+                </div>
+                <button id="save-settings-btn" onclick="saveSettings()" class="w-full bg-slate-800 text-white btn py-3 mt-2">設定を保存・共有</button>
+            </div>
+        </div>
+    </div>
+
     <div id="lobby-modal" class="fixed inset-0 modal-bg flex justify-center items-center z-[100] p-4 hidden">
         <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-md relative">
-            <button onclick="document.getElementById('lobby-modal').classList.add('hidden')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700 font-bold text-xl">✕</button>
+            <button onclick="document.getElementById('lobby-modal').classList.add('hidden')" class="absolute top-4 right-4 text-slate-400 font-bold text-xl">✕</button>
             <h2 class="text-2xl font-black text-center mb-6 text-slate-800">オンラインロビー</h2>
             <div class="space-y-4">
                 <div>
                     <label class="block text-sm font-bold text-slate-700 mb-1">プレイヤー名</label>
-                    <input type="text" id="player-name" class="w-full border p-2 rounded-lg font-bold bg-slate-50" value="プレイヤー">
+                    <input type="text" id="player-name" class="w-full border p-2 rounded-lg font-bold" value="プレイヤー">
                 </div>
                 <div class="grid grid-cols-2 gap-3">
-                    <button onclick="createRoom()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-lg shadow transition-colors">ルーム作成(ホスト)</button>
+                    <button onclick="createRoom()" class="bg-indigo-600 hover:bg-indigo-700 text-white btn py-3">ルーム作成(ホスト)</button>
                     <div class="flex flex-col gap-1">
-                        <input type="text" id="join-room-code" placeholder="コード入力" class="border p-2 rounded-lg text-center font-mono uppercase bg-slate-50">
-                        <button onclick="joinRoom()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded-lg shadow transition-colors">参加する</button>
+                        <input type="text" id="join-room-code" placeholder="コード入力" class="border p-2 rounded-lg text-center font-mono uppercase">
+                        <button onclick="joinRoom()" class="bg-emerald-600 hover:bg-emerald-700 text-white btn py-2">参加する</button>
                     </div>
                 </div>
                 <div id="lobby-status" class="hidden bg-indigo-50 p-4 rounded-lg border border-indigo-200 text-center">
                     <p class="text-sm font-bold text-indigo-800">ルームコード: <span id="display-room-code" class="text-xl font-mono">---</span></p>
                     <p class="text-sm mt-2 font-bold text-slate-700" id="room-member-count">参加人数: 1 / 4人</p>
-                    <button id="start-game-btn" onclick="startGameHost()" class="hidden w-full bg-yellow-400 hover:bg-yellow-500 text-slate-900 font-black py-3 rounded-lg mt-3 shadow transition-colors">全員揃ったらゲーム開始</button>
+                    <button onclick="openSettings('lobby')" class="w-full bg-slate-600 hover:bg-slate-700 text-white btn py-2 mt-2 text-sm" id="lobby-settings-btn">⚙️ プレイヤー構成を変更</button>
+                    <button id="start-game-btn" onclick="startGameHost()" class="hidden w-full bg-yellow-400 hover:bg-yellow-500 text-slate-900 btn py-3 mt-3">全員揃ったらゲーム開始</button>
                     <p id="host-wait-msg" class="text-xs text-slate-500 mt-2 hidden font-bold">ホストの開始を待っています...</p>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- 役割発表モーダル -->
-    <div id="role-reveal-modal" class="fixed inset-0 modal-bg flex justify-center items-center z-[120] p-4 hidden pointer-events-none">
-        <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-lg text-center fade-in-out">
-            <h2 class="text-3xl font-black mb-6 text-slate-800">会社役割の配分結果</h2>
-            <div class="overflow-hidden rounded-xl border border-slate-200 shadow-sm">
-                <table class="w-full text-sm text-left">
-                    <thead class="bg-slate-100 text-slate-700 uppercase font-bold border-b">
-                        <tr><th class="px-4 py-3">プレイヤー名</th><th class="px-4 py-3 text-center">配分された役割</th></tr>
-                    </thead>
-                    <tbody id="role-table-body" class="bg-white divide-y divide-slate-100 font-bold"></tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-
-    <!-- 結果モーダル -->
-    <div id="result-modal" class="fixed inset-0 modal-bg flex justify-center items-center z-[110] p-4 hidden">
-        <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-4xl text-center max-h-[90vh] overflow-y-auto">
-            <h2 class="text-2xl font-black mb-4 border-b pb-2 text-slate-800">ターン結果発表</h2>
-            <div id="result-content" class="space-y-4 text-left"></div>
-            <button onclick="closeResult()" class="w-full bg-slate-800 text-white font-bold py-4 rounded-xl mt-6 shadow-lg hover:bg-slate-900 transition-colors text-lg">確認して次へ</button>
-        </div>
-    </div>
+    <div id="bid-status-modal" class="fixed inset-0 modal-bg flex justify-center items-center z-[140] p-4 hidden"><div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-4xl relative max-h-[90vh] overflow-y-auto"><button onclick="document.getElementById('bid-status-modal').classList.add('hidden')" class="absolute top-4 right-4 text-slate-400 font-bold text-xl">✕</button><h2 class="text-xl font-black mb-4 border-b pb-2 text-slate-800">📊 全ターンの入札状況</h2><div id="bid-status-content" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div></div></div>
+    <div id="role-reveal-modal" class="fixed inset-0 modal-bg flex justify-center items-center z-[120] p-4 hidden pointer-events-none"><div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-lg text-center fade-in-out"><h2 class="text-3xl font-black mb-6 text-slate-800">役割の配分結果</h2><div class="overflow-hidden rounded-xl border"><table class="w-full text-sm text-left"><thead class="bg-slate-100 font-bold border-b"><tr><th class="px-4 py-3">プレイヤー</th><th class="px-4 py-3 text-center">配分された役割</th></tr></thead><tbody id="role-table-body" class="bg-white divide-y font-bold"></tbody></table></div></div></div>
+    
+    <!-- 復活した結果モーダル -->
+    <div id="result-modal" class="fixed inset-0 modal-bg flex justify-center items-center z-[110] p-4 hidden"><div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-4xl text-center overflow-y-auto"><h2 class="text-2xl font-black mb-4 border-b pb-2 text-slate-800">ターン結果</h2><div id="result-content" class="space-y-4 text-left"></div><button onclick="closeResult()" class="w-full bg-slate-800 text-white btn py-4 mt-6 text-lg">確認して次へ</button></div></div>
+    
+    <div id="game-end-modal" class="fixed inset-0 modal-bg flex justify-center items-center z-[150] p-4 hidden"><div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-lg relative text-center"><h2 class="text-3xl font-black mb-6 text-slate-800 border-b-4 border-yellow-400 pb-2">🏁 ゲーム終了！ 最終結果</h2><div id="final-ranking-container" class="space-y-3 mb-6 text-left"></div><div class="flex flex-col gap-3"><button onclick="openGraphModal()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white btn py-3 text-lg">📈 全体の所持金推移を見る</button><div class="grid grid-cols-2 gap-3 mt-2"><button onclick="restartGame()" class="bg-green-600 hover:bg-green-700 text-white btn py-3">🔄 再戦する</button><button onclick="leaveRoom()" class="bg-slate-600 hover:bg-slate-700 text-white btn py-3">✕ 退出して閉じる</button></div></div></div></div>
+    <div id="graph-modal" class="fixed inset-0 modal-bg flex justify-center items-center z-[160] p-4 hidden"><div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-4xl relative"><button onclick="document.getElementById('graph-modal').classList.add('hidden')" class="absolute top-4 right-4 text-slate-400 font-bold text-xl">✕</button><h2 class="text-xl font-black mb-4">📈 全体の所持金推移グラフ</h2><div class="w-full h-96"><canvas id="moneyChart"></canvas></div></div></div>
 
     <script>
-        // Supabase接続設定
         const SUPABASE_URL = 'https://qurypyztchaatyvmmigs.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF1cnlweXp0Y2hhYXR5dm1taWdzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA0MDgzMzcsImV4cCI6MjEwNTk4NDMzN30.eCsv82GKCULbgvc1dyUyfcG423YHIQ--zQlTDUpqM9g';
-        
-        let supabaseClient = null;
-        if (window.supabase) {
-            supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        }
+        let supabaseClient = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 
-        let onlineChannel = null;
-        let isHost = false;
-        let myId = null;
-        let roomId = null;
+        let onlineChannel = null, isHost = false, isSolo = false, myId = null, roomId = null, renderedSubTurn = 0, renderedMainTurn = 0, moneyChartInstance = null, playerChartInstance = null;
         
-        let renderedSubTurn = 0;
-        let renderedMainTurn = 0;
-        
-        const ROLES = [
-            { id: 'M_A', name: '元請けA (大特化)', type: 'main' },
-            { id: 'M_B', name: '元請けB (小特化)', type: 'main' },
-            { id: 'P_1', name: '一次下請けP1', type: 'sub' },
-            { id: 'P_2', name: '一次下請けP2', type: 'sub' }
-        ];
-
         let state = {
-            turn: 0,
-            phase: 'waiting',
-            market: { m1: null, m2: null },
-            players: {}, 
-            subBids: {}, 
-            mainBids: {},
+            turn: 0, phase: 'waiting', market: { m1: null, m2: null },
+            players: {}, targets: {}, subResponses: {}, mainBids: {}, readies: {}, lastBidStatus: null, moneyHistory: {}, roles: [], bidHistory: [],
             settings: {
-                m1LargeProb: 50,
-                m2LargeProb: 50,
-                maLargeScore: 70,
-                maSmallScore: 64,
-                mbLargeScore: 68,
-                mbSmallScore: 70
+                m1LargeProb: 50, m2LargeProb: 50,
+                numMain: 2, numSub: 2,
+                mains: [
+                    { scoreL: 70, scoreS: 70, type: 'outsource' },
+                    { scoreL: 70, scoreS: 70, type: 'outsource' },
+                    { scoreL: 70, scoreS: 70, type: 'outsource' },
+                    { scoreL: 70, scoreS: 70, type: 'outsource' }
+                ],
+                employeeFixedCost: 800, employeeCap: 4, outsourceFixedCost: 50, outsourceCap: 4, subFixedCost: 10, soloRole: 'random'
             }
         };
 
-        const config = {
-            large: { limit: 3000, base: 2700, cost: 2400, cap: 3, restraint: 3 },
-            small: { limit: 1000, base: 900, cost: 800, cap: 1, restraint: 1 },
-            turnFixedCost: 50,
-            maxCapacity: 4
-        };
+        const config = { large: { limit: 3000, base: 2700, cost: 2400, cap: 3, restraint: 3 }, small: { limit: 1000, base: 900, cost: 800, cap: 1, restraint: 1 } };
+        function getStyles(type) { return type === 'large' ? { bg: 'bg-red-50', border: 'border-red-400', text: 'text-red-900', label: 'bg-red-100 text-red-800' } : { bg: 'bg-blue-50', border: 'border-blue-400', text: 'text-blue-900', label: 'bg-blue-100 text-blue-800' }; }
 
-        // --- 色分けユーティリティ ---
-        function getStyles(type) {
-            return type === 'large' 
-                ? { bg: 'bg-red-50', border: 'border-red-400', text: 'text-red-900', label: 'bg-red-100 text-red-800' }
-                : { bg: 'bg-blue-50', border: 'border-blue-400', text: 'text-blue-900', label: 'bg-blue-100 text-blue-800' };
+        function openHelp() { document.getElementById('help-modal').classList.remove('hidden'); }
+
+        function updateSettingsUI() {
+            let numMain = parseInt(document.getElementById('set-num-main').value) || 2;
+            let numSub = parseInt(document.getElementById('set-num-sub').value) || 2;
+            let container = document.getElementById('main-settings-container');
+            let soloRoleSel = document.getElementById('set-solo-role');
+            container.innerHTML = '';
+            soloRoleSel.innerHTML = '<option value="random">ランダム</option>';
+            
+            for(let i=0; i<numMain; i++) {
+                let m = state.settings.mains[i] || {scoreL:70, scoreS:70, type:'outsource'};
+                container.innerHTML += `
+                    <div class="text-xs bg-white p-2 border rounded shadow-sm flex flex-col gap-1">
+                        <div class="flex items-center justify-between">
+                            <span class="font-bold text-slate-800">元請け${i+1}</span>
+                            <select id="set-m${i}-type" class="border p-1 bg-slate-50 rounded">
+                                <option value="outsource" ${m.type==='outsource'?'selected':''}>請負型</option>
+                                <option value="employee" ${m.type==='employee'?'selected':''}>正社員型</option>
+                            </select>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <div>大:<input type="number" id="set-m${i}-l" value="${m.scoreL}" max="70" min="0" class="border w-10 text-center mx-1 rounded"> 小:<input type="number" id="set-m${i}-s" value="${m.scoreS}" max="70" min="0" class="border w-10 text-center mx-1 rounded"></div>
+                            <div class="flex gap-1">
+                                <button type="button" class="bg-red-50 text-red-700 border border-red-300 px-1 py-0.5 rounded text-[10px] font-bold hover:bg-red-100" onclick="document.getElementById('set-m${i}-l').value=70; document.getElementById('set-m${i}-s').value=64;">(大)特化</button>
+                                <button type="button" class="bg-blue-50 text-blue-700 border border-blue-300 px-1 py-0.5 rounded text-[10px] font-bold hover:bg-blue-100" onclick="document.getElementById('set-m${i}-l').value=68; document.getElementById('set-m${i}-s').value=70;">(小)特化</button>
+                                <button type="button" class="bg-gray-50 text-gray-700 border border-gray-300 px-1 py-0.5 rounded text-[10px] font-bold hover:bg-gray-100" onclick="document.getElementById('set-m${i}-l').value=70; document.getElementById('set-m${i}-s').value=70;">通常</button>
+                            </div>
+                        </div>
+                    </div>`;
+                soloRoleSel.innerHTML += `<option value="M_${i+1}">元請け${i+1}</option>`;
+            }
+            for(let i=0; i<numSub; i++) soloRoleSel.innerHTML += `<option value="P_${i+1}">下請け${i+1}</option>`;
+            soloRoleSel.value = state.settings.soloRole || 'random';
         }
 
-        function openLobby() { document.getElementById('lobby-modal').classList.remove('hidden'); }
-        function openSettings() { 
+        function openSettings(mode) { 
             document.getElementById('set-m1-prob').value = state.settings.m1LargeProb;
             document.getElementById('set-m2-prob').value = state.settings.m2LargeProb;
-            document.getElementById('set-ma-large').value = state.settings.maLargeScore;
-            document.getElementById('set-ma-small').value = state.settings.maSmallScore;
-            document.getElementById('set-mb-large').value = state.settings.mbLargeScore;
-            document.getElementById('set-mb-small').value = state.settings.mbSmallScore;
+            document.getElementById('set-num-main').value = state.settings.numMain;
+            document.getElementById('set-num-sub').value = state.settings.numSub;
+            document.getElementById('set-emp-cost').value = state.settings.employeeFixedCost;
+            document.getElementById('set-emp-cap').value = state.settings.employeeCap;
+            document.getElementById('set-out-cost').value = state.settings.outsourceFixedCost;
+            document.getElementById('set-out-cap').value = state.settings.outsourceCap;
+            document.getElementById('set-sub-cost').value = state.settings.subFixedCost;
+            updateSettingsUI();
 
-            if(!isHost) {
-                document.getElementById('settings-warn').textContent = "※設定変更はホストのみ可能です。現在の設定を閲覧中です。";
-                document.querySelectorAll('#settings-modal input').forEach(el => el.disabled = true);
+            if (mode === 'solo') {
+                document.getElementById('settings-title').textContent = "👤 ソロプレイ設定";
+                document.getElementById('start-solo-btn-wrap').classList.remove('hidden');
                 document.getElementById('save-settings-btn').classList.add('hidden');
+                document.getElementById('solo-role-wrap').classList.remove('hidden');
             } else {
-                document.getElementById('settings-warn').textContent = "※初期スコアの反映は「ゲーム開始前」にのみ有効です。確率は次のターンから適用されます。";
-                document.querySelectorAll('#settings-modal input').forEach(el => el.disabled = false);
+                document.getElementById('settings-title').textContent = "⚙️ ゲーム設定";
+                document.getElementById('start-solo-btn-wrap').classList.add('hidden');
                 document.getElementById('save-settings-btn').classList.remove('hidden');
+                document.getElementById('solo-role-wrap').classList.add('hidden');
             }
+
+            let canEdit = isHost || mode === 'solo';
+            document.querySelectorAll('#settings-modal input, #settings-modal select').forEach(el => el.disabled = !canEdit);
+            if(!canEdit) document.getElementById('save-settings-btn').classList.add('hidden');
+            
             document.getElementById('settings-modal').classList.remove('hidden'); 
         }
+
         function closeSettings() { document.getElementById('settings-modal').classList.add('hidden'); }
         
-        function saveSettings() {
-            if(!isHost) return;
-            state.settings = {
-                m1LargeProb: parseInt(document.getElementById('set-m1-prob').value) || 50,
-                m2LargeProb: parseInt(document.getElementById('set-m2-prob').value) || 50,
-                maLargeScore: parseInt(document.getElementById('set-ma-large').value) || 70,
-                maSmallScore: parseInt(document.getElementById('set-ma-small').value) || 64,
-                mbLargeScore: parseInt(document.getElementById('set-mb-large').value) || 68,
-                mbSmallScore: parseInt(document.getElementById('set-mb-small').value) || 70
-            };
-            broadcastState();
-            closeSettings();
-            alert('設定を保存し、全員に共有しました。');
+        function saveSettingsLocal() {
+            state.settings.m1LargeProb = Math.max(0, Math.min(100, parseInt(document.getElementById('set-m1-prob').value) || 50));
+            state.settings.m2LargeProb = Math.max(0, Math.min(100, parseInt(document.getElementById('set-m2-prob').value) || 50));
+            state.settings.numMain = parseInt(document.getElementById('set-num-main').value) || 2;
+            state.settings.numSub = parseInt(document.getElementById('set-num-sub').value) || 2;
+            state.settings.employeeFixedCost = parseInt(document.getElementById('set-emp-cost').value) || 800;
+            state.settings.employeeCap = parseInt(document.getElementById('set-emp-cap').value) || 4;
+            state.settings.outsourceFixedCost = parseInt(document.getElementById('set-out-cost').value) || 50;
+            state.settings.outsourceCap = parseInt(document.getElementById('set-out-cap').value) || 4;
+            state.settings.subFixedCost = parseInt(document.getElementById('set-sub-cost').value) || 10;
+            state.settings.soloRole = document.getElementById('set-solo-role').value;
+            for(let i=0; i<state.settings.numMain; i++) {
+                let elL = document.getElementById(`set-m${i}-l`);
+                let elS = document.getElementById(`set-m${i}-s`);
+                let elT = document.getElementById(`set-m${i}-type`);
+                state.settings.mains[i] = { 
+                    scoreL: Math.max(0, Math.min(70, parseInt(elL ? elL.value : 70)||70)), 
+                    scoreS: Math.max(0, Math.min(70, parseInt(elS ? elS.value : 70)||70)), 
+                    type: elT ? elT.value : 'outsource' 
+                };
+            }
+        }
+
+        function saveSettings() { if(!isHost) return; saveSettingsLocal(); broadcastState(); closeSettings(); alert('設定を保存・共有しました。'); }
+        
+        function openLobby() { document.getElementById('lobby-modal').classList.remove('hidden'); }
+        
+        function leaveRoom() { 
+            if(confirm('退出しますか？')){ 
+                if(onlineChannel&&!isSolo){ 
+                    if(isHost) onlineChannel.send({type:'broadcast',event:'host_left'}); 
+                    else onlineChannel.send({type:'broadcast',event:'guest_left',payload:{id:myId}}); 
+                } 
+                location.reload(); 
+            } 
+        }
+
+        window.addEventListener('beforeunload', () => { if(onlineChannel&&!isSolo){ if(isHost) onlineChannel.send({type:'broadcast',event:'host_left'}); else onlineChannel.send({type:'broadcast',event:'guest_left',payload:{id:myId}}); } });
+
+        function startSoloGameSubmit() {
+            saveSettingsLocal(); closeSettings();
+            isSolo = true; isHost = true; myId = 'host-solo';
+            state.players = {};
+            state.players[myId] = { name: document.getElementById('player-name').value || 'プレイヤー', role: null, money: 1000, scores: {}, activeProjects: [], isBot: false };
+            let totalP = state.settings.numMain + state.settings.numSub;
+            for(let i=1; i<totalP; i++) state.players['bot_'+i] = { name: 'CPU_'+i, role: null, money: 1000, scores: {}, activeProjects: [], isBot: true };
+            initGameCore();
         }
 
         function createRoom() {
-            if (!supabaseClient) { alert('通信用ライブラリが読み込まれていません。'); return; }
-            roomId = Math.floor(100000 + Math.random() * 900000).toString();
+            roomId = Math.floor(100000 + Math.random()*900000).toString();
             myId = 'host-' + Math.random().toString(36).substr(2, 9);
-            isHost = true;
-            state.players[myId] = { 
-                name: document.getElementById('player-name').value || 'ホスト', 
-                role: null, money: 1000, scores: {}, activeProjects: [] 
-            };
+            isHost = true; isSolo = false;
+            state.players[myId] = { name: document.getElementById('player-name').value || 'ホスト', role: null, money: 1000, scores: {}, activeProjects: [], isBot: false };
             initRealtime();
-            
             document.getElementById('display-room-code').textContent = roomId;
             document.getElementById('lobby-status').classList.remove('hidden');
             document.getElementById('start-game-btn').classList.remove('hidden');
+            document.getElementById('lobby-settings-btn').classList.remove('hidden');
             document.getElementById('host-wait-msg').classList.add('hidden');
             updateLobbyUI();
         }
 
         function joinRoom() {
-            if (!supabaseClient) { alert('通信用ライブラリが読み込まれていません。'); return; }
             roomId = document.getElementById('join-room-code').value.trim().toUpperCase();
-            if (!roomId) return alert('コードを入力してください');
-            
+            if(!roomId) return alert('コードを入力してください');
             myId = 'guest-' + Math.random().toString(36).substr(2, 9);
-            isHost = false;
+            isHost = false; isSolo = false;
             initRealtime();
-
             document.getElementById('display-room-code').textContent = roomId;
             document.getElementById('lobby-status').classList.remove('hidden');
             document.getElementById('start-game-btn').classList.add('hidden');
+            document.getElementById('lobby-settings-btn').classList.add('hidden');
             document.getElementById('host-wait-msg').classList.remove('hidden');
         }
 
         function initRealtime() {
-            if (onlineChannel) supabaseClient.removeChannel(onlineChannel);
-            onlineChannel = supabaseClient.channel(`room_${roomId}`, { config: { presence: { key: myId } } });
-
+            if(onlineChannel) supabaseClient.removeChannel(onlineChannel);
+            onlineChannel = supabaseClient.channel(`room_${roomId}`, {config:{presence:{key:myId}}});
             onlineChannel
-                .on('broadcast', { event: 'state_sync' }, payload => { 
-                    state = payload.payload; 
-                    renderGame(); 
-                    updateLobbyUI(); 
-                })
-                .on('broadcast', { event: 'sub_submit' }, payload => { if (isHost) handleSubSubmit(payload.payload.id, payload.payload.bids); })
-                .on('broadcast', { event: 'main_submit' }, payload => { if (isHost) handleMainSubmit(payload.payload.id, payload.payload.bids); })
-                .on('broadcast', { event: 'join_request' }, payload => {
-                    if (isHost && Object.keys(state.players).length < 4) {
-                        state.players[payload.payload.id] = { 
-                            name: payload.payload.name, role: null, money: 1000, scores: {}, activeProjects: [] 
-                        };
-                        broadcastState(); updateLobbyUI();
-                    }
-                })
-                .subscribe(async (status) => {
-                    if (status === 'SUBSCRIBED') {
-                        document.getElementById('header-room-id').textContent = roomId;
-                        document.getElementById('room-badge').classList.remove('hidden');
-                        if (!isHost) {
-                            await onlineChannel.send({ type: 'broadcast', event: 'join_request', payload: { id: myId, name: document.getElementById('player-name').value || 'ゲスト' } });
+                .on('broadcast', {event:'state_sync'}, p => { state = p.payload; renderGame(); updateLobbyUI(); })
+                .on('broadcast', {event:'main_target'}, p => { if(isHost) handleMainTarget(p.payload.id, p.payload.target); })
+                .on('broadcast', {event:'sub_response'}, p => { if(isHost) handleSubResponse(p.payload.id, p.payload.responses); })
+                .on('broadcast', {event:'main_submit'}, p => { if(isHost) handleMainSubmit(p.payload.id, p.payload.bids); })
+                .on('broadcast', {event:'player_ready'}, p => { if(isHost){ state.readies[p.payload.id]=true; checkAllReady(); } })
+                .on('broadcast', {event:'host_left'}, p => { if(!isHost){ alert('ホスト退出'); location.reload(); } })
+                .on('broadcast', {event:'guest_left'}, p => { if(isHost){ let lId=p.payload.id; if(state.players[lId]){ state.players[lId].isBot=true; state.players[lId].name+='(CPU)'; broadcastState(); if(state.phase==='main_target') processBotTargets(); if(state.phase==='sub_response') processBotResponses(); if(state.phase==='main_bidding') processBotBids(); if(state.phase==='results') checkAllReady(); } } })
+                .on('broadcast', {event:'join_request'}, p => { if(isHost && Object.keys(state.players).length < state.settings.numMain+state.settings.numSub){ state.players[p.payload.id] = { name: p.payload.name, role: null, money: 1000, scores: {}, activeProjects: [], isBot: false }; broadcastState(); updateLobbyUI(); } })
+                .subscribe(async (status) => { if(status==='SUBSCRIBED'){ document.getElementById('header-room-id').textContent=roomId; document.getElementById('room-badge').classList.remove('hidden'); if(!isHost) await onlineChannel.send({type:'broadcast',event:'join_request',payload:{id:myId,name:document.getElementById('player-name').value||'ゲスト'}}); } });
+        }
+
+        function broadcastState() { if(!isHost) return; if(isSolo) renderGame(); else if(onlineChannel){ onlineChannel.send({type:'broadcast',event:'state_sync',payload:state}); renderGame(); updateLobbyUI(); } }
+        function updateLobbyUI() { let c = Object.keys(state.players).length; let max = state.settings.numMain+state.settings.numSub; document.getElementById('room-member-count').textContent = `参加人数: ${c} / ${max}人`; if(isHost) document.getElementById('start-game-btn').disabled = false; }
+
+        function startGameHost() {
+            if(!isHost) return;
+            let total = state.settings.numMain + state.settings.numSub;
+            let cur = Object.keys(state.players).length;
+            for(let i=cur; i<total; i++) state.players['bot_'+i] = { name: 'CPU_'+i, role: null, money: 1000, scores: {}, activeProjects: [], isBot: true };
+            initGameCore();
+        }
+
+        function initGameCore() {
+            state.roles = [];
+            for(let i=0; i<state.settings.numMain; i++) state.roles.push({ id:`M_${i+1}`, name:`元請け${i+1}`, type:'main', bType:state.settings.mains[i].type, initScore:{large:state.settings.mains[i].scoreL, small:state.settings.mains[i].scoreS} });
+            for(let i=0; i<state.settings.numSub; i++) state.roles.push({ id:`P_${i+1}`, name:`下請け${i+1}`, type:'sub' });
+
+            let pIds = Object.keys(state.players);
+            let rCopy = [...state.roles];
+            state.bidHistory = [];
+            
+            pIds.forEach(id => { state.moneyHistory[id] = [1000]; state.players[id].money=1000; state.players[id].activeProjects=[]; });
+
+            if (isSolo && state.settings.soloRole !== 'random') {
+                let idx = rCopy.findIndex(r => r.id === state.settings.soloRole);
+                if(idx !== -1) { state.players[myId].role = rCopy[idx].id; if(rCopy[idx].type==='main') state.players[myId].scores = rCopy[idx].initScore; rCopy.splice(idx, 1); pIds = pIds.filter(id => id !== myId); }
+            }
+            rCopy.sort(() => Math.random()-0.5);
+            pIds.forEach((id, i) => { if(rCopy[i]){ let r = rCopy[i]; state.players[id].role = r.id; if(r.type==='main') state.players[id].scores = r.initScore; } });
+
+            document.getElementById('lobby-modal').classList.add('hidden');
+            state.phase = 'role_reveal'; broadcastState();
+            setTimeout(() => { state.turn=1; startTurn(); }, 2500);
+        }
+
+        function restartGame() { if(!isHost) return; state.turn=0; state.phase='waiting'; state.targets={}; state.subResponses={}; state.mainBids={}; state.readies={}; state.bidHistory=[]; document.getElementById('game-end-modal').classList.add('hidden'); initGameCore(); }
+
+        function getRoleData(rId) { return state.roles.find(x => x.id === rId); }
+        function getMaxCap(p) { if(!p||!p.role||state.roles.length===0) return 4; let r=getRoleData(p.role); if(!r) return 4; return (r.type==='main') ? (r.bType==='employee' ? state.settings.employeeCap : state.settings.outsourceCap) : 4; }
+        function getFixedCost(p) { if(!p||!p.role||state.roles.length===0) return 0; let r=getRoleData(p.role); if(!r) return 0; return (r.type==='main') ? (r.bType==='employee' ? state.settings.employeeFixedCost : state.settings.outsourceFixedCost) : state.settings.subFixedCost; }
+        function getUsedCap(p) { return (p && p.activeProjects) ? p.activeProjects.reduce((s, x) => s + x.cap, 0) : 0; }
+
+        function startTurn() { 
+            state.phase = 'main_target'; state.targets={}; state.subResponses={}; state.mainBids={}; state.readies={}; 
+            state.market.m1 = (Math.random()*100)<state.settings.m1LargeProb?'large':'small'; 
+            state.market.m2 = (Math.random()*100)<state.settings.m2LargeProb?'large':'small'; 
+            broadcastState(); setTimeout(processBotTargets, 2000); 
+        }
+
+        // ▼ 待機画面UIの表示 ▼
+        function showOverlay(t) { 
+            document.getElementById('action-overlay').classList.remove('hidden'); 
+            document.getElementById('overlay-text').textContent = t; 
+        }
+
+        // ▼ BOT処理 (エラー回避のための堅牢な記述) ▼
+        function processBotTargets() {
+            if(!isHost) return;
+            try {
+                Object.entries(state.players).forEach(([id, p]) => {
+                    if(p.isBot && getRoleData(p.role)?.type === 'main') {
+                        if(state.targets[id]) return;
+                        let r = getRoleData(p.role);
+                        if(r.bType === 'employee') {
+                            handleMainTarget(id, {pass: true});
+                        } else {
+                            let m1K = state.market.m1 || 'small';
+                            let m2K = state.market.m2 || 'small';
+                            let m1T = config[m1K].cost + 100;
+                            let m2T = config[m2K].cost + 100;
+                            handleMainTarget(id, {m1: m1T, m2: m2T});
                         }
                     }
                 });
+            } catch(e) { console.error("processBotTargets Error:", e); }
         }
 
-        function broadcastState() {
-            if (!isHost) return;
-            onlineChannel.send({ type: 'broadcast', event: 'state_sync', payload: state });
-            renderGame(); updateLobbyUI();
-        }
-
-        function updateLobbyUI() {
-            const count = Object.keys(state.players).length;
-            document.getElementById('room-member-count').textContent = `参加人数: ${count} / 4人`;
-            if (isHost) document.getElementById('start-game-btn').disabled = false;
-        }
-
-        function startGameHost() {
-            if (!isHost) return;
-            let currentCount = Object.keys(state.players).length;
-            for(let i = currentCount; i < 4; i++) {
-                state.players['bot_'+i] = { 
-                    name: 'CPU_'+i, role: null, money: 1000, scores: {}, activeProjects: [], isBot: true 
-                };
-            }
-
-            let pIds = Object.keys(state.players);
-            let rolesCopy = [...ROLES].sort(() => Math.random() - 0.5);
-            
-            pIds.forEach((id, index) => { 
-                let r = rolesCopy[index].id;
-                state.players[id].role = r;
-                if(r === 'M_A') state.players[id].scores = { large: state.settings.maLargeScore, small: state.settings.maSmallScore };
-                else if(r === 'M_B') state.players[id].scores = { large: state.settings.mbLargeScore, small: state.settings.mbSmallScore };
-            });
-
-            document.getElementById('lobby-modal').classList.add('hidden');
-            state.phase = 'role_reveal';
-            broadcastState();
-            
-            setTimeout(() => {
-                state.turn = 1;
-                startTurn();
-            }, 2500);
-        }
-
-        function getUsedCap(player) {
-            return player.activeProjects.reduce((sum, p) => sum + p.cap, 0);
-        }
-
-        function startTurn() {
-            state.phase = 'sub_bidding';
-            state.subBids = {};
-            state.mainBids = {};
-            
-            state.market.m1 = (Math.random() * 100) < state.settings.m1LargeProb ? 'large' : 'small';
-            state.market.m2 = (Math.random() * 100) < state.settings.m2LargeProb ? 'large' : 'small';
-
-            broadcastState();
-            setTimeout(processBotSubmits, 2000);
-        }
-
-        function processBotSubmits() {
+        function processBotResponses() {
             if(!isHost) return;
-            Object.entries(state.players).forEach(([id, p]) => {
-                if(p.isBot && ROLES.find(r=>r.id===p.role).type === 'sub') {
-                    const availCap = config.maxCapacity - getUsedCap(p);
-                    let bids = {};
-                    let canBidM1 = availCap >= config[state.market.m1].cap;
-                    let canBidM2 = availCap >= config[state.market.m2].cap;
-                    
-                    if (state.market.m1 === 'large' && state.market.m2 === 'large') {
-                        if (canBidM1) {
-                            let val = config['large'].cost + Math.floor(Math.random()*200+100);
-                            bids['m1'] = val;
-                            bids['m2'] = val;
-                        }
-                    } else {
-                        if (canBidM1) bids['m1'] = config[state.market.m1].cost + Math.floor(Math.random()*150+50);
-                        if (canBidM2) bids['m2'] = config[state.market.m2].cost + Math.floor(Math.random()*150+50);
-                    }
-                    
-                    if(Object.keys(bids).length === 0) bids.pass = true;
-                    handleSubSubmit(id, bids);
-                }
-            });
-        }
-
-        function handleSubSubmit(playerId, bids) {
-            state.subBids[playerId] = bids;
-            const subIds = Object.entries(state.players).filter(([id, p]) => ROLES.find(r=>r.id===p.role).type === 'sub').map(([id, p]) => id);
-            if (subIds.every(id => state.subBids[id])) {
-                state.phase = 'main_bidding';
-                broadcastState();
-                setTimeout(processBotMainSubmits, 2000);
-            } else {
-                broadcastState();
-            }
-        }
-        
-        function processBotMainSubmits() {
-            if(!isHost) return;
-            Object.entries(state.players).forEach(([id, p]) => {
-                if(p.isBot && ROLES.find(r=>r.id===p.role).type === 'main') {
-                    const availCap = config.maxCapacity - getUsedCap(p);
-                    let bidObj = { m1: { bid: 0, subId: null, subPrice: 0 }, m2: { bid: 0, subId: null, subPrice: 0 } };
-                    
-                    const pickSub = (mKey) => {
-                        let bestSub = null, bestPrice = 9999;
-                        Object.entries(state.subBids).forEach(([sid, sb]) => {
-                            if(!sb.pass && sb[mKey] && sb[mKey] > 0 && sb[mKey] < bestPrice) {
-                                bestPrice = sb[mKey]; bestSub = sid;
+            try {
+                Object.entries(state.players).forEach(([id, p]) => {
+                    if(p.isBot && getRoleData(p.role)?.type === 'sub') {
+                        if(state.subResponses[id]) return;
+                        let res = {};
+                        let aCap = getMaxCap(p) - getUsedCap(p);
+                        let m1K = state.market.m1 || 'small';
+                        let m2K = state.market.m2 || 'small';
+                        
+                        Object.entries(state.targets).forEach(([mId, tg]) => {
+                            if(!tg || tg.pass) return;
+                            res[mId] = { m1: {type:'reject', price:0}, m2: {type:'reject', price:0} };
+                            let c1 = config[m1K].cost;
+                            let c2 = config[m2K].cost;
+                            
+                            let p1 = parseInt(tg.m1) || 0;
+                            let p2 = parseInt(tg.m2) || 0;
+                            
+                            if(aCap >= config[m1K].cap && p1 > 0) {
+                                if(p1 >= c1 + 20) res[mId].m1 = {type:'accept', price: p1};
+                                else res[mId].m1 = {type:'counter', price: c1 + 50};
+                            }
+                            if(aCap >= config[m2K].cap && p2 > 0) {
+                                if(p2 >= c2 + 20) res[mId].m2 = {type:'accept', price: p2};
+                                else res[mId].m2 = {type:'counter', price: c2 + 50};
                             }
                         });
-                        return { subId: bestSub, subPrice: bestSub ? bestPrice : 0 };
-                    };
+                        handleSubResponse(id, res);
+                    }
+                });
+            } catch(e) { console.error("processBotResponses Error:", e); }
+        }
+        
+        function processBotBids() {
+            if(!isHost) return;
+            try {
+                Object.entries(state.players).forEach(([id, p]) => {
+                    let r = getRoleData(p.role);
+                    if(p.isBot && r && r.type === 'main') {
+                        if(state.mainBids[id]) return;
+                        let aCap = getMaxCap(p) - getUsedCap(p);
+                        let bidObj = { m1: {bid:0, subId:null, subPrice:0}, m2: {bid:0, subId:null, subPrice:0} };
+                        let m1K = state.market.m1 || 'small';
+                        let m2K = state.market.m2 || 'small';
+                        
+                        const pickSub = (mKey) => {
+                            if (r.bType === 'employee') return {subId: 'self', subPrice: 0};
+                            let bSub = null, bPrice = 99999;
+                            Object.entries(state.subResponses || {}).forEach(([sId, sRes]) => {
+                                let myRes = sRes[id];
+                                if(myRes && myRes[mKey] && myRes[mKey].type !== 'reject') {
+                                    if(myRes[mKey].price < bPrice) {
+                                        bPrice = myRes[mKey].price;
+                                        bSub = sId;
+                                    }
+                                }
+                            });
+                            return {subId: bSub, subPrice: bSub ? bPrice : 0};
+                        };
 
-                    if (availCap >= config[state.market.m1].cap) {
-                        let subInfo = pickSub('m1');
-                        if(subInfo.subId) bidObj.m1 = { bid: config[state.market.m1].base, subId: subInfo.subId, subPrice: subInfo.subPrice };
+                        const decideBid = (mType, sPrice, myScore, oppScore) => {
+                            if (sPrice===0 && r.bType!=='employee') return 0;
+                            let vCost = (sPrice===0 && r.bType==='employee') ? (mType==='large'?1200:400) : sPrice;
+                            let limit = vCost + (getFixedCost(p) * config[mType].restraint);
+                            let price = limit + 10;
+                            if (price < config[mType].base && myScore >= oppScore) price = config[mType].base;
+                            else if (price > config[mType].base) price = config[mType].base;
+                            return price;
+                        };
+
+                        let oppScoreL = 70, oppScoreS = 70;
+                        let c1 = null, c2 = null;
+
+                        if (aCap >= config[m1K].cap) {
+                            let s = pickSub('m1');
+                            if(s.subId || r.bType==='employee') {
+                                let b = decideBid(m1K, s.subPrice, p.scores[m1K], m1K==='large'?oppScoreL:oppScoreS);
+                                if(b > 0) {
+                                    let expProf = b - s.subPrice - (getFixedCost(p) * config[m1K].restraint);
+                                    c1 = { key: 'm1', bid: b, subId: r.bType==='employee'?'self':s.subId, subPrice: s.subPrice, cap: config[m1K].cap, prof: expProf };
+                                }
+                            }
+                        }
+                        if (aCap >= config[m2K].cap) {
+                            let s = pickSub('m2');
+                            if(s.subId || r.bType==='employee') {
+                                let b = decideBid(m2K, s.subPrice, p.scores[m2K], m2K==='large'?oppScoreL:oppScoreS);
+                                if(b > 0) {
+                                    let expProf = b - s.subPrice - (getFixedCost(p) * config[m2K].restraint);
+                                    c2 = { key: 'm2', bid: b, subId: r.bType==='employee'?'self':s.subId, subPrice: s.subPrice, cap: config[m2K].cap, prof: expProf };
+                                }
+                            }
+                        }
+
+                        let choices = [];
+                        if(c1) choices.push(c1);
+                        if(c2) choices.push(c2);
+                        
+                        choices.forEach(c => c.prof += Math.random() * 0.01);
+                        choices.sort((a, b) => b.prof - a.prof);
+                        
+                        let remCap = aCap;
+                        choices.forEach(c => {
+                            if (remCap >= c.cap) {
+                                bidObj[c.key] = { bid: c.bid, subId: c.subId, subPrice: c.subPrice };
+                                remCap -= c.cap;
+                            }
+                        });
+
+                        handleMainSubmit(id, bidObj);
                     }
-                    if (availCap >= config[state.market.m2].cap && (availCap - config[state.market.m1].cap >= config[state.market.m2].cap || !bidObj.m1.subId)) {
-                        let subInfo = pickSub('m2');
-                        if(subInfo.subId) bidObj.m2 = { bid: config[state.market.m2].base, subId: subInfo.subId, subPrice: subInfo.subPrice };
-                    }
-                    handleMainSubmit(id, bidObj);
+                });
+            } catch(e) { console.error("processBotBids Error:", e); }
+        }
+        // ▲ BOT処理ここまで ▲
+
+        // ▼ イベントハンドラ ▼
+        function handleMainTarget(pId, target) {
+            state.targets[pId] = target;
+            const mains = Object.entries(state.players).filter(([i, p]) => getRoleData(p.role)?.type === 'main');
+            if (mains.every(([i, p]) => state.targets[i])) { 
+                const subs = Object.entries(state.players).filter(([i, p]) => getRoleData(p.role)?.type === 'sub');
+                if (subs.length === 0) {
+                    state.phase = 'main_bidding'; 
+                    broadcastState(); 
+                    setTimeout(processBotBids, 2000); 
+                } else {
+                    state.phase = 'sub_response'; 
+                    broadcastState(); 
+                    setTimeout(processBotResponses, 2000); 
                 }
+            } else broadcastState();
+        }
+
+        function handleSubResponse(pId, res) {
+            state.subResponses[pId] = res;
+            const subs = Object.entries(state.players).filter(([i, p]) => getRoleData(p.role)?.type === 'sub');
+            if (subs.length === 0 || subs.every(([i, p]) => state.subResponses[i])) { 
+                state.phase = 'main_bidding'; broadcastState(); setTimeout(processBotBids, 2000); 
+            } else broadcastState();
+        }
+
+        function handleMainSubmit(pId, bObj) { 
+            state.mainBids[pId] = bObj; 
+            const mains = Object.keys(state.players).filter(id => { let r=getRoleData(state.players[id].role); return r&&r.type==='main';}); 
+            if(mains.every(id => state.mainBids[id])) calculateResults(); else broadcastState(); 
+        }
+        // ▲ イベントハンドラここまで ▲
+
+        function submitMainTarget() {
+            let m1 = parseInt(document.getElementById('target-m1-price').value) || 0;
+            let m2 = parseInt(document.getElementById('target-m2-price').value) || 0;
+            let targetObj = { m1: m1, m2: m2 };
+            
+            if(isHost||isSolo) handleMainTarget(myId, targetObj); 
+            else onlineChannel.send({type:'broadcast',event:'main_target',payload:{id:myId,target:targetObj}});
+            
+            document.getElementById('main-target-form').classList.add('hidden'); 
+            showOverlay('CPU（下請け）が見積・応答を処理中です...');
+        }
+
+        function submitSubResponse() {
+            let res = {};
+            Object.entries(state.targets).forEach(([mId, tg]) => {
+                if(!tg || tg.pass) return;
+                res[mId] = { m1: {type: 'reject', price: 0}, m2: {type: 'reject', price: 0} };
+                ['m1', 'm2'].forEach(mKey => {
+                    let sel = document.getElementById(`res-${mKey}-${mId}`);
+                    if(sel && !sel.disabled) {
+                        let type = sel.value;
+                        let price = 0;
+                        if(type === 'accept') price = mKey==='m1'?tg.m1:tg.m2;
+                        if(type === 'counter') {
+                            let vInput = document.getElementById(`res-val-${mKey}-${mId}`).value;
+                            if(vInput !== '') {
+                                let v = parseInt(vInput);
+                                if(v >= 0) price = v; else type = 'reject';
+                            } else {
+                                type = 'reject';
+                            }
+                        }
+                        res[mId][mKey] = { type: type, price: price };
+                    }
+                });
             });
+            
+            if(isHost||isSolo) handleSubResponse(myId, res); 
+            else onlineChannel.send({type:'broadcast',event:'sub_response',payload:{id:myId,responses:res}});
+            document.getElementById('sub-response-form').classList.add('hidden'); showOverlay('CPU（元請け）が入札を処理中です...');
         }
 
-        function handleMainSubmit(playerId, bidObj) {
-            state.mainBids[playerId] = bidObj;
-            const mainIds = Object.entries(state.players).filter(([id, p]) => ROLES.find(r=>r.id===p.role).type === 'main').map(([id, p]) => id);
-            if (mainIds.every(id => state.mainBids[id])) calculateResults();
-            else broadcastState();
+        function submitMainBid() {
+            let rInf = getRoleData(state.players[myId].role), isEmp = rInf.bType==='employee';
+            let aCap = getMaxCap(state.players[myId]) - getUsedCap(state.players[myId]);
+            
+            const getZ = m => { 
+                if (isEmp) return {subId:'self', subPrice:0};
+                let sel = document.getElementById(`m${m}-sub-select`);
+                if(sel && sel.value) { return {subId: sel.value, subPrice: parseInt(sel.options[sel.selectedIndex].dataset.price)}; }
+                return {subId:null, subPrice:0}; 
+            };
+            let z1=getZ(1), z2=getZ(2), b1=parseInt(document.getElementById('main-m1-bid').value)||0, b2=parseInt(document.getElementById('main-m2-bid').value)||0;
+            
+            const check = (b, z) => { if(b>0 && !z.subId) return false; if(b<=0 && z.subId && z.subId!=='self') return false; return true; };
+            if(!check(b1, z1)) return alert('市場①：請負型は下請け必須です。'); if(!check(b2, z2)) return alert('市場②：請負型は下請け必須です。');
+            
+            let m1K = state.market.m1 || 'small'; let m2K = state.market.m2 || 'small';
+            let reqCap1 = b1 > 0 ? config[m1K].cap : 0;
+            let reqCap2 = b2 > 0 ? config[m2K].cap : 0;
+            if (reqCap1 + reqCap2 > aCap) return alert('キャパシティ上限を超える入札はできません！');
+            
+            if (b1 > 0 && b2 > 0 && z1.subId === z2.subId && z1.subId !== 'self') {
+                let subPlayer = state.players[z1.subId];
+                let sCap = getMaxCap(subPlayer) - getUsedCap(subPlayer);
+                if (reqCap1 + reqCap2 > sCap) return alert('指定した下請けのキャパシティ上限を超過しています！');
+            }
+            
+            let bids = { m1: {bid:b1, subId:z1.subId, subPrice:z1.subPrice}, m2: {bid:b2, subId:z2.subId, subPrice:z2.subPrice} };
+            if(isHost||isSolo) handleMainSubmit(myId, bids); else onlineChannel.send({type:'broadcast',event:'main_submit',payload:{id:myId,bids}});
+            document.getElementById('main-action-form').classList.add('hidden'); showOverlay('開票・結果集計中です...');
         }
 
+        // ▼ スコアシミュレータ ▼
+        function toggleSimulator() {
+            const b = document.getElementById('simulator-body');
+            b.classList.toggle('hidden');
+            if(!b.classList.contains('hidden')) {
+                const sel = document.getElementById('sim-target');
+                sel.innerHTML = '<option value="">競合を選択</option>';
+                Object.entries(state.players).forEach(([id, p]) => {
+                    let r = getRoleData(p.role);
+                    if(r && r.type === 'main' && id !== myId) {
+                        sel.innerHTML += `<option value="${id}">${p.name} (${r.name})</option>`;
+                    }
+                });
+            }
+        }
+
+        function runSimulation() {
+            const tId = document.getElementById('sim-target').value;
+            const mType = document.getElementById('sim-market').value;
+            const targetScore = parseFloat(document.getElementById('sim-score').value);
+            
+            if(!tId || !targetScore || targetScore <= 0) return;
+            
+            const p = state.players[tId];
+            if(!p || !p.scores) return;
+            
+            const techScore = p.scores[mType];
+            const limit = config[mType].limit;
+            
+            const estBid = (techScore * limit) / targetScore;
+            document.getElementById('sim-result').textContent = Math.floor(estBid);
+        }
+
+        // ▼ UI更新群 ▼
+        function renderSubResponseForm() {
+            const c = document.getElementById('sub-response-list');
+            c.innerHTML = '';
+            let aCap = getMaxCap(state.players[myId]) - getUsedCap(state.players[myId]);
+            let hasTargets = false;
+            
+            const buildSel = (mId, mKey, targetPrice, marketType) => {
+                if(!marketType) marketType = 'small';
+                let isLarge = marketType === 'large';
+                let reqCap = config[marketType].cap;
+                let dis = aCap < reqCap ? 'disabled' : '';
+                let cost = config[marketType].cost;
+                
+                if (targetPrice <= 0) {
+                    return `<div class="bg-slate-100 p-2 rounded border text-sm text-center text-slate-500 font-bold">市場${mKey==='m1'?'①':'②'} (${isLarge?'大':'小'})<br>募集なし</div>`;
+                }
+
+                return `<div class="bg-slate-50 p-2 rounded border text-sm">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="font-bold text-slate-700">市場${mKey==='m1'?'①':'②'} (${isLarge?'大':'小'})</span>
+                        <span class="text-blue-700 font-bold bg-blue-100 px-1 rounded">希望: ${targetPrice}Y</span>
+                    </div>
+                    <select id="res-${mKey}-${mId}" class="w-full border p-2 rounded mb-1 bg-white outline-none" onchange="document.getElementById('res-val-${mKey}-${mId}').classList.toggle('hidden', this.value!=='counter')" ${dis}>
+                        <option value="accept">〇 受諾 (${targetPrice}Y)</option>
+                        <option value="reject">× 辞退</option>
+                        <option value="counter">提案 (別額を入力)</option>
+                    </select>
+                    <!-- 下請け提案価格の最低値を0に修正 -->
+                    <input type="number" id="res-val-${mKey}-${mId}" class="w-full border-2 p-2 rounded hidden outline-none focus:border-blue-400" placeholder="提案額を入力 (原価${cost}Y)" min="0">
+                    ${dis ? `<p class="text-xs text-red-500 mt-1 font-bold">※キャパシティ不足</p>` : ''}
+                </div>`;
+            };
+
+            Object.entries(state.targets).forEach(([mId, tg]) => {
+                if(!tg || tg.pass) return;
+                hasTargets = true;
+                let mName = state.players[mId] ? state.players[mId].name : '不明';
+                c.innerHTML += `<div class="bg-white p-3 rounded-xl border-2 border-indigo-200 shadow-sm">
+                    <h3 class="font-bold text-indigo-800 mb-2 border-b pb-1">🏢 元請け: ${mName}</h3>
+                    <div class="flex flex-col gap-2">
+                        ${buildSel(mId, 'm1', tg.m1, state.market.m1)}
+                        ${buildSel(mId, 'm2', tg.m2, state.market.m2)}
+                    </div>
+                </div>`;
+            });
+            
+            if(!hasTargets) c.innerHTML = '<p class="text-sm text-slate-500">現在提示されている希望価格はありません。</p>';
+        }
+
+        function renderMainForm() {
+            ['main-m1-bid','main-m2-bid'].forEach(id=>document.getElementById(id).value='');
+            ['m1-score','m2-score'].forEach(id=>document.getElementById(id).textContent='0.00');
+            
+            let m1K = state.market.m1 || 'small'; let m2K = state.market.m2 || 'small';
+            document.getElementById('main-m1-type').textContent = m1K==='large'?'大工事':'小工事'; document.getElementById('main-m2-type').textContent = m2K==='large'?'大工事':'小工事';
+            
+            let rInf = getRoleData(state.players[myId].role), isEmp = rInf.bType==='employee', fCost = isEmp?state.settings.employeeFixedCost:state.settings.outsourceFixedCost;
+            let res1 = config[m1K].restraint, res2 = config[m2K].restraint;
+            
+            document.getElementById('m1-fixed-cost-label').textContent = `${fCost}Y × ${res1}ターン`; 
+            document.getElementById('m2-fixed-cost-label').textContent = `${fCost}Y × ${res2}ターン`;
+            
+            if (isEmp) {
+                document.getElementById('m1-sub-select-wrap').style.display = 'none';
+                document.getElementById('m2-sub-select-wrap').style.display = 'none';
+                let note = `<div class="text-sm text-blue-600 font-bold mb-2 bg-blue-50 p-2 border rounded border-blue-200 text-center shadow-inner">正社員型のため下請け不要（自社施工）</div>`;
+                document.getElementById('m1-emp-note').innerHTML = note; document.getElementById('m2-emp-note').innerHTML = note;
+            } else {
+                document.getElementById('m1-sub-select-wrap').style.display = 'block';
+                document.getElementById('m2-sub-select-wrap').style.display = 'block';
+                document.getElementById('m1-emp-note').innerHTML = ''; document.getElementById('m2-emp-note').innerHTML = '';
+                
+                ['m1', 'm2'].forEach(mKey => {
+                    let sel = document.getElementById(`${mKey}-sub-select`);
+                    sel.innerHTML = '<option value="">-- 下請けを選択 --</option>';
+                    Object.entries(state.subResponses || {}).forEach(([sId, sRes]) => {
+                        let myRes = sRes[myId];
+                        if(myRes && myRes[mKey] && myRes[mKey].type !== 'reject') {
+                            let subName = state.players[sId] ? state.players[sId].name : '不明';
+                            let pText = myRes[mKey].type === 'accept' ? '〇受諾' : '提案';
+                            let price = myRes[mKey].price;
+                            sel.innerHTML += `<option value="${sId}" data-price="${price}">${subName} (${pText}: ${price}Y)</option>`;
+                        }
+                    });
+                });
+            }
+
+            calculateMainProfit(1); calculateMainProfit(2);
+
+            const s1=getStyles(m1K), s2=getStyles(m2K);
+            document.getElementById('m1-panel').className = `bg-white border-2 rounded-xl p-3 flex flex-col relative transition-colors ${s1.border}`;
+            document.getElementById('m2-panel').className = `bg-white border-2 rounded-xl p-3 flex flex-col relative transition-colors ${s2.border}`;
+            document.getElementById('m1-header').className = `font-bold text-center rounded py-1 mb-2 ${s1.bg} ${s1.text}`;
+            document.getElementById('m2-header').className = `font-bold text-center rounded py-1 mb-2 ${s2.bg} ${s2.text}`;
+
+            const aCap = getMaxCap(state.players[myId]) - getUsedCap(state.players[myId]);
+            document.getElementById('m1-lock-overlay').classList.toggle('hidden', aCap>=config[m1K].cap);
+            document.getElementById('m2-lock-overlay').classList.toggle('hidden', aCap>=config[m2K].cap);
+        }
+
+        function calculateMainProfit(m) {
+            let rInf = getRoleData(state.players[myId].role), isEmp = rInf.bType==='employee';
+            let b = parseInt(document.getElementById(`main-m${m}-bid`).value)||0, sCost=0;
+            
+            if(!isEmp) {
+                let sel = document.getElementById(`m${m}-sub-select`);
+                if(sel && sel.value) sCost = parseInt(sel.options[sel.selectedIndex].dataset.price) || 0;
+            }
+            
+            document.getElementById(`m${m}-sub-cost`).textContent = sCost;
+            
+            let fC = getFixedCost(state.players[myId]);
+            let mT = m===1 ? (state.market.m1 || 'small') : (state.market.m2 || 'small');
+            let restraint = config[mT].restraint;
+            let totalFc = fC * restraint; 
+            
+            document.getElementById(`m${m}-profit`).textContent = b>0 ? (b-totalFc-sCost) : 0;
+            
+            let base = config[mT].base, sc=0;
+            if(b>0) sc = (state.players[myId].scores[mT] * config[mT].limit)/b;
+            
+            let scoreText = sc>0 ? sc.toFixed(2) : '0.00';
+            if(b>0 && b<base) scoreText = `<span class="text-red-600 font-bold">${scoreText} (基準割れ:次Tスコア-2)</span>`;
+            else if(b>=base) scoreText = `<span class="text-green-600 font-bold">${scoreText} (基準達成:次Tスコア+2)</span>`;
+            document.getElementById(`m${m}-score`).innerHTML = scoreText;
+        }
+
+        // ▼ 結果描画関数の復旧 ▼
         function calculateResults() {
-            const m1Type = state.market.m1;
-            const m2Type = state.market.m2;
-            let res = { m1: { winner: null, log: '', detail: '' }, m2: { winner: null, log: '', detail: '' }, profits: {} };
+            const m1T = state.market.m1 || 'small', m2T = state.market.m2 || 'small';
+            let res = { m1:{winner:null,log:'',detail:''}, m2:{winner:null,log:'',detail:''}, profits:{} };
+            state.lastBidStatus = { m1:{type:m1T,base:config[m1T].base,limit:config[m1T].limit,bids:{},winnerRole:null}, m2:{type:m2T,base:config[m2T].base,limit:config[m2T].limit,bids:{},winnerRole:null} };
 
-            Object.keys(state.players).forEach(id => {
-                state.players[id].money -= config.turnFixedCost;
-                res.profits[id] = -config.turnFixedCost;
+            Object.entries(state.mainBids).forEach(([id, b]) => {
+                let r = getRoleData(state.players[id].role);
+                if(r) { state.lastBidStatus.m1.bids[r.id] = b.m1.bid; state.lastBidStatus.m2.bids[r.id] = b.m2.bid; }
             });
 
-            Object.values(state.players).forEach(p => {
-                p.activeProjects.forEach(proj => proj.remain--);
-                p.activeProjects = p.activeProjects.filter(proj => proj.remain > 0);
-            });
+            Object.keys(state.players).forEach(id => { let fC = getFixedCost(state.players[id]); state.players[id].money -= fC; res.profits[id] = -fC; });
+            Object.values(state.players).forEach(p => { p.activeProjects.forEach(proj => proj.remain--); p.activeProjects = p.activeProjects.filter(x => x.remain>0); });
 
             const getScore = (bid, type, mainId) => {
                 if(bid <= 0) return -1;
@@ -520,509 +967,268 @@
                 return (scoreBase * c.limit) / bid;
             };
 
-            const evaluateMarket = (mKey, type) => {
+            const evalM = (mKey, type) => {
                 let bids = [];
-                Object.entries(state.mainBids).forEach(([mId, data]) => {
-                    let b = data[mKey];
-                    if (b && b.bid > 0 && b.subId && b.subPrice > 0) {
-                        bids.push({ id: mId, bid: b.bid, subId: b.subId, subPrice: b.subPrice, score: getScore(b.bid, type, mId) });
+                Object.entries(state.mainBids).forEach(([mId, d]) => {
+                    let b = d[mKey]; 
+                    if(b && b.bid > 0 && (b.subId || getRoleData(state.players[mId].role).bType === 'employee')) {
+                        let sc = getScore(b.bid, type, mId);
+                        if (sc > 0) bids.push({id:mId, bid:b.bid, subId:b.subId, subPrice:b.subPrice, score:sc});
                     }
                 });
-                if (bids.length > 0) {
-                    bids.sort((a, b) => b.score - a.score);
-                    if (bids.length > 1 && bids[0].score === bids[1].score) {
-                        let top = bids.filter(b => b.score === bids[0].score);
-                        bids = [top[Math.floor(Math.random() * top.length)]]; 
-                    }
-                    return bids[0];
+                if(bids.length>0) { 
+                    bids.sort((a,b)=>b.score-a.score); 
+                    if(bids.length>1 && bids[0].score===bids[1].score){ 
+                        let tops=bids.filter(x=>x.score===bids[0].score); 
+                        bids=[tops[Math.floor(Math.random()*tops.length)]]; 
+                    } 
+                    return bids[0]; 
                 }
                 return null;
             };
 
-            let w1 = evaluateMarket('m1', m1Type);
-            let w2 = evaluateMarket('m2', m2Type);
-
-            // キャパ超過処理（下請け）
-            if (w1 && w2 && w1.subId === w2.subId) {
-                const subPlayer = state.players[w1.subId];
-                if (config.maxCapacity - getUsedCap(subPlayer) < config[m1Type].cap + config[m2Type].cap) {
-                    if ((w1.subPrice - config[m1Type].cost) >= (w2.subPrice - config[m2Type].cost)) w2 = null; 
-                    else w1 = null; 
-                }
+            let w1 = evalM('m1', m1T), w2 = evalM('m2', m2T);
+            if(w1 && w2 && w1.subId === w2.subId && w1.subId !== 'self') {
+                let sP = state.players[w1.subId]; if(getMaxCap(sP) - getUsedCap(sP) < config[m1T].cap + config[m2T].cap) { if((w1.subPrice-config[m1T].cost) >= (w2.subPrice-config[m2T].cost)) w2=null; else w1=null; }
             }
-            // キャパ超過処理（元請け）
-            if (w1 && w2 && w1.id === w2.id) {
-                const mainPlayer = state.players[w1.id];
-                if (config.maxCapacity - getUsedCap(mainPlayer) < config[m1Type].cap + config[m2Type].cap) {
-                    if ((w1.bid - w1.subPrice) >= (w2.bid - w2.subPrice)) w2 = null;
-                    else w1 = null;
-                }
+            if(w1 && w2 && w1.id === w2.id) {
+                let mP = state.players[w1.id]; if(getMaxCap(mP) - getUsedCap(mP) < config[m1T].cap + config[m2T].cap) { if((w1.bid-w1.subPrice) >= (w2.bid-w2.subPrice)) w2=null; else w1=null; }
             }
 
-            const applyWinner = (mKey, type, winner) => {
-                if (winner) {
-                    let penaltyLog = "";
-                    if (winner.bid < config[type].base) {
-                        state.players[winner.id].scores[type] = Math.max(0, state.players[winner.id].scores[type] - 2);
-                        penaltyLog = `<br><span class="text-red-600 font-bold">⚠️ 基準価格割れ！次ターンから${type==='large'?'大工事':'小工事'}スコア -2</span>`;
-                    }
-
-                    res[mKey].winner = winner;
-                    let sBase = state.players[winner.id].scores[type];
-                    res[mKey].log = `🏆 <b>${state.players[winner.id].name}</b> が落札！ (下請け: ${state.players[winner.subId].name})`;
-                    res[mKey].detail = `入札額: <b>${winner.bid}Y</b> <br> 総合点: <b>${winner.score.toFixed(2)}</b> (技術 ${sBase} × 上限 ${config[type].limit} / 入札 ${winner.bid}) ${penaltyLog}`;
+            const appW = (mK, t, w) => {
+                if(w) {
+                    res[mK].winner = w; 
+                    let sBase = state.players[w.id].scores[t];
+                    let isUnder = w.bid < config[t].base;
+                    let scoreDiff = isUnder ? -2 : 2;
+                    state.players[w.id].scores[t] = Math.max(0, Math.min(70, sBase + scoreDiff)); 
                     
-                    let mainProfit = winner.bid - winner.subPrice;
-                    state.players[winner.id].money += mainProfit;
-                    res.profits[winner.id] += mainProfit;
-                    state.players[winner.id].activeProjects.push({ cap: config[type].cap, remain: config[type].restraint });
-
-                    let subProfit = winner.subPrice - config[type].cost;
-                    state.players[winner.subId].money += subProfit;
-                    res.profits[winner.subId] += subProfit;
-                    state.players[winner.subId].activeProjects.push({ cap: config[type].cap, remain: config[type].restraint });
-                } else {
-                    res[mKey].log = `入札者なし (またはキャパ超過による破綻)`;
-                    res[mKey].detail = `-`;
-                }
+                    let mProf = w.bid - w.subPrice; state.players[w.id].money+=mProf; res.profits[w.id]+=mProf; state.players[w.id].activeProjects.push({cap:config[t].cap, remain:config[t].restraint});
+                    if(w.subId !== 'self') {
+                        let sProf = w.subPrice - config[t].cost; state.players[w.subId].money+=sProf; res.profits[w.subId]+=sProf; state.players[w.subId].activeProjects.push({cap:config[t].cap, remain:config[t].restraint});
+                        res[mK].log = `🏆 <b>${state.players[w.id].name}</b> が落札！ (下請け: ${state.players[w.subId].name})`;
+                    } else {
+                        res[mK].log = `🏆 <b>${state.players[w.id].name}</b> が落札！ (自社施工・正社員)`;
+                    }
+                    
+                    let scoreMsg = isUnder ? `<span class="text-red-600 font-bold">⚠️基準割れ (次ターンからスコア-2)</span>` : `<span class="text-green-600 font-bold">✨基準達成 (次ターンからスコア+2)</span>`;
+                    res[mK].detail = `入札額: <b>${w.bid}Y</b> <br> 総合点: <b>${w.score.toFixed(2)}</b> (技術 ${sBase} × 上限 ${config[t].limit} / 入札 ${w.bid}) <br> ${scoreMsg}`;
+                    state.lastBidStatus[mK].winnerRole = state.roles.find(r=>r.id===state.players[w.id].role)?.id;
+                } else { res[mK].log = `入札者なし (またはキャパ超過)`; res[mK].detail = `-`; }
             };
 
-            applyWinner('m1', m1Type, w1);
-            applyWinner('m2', m2Type, w2);
-
-            state.lastResults = res;
-            state.phase = 'results';
-            broadcastState();
+            appW('m1', m1T, w1); appW('m2', m2T, w2);
+            Object.keys(state.players).forEach(id => { if(!state.moneyHistory[id]) state.moneyHistory[id]=[1000]; state.moneyHistory[id].push(state.players[id].money); });
+            
+            state.bidHistory.push({ turn: state.turn, ...state.lastBidStatus });
+            
+            state.lastResults = res; state.phase = 'results'; state.readies = {}; broadcastState();
         }
 
-        function hostNextTurn() {
-            if(!isHost) return;
-            if (state.turn >= 10) {
-                alert('ゲーム終了！最終結果はプレイヤーリストをご覧ください。');
-            } else {
-                state.turn++;
-                startTurn();
-            }
+        function renderResults() {
+            if(!state.lastResults) return;
+            const m = document.getElementById('result-modal'), c = document.getElementById('result-content');
+            
+            let m1K = state.market.m1 || 'small'; let m2K = state.market.m2 || 'small';
+            const s1 = getStyles(m1K), s2 = getStyles(m2K);
+            
+            let h = `<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="${s1.bg} p-4 rounded-xl border-2 ${s1.border}">
+                    <h3 class="font-black ${s1.text} text-lg border-b ${s1.border} pb-1 mb-2">市場① (${m1K==='large'?'大工事':'小工事'})</h3>
+                    <p class="text-base text-slate-800 mb-2 font-bold">${state.lastResults.m1.log}</p>
+                    <p class="text-sm text-slate-700 bg-white p-3 rounded-lg border shadow-inner leading-relaxed">${state.lastResults.m1.detail}</p>
+                </div>
+                <div class="${s2.bg} p-4 rounded-xl border-2 ${s2.border}">
+                    <h3 class="font-black ${s2.text} text-lg border-b ${s2.border} pb-1 mb-2">市場② (${m2K==='large'?'大工事':'小工事'})</h3>
+                    <p class="text-base text-slate-800 mb-2 font-bold">${state.lastResults.m2.log}</p>
+                    <p class="text-sm text-slate-700 bg-white p-3 rounded-lg border shadow-inner leading-relaxed">${state.lastResults.m2.detail}</p>
+                </div>
+            </div>
+            <h3 class="font-black text-lg mt-6 border-b-2 border-slate-200 pb-1 text-slate-800">今ターンの最終収支</h3>
+            <div class="grid grid-cols-2 gap-3 mt-3">`;
+            
+            Object.entries(state.lastResults.profits).forEach(([id, pf]) => { 
+                let fC = getFixedCost(state.players[id]);
+                let fCLabel = `<span class="text-[10px] text-red-500 font-bold ml-1">(固定費 -${fC}Y)</span>`;
+                h += `<div class="bg-slate-50 p-3 rounded-lg border text-sm flex justify-between items-center shadow-sm">
+                    <div><span class="font-bold text-slate-700">${state.players[id].name}</span>${fCLabel}</div>
+                    <span class="font-black text-lg ${pf>0?'text-emerald-600':(pf<0?'text-red-600':'text-slate-600')}">${pf>0?'+':''}${pf}Y</span>
+                </div>`; 
+            });
+            c.innerHTML = h+'</div>'; m.classList.remove('hidden');
         }
 
-        // --- UI処理 ---
+        function closeResult() { 
+            document.getElementById('result-modal').classList.add('hidden'); 
+            showOverlay('待機中...'); 
+            if(isHost||isSolo){state.readies[myId]=true; checkAllReady();} 
+            else onlineChannel.send({type:'broadcast',event:'player_ready',payload:{id:myId}}); 
+        }
+
+        function checkAllReady() { if(!isHost) return; let pIds=Object.keys(state.players).filter(id=>!state.players[id].isBot); if(pIds.every(id=>state.readies[id])) { state.readies={}; setTimeout(hostNextTurn, 500); } }
+        
+        function hostNextTurn() { 
+            if(!isHost) return; 
+            if(state.turn >= 10) { 
+                let globalMaxRemain = 0;
+                Object.values(state.players).forEach(p => { p.activeProjects.forEach(proj => { if(proj.remain > globalMaxRemain) globalMaxRemain = proj.remain; }); });
+                
+                if (globalMaxRemain > 0) {
+                    for (let step = 1; step <= globalMaxRemain; step++) {
+                        Object.keys(state.players).forEach(id => {
+                            let p = state.players[id];
+                            let hasProject = p.activeProjects.some(proj => proj.remain >= step);
+                            if (hasProject) { p.money -= getFixedCost(p); }
+                            state.moneyHistory[id].push(p.money);
+                        });
+                    }
+                }
+                state.phase='game_end'; saveGameLog(); broadcastState(); 
+            } else { 
+                state.turn++; startTurn(); 
+            } 
+        }
+
+        async function saveGameLog() {
+            if(!supabaseClient||!isHost) return;
+            const logs = Object.keys(state.players).map(id => ({ room_id:roomId||'solo', player_id:id, player_name:state.players[id].name, role:state.players[id].role, is_bot:state.players[id].isBot, final_money:state.players[id].money, money_history:state.moneyHistory[id]||[] }));
+            try{ await supabaseClient.from('bidding_game_logs').insert(logs); }catch(e){console.error(e);}
+        }
+
         function renderGame() {
-            if(state.phase === 'waiting') return;
+            if(state.phase==='waiting') return;
             document.getElementById('lobby-modal').classList.add('hidden');
+            if(state.phase!=='results') document.getElementById('result-modal').classList.add('hidden');
+            if(state.phase!=='game_end') document.getElementById('game-end-modal').classList.add('hidden');
             
-            if(state.phase !== 'results') {
-                document.getElementById('result-modal').classList.add('hidden');
-            }
-            
-            if(state.phase === 'role_reveal') {
-                const tbody = document.getElementById('role-table-body');
-                tbody.innerHTML = '';
-                Object.values(state.players).forEach(p => {
-                    let rName = ROLES.find(r=>r.id === p.role)?.name || '';
-                    tbody.innerHTML += `<tr><td class="px-4 py-3 border-b">${p.name}</td><td class="px-4 py-3 border-b text-center font-bold text-slate-800">${rName}</td></tr>`;
-                });
-                document.getElementById('role-reveal-modal').classList.remove('hidden');
-                return;
-            } else {
-                document.getElementById('role-reveal-modal').classList.add('hidden');
-            }
+            if(state.phase==='role_reveal') {
+                const tb = document.getElementById('role-table-body'); tb.innerHTML='';
+                Object.values(state.players).forEach(p => { let r=getRoleData(p.role); tb.innerHTML+=`<tr><td class="px-4 py-3 border-b">${p.name}</td><td class="px-4 py-3 border-b text-center font-bold text-slate-800">${r?r.name:''}</td></tr>`; });
+                document.getElementById('role-reveal-modal').classList.remove('hidden'); return;
+            } else document.getElementById('role-reveal-modal').classList.add('hidden');
 
             document.getElementById('current-turn').textContent = state.turn;
             document.getElementById('waiting-screen').classList.add('hidden');
             
-            const myData = state.players[myId];
-            if (myData && myData.role) {
-                const roleInfo = ROLES.find(r => r.id === myData.role);
-                document.getElementById('my-role-badge').textContent = roleInfo.name;
-                document.getElementById('my-role-badge').classList.remove('hidden');
-            }
+            const myD = state.players[myId];
+            if(myD && myD.role) { let r=getRoleData(myD.role); document.getElementById('my-role-badge').textContent=r.name; document.getElementById('my-role-badge').classList.remove('hidden'); }
 
-            const pContainer = document.getElementById('players-container');
-            pContainer.innerHTML = '';
+            const pC = document.getElementById('players-container'); pC.innerHTML='';
             Object.entries(state.players).forEach(([id, p]) => {
-                let roleInfo = ROLES.find(r => r.id === p.role);
-                let roleName = roleInfo?.name || '観戦';
-                let used = getUsedCap(p);
-                let capStr = `<span class="text-xs font-bold ${used===4?'text-red-500':'text-emerald-600'} ml-2 bg-slate-100 px-1 rounded border">キャパ: ${4-used}/4</span>`;
-                let scoreStr = roleInfo?.type === 'main' ? `<span class="text-[10px] text-slate-500 block">スコア(大${p.scores.large}/小${p.scores.small})</span>` : '';
+                let r = getRoleData(p.role);
+                let rName = r?r.name:'観戦'; if(r&&r.type==='main') rName += r.bType==='employee'?' <span class="text-[10px] bg-indigo-100 text-indigo-800 px-1 rounded">(正社員)</span>':' <span class="text-[10px] bg-slate-200 text-slate-700 px-1 rounded">(請負型)</span>';
+                let mCap=getMaxCap(p), used=getUsedCap(p), capS = `<span class="text-xs font-bold ${used===mCap?'text-red-500':'text-emerald-600'} ml-2 bg-slate-100 px-1 rounded border">キャパ: ${mCap-used}/${mCap}</span>`;
+                let scoreStr = r && r.type === 'main' ? `<div class="text-[11px] font-bold text-slate-600 mt-1">スコア: 大<span class="text-red-600">${p.scores.large}</span> / 小<span class="text-blue-600">${p.scores.small}</span></div>` : '';
                 
-                pContainer.innerHTML += `
-                    <div class="flex justify-between items-center p-2 bg-slate-50 border rounded text-sm shadow-sm ${id===myId?'border-blue-400 ring-2 ring-blue-200':''}">
-                        <div><span class="font-bold text-slate-800">${p.name}</span> <span class="text-xs text-slate-500">(${roleName})</span>${capStr}${scoreStr}</div>
-                        <div class="font-black text-lg ${p.money<0?'text-red-600':'text-slate-800'}">${p.money} Y</div>
-                    </div>`;
-            });
-
-            if (state.market.m1) {
-                const s1 = getStyles(state.market.m1);
-                const s2 = getStyles(state.market.m2);
-                
-                document.getElementById('market-container').innerHTML = `
-                    <div class="${s1.bg} p-2 rounded-lg border-2 ${s1.border} shadow-sm">
-                        <span class="font-black ${s1.text}">市場①: ${state.market.m1 === 'large' ? '大工事' : '小工事'}</span>
-                        <div class="text-xs text-slate-700 mt-1 font-semibold">基準価格: ${config[state.market.m1].base}Y / 上限: ${config[state.market.m1].limit}Y / 消費キャパ: ${config[state.market.m1].cap} (拘束${config[state.market.m1].restraint}T)</div>
+                pC.innerHTML += `<div class="flex justify-between items-center p-2 bg-slate-50 border rounded text-sm shadow-sm ${id===myId?'border-blue-400 ring-2 ring-blue-200':''}">
+                    <div class="leading-tight"><span class="font-bold text-slate-800">${p.name}</span> <span class="text-xs text-slate-500">${rName}</span>${capS}${scoreStr}</div>
+                    <div class="flex items-center gap-3">
+                        <button onclick="showPlayerGraph('${id}')" class="text-2xl hover:scale-110 transition-transform" title="推移グラフを表示">📈</button>
+                        <div class="font-black text-lg ${p.money<0?'text-red-600':'text-slate-800'} w-14 text-right">${p.money}Y</div>
                     </div>
-                    <div class="${s2.bg} p-2 rounded-lg border-2 ${s2.border} shadow-sm">
-                        <span class="font-black ${s2.text}">市場②: ${state.market.m2 === 'large' ? '大工事' : '小工事'}</span>
-                        <div class="text-xs text-slate-700 mt-1 font-semibold">基準価格: ${config[state.market.m2].base}Y / 上限: ${config[state.market.m2].limit}Y / 消費キャパ: ${config[state.market.m2].cap} (拘束${config[state.market.m2].restraint}T)</div>
-                    </div>
-                `;
-            }
-
-            if (!myData || !myData.role) return;
-            const roleInfo = ROLES.find(r => r.id === myData.role);
-
-            if (state.phase === 'sub_bidding' && roleInfo.type === 'sub') {
-                document.getElementById('main-action-form').classList.add('hidden');
-                if (state.subBids[myId]) {
-                    document.getElementById('sub-action-form').classList.add('hidden');
-                    showOverlay('提出完了。元請けの入札を待っています...');
-                } else {
-                    document.getElementById('action-overlay').classList.add('hidden');
-                    document.getElementById('sub-action-form').classList.remove('hidden');
-                    if (renderedSubTurn !== state.turn) {
-                        renderSubForm();
-                        renderedSubTurn = state.turn;
-                    }
-                }
-            } 
-            else if (state.phase === 'sub_bidding' && roleInfo.type === 'main') {
-                document.getElementById('sub-action-form').classList.add('hidden');
-                document.getElementById('main-action-form').classList.add('hidden');
-                showOverlay('下請けの見積もり提出を待っています...');
-            }
-            else if (state.phase === 'main_bidding' && roleInfo.type === 'main') {
-                document.getElementById('sub-action-form').classList.add('hidden');
-                if (state.mainBids[myId]) {
-                    document.getElementById('main-action-form').classList.add('hidden');
-                    showOverlay('他の元請けの提出を待っています...');
-                } else {
-                    document.getElementById('action-overlay').classList.add('hidden');
-                    document.getElementById('main-action-form').classList.remove('hidden');
-                    if (renderedMainTurn !== state.turn) {
-                        renderMainForm();
-                        renderedMainTurn = state.turn;
-                    }
-                }
-            }
-            else if (state.phase === 'main_bidding' && roleInfo.type === 'sub') {
-                document.getElementById('sub-action-form').classList.add('hidden');
-                document.getElementById('main-action-form').classList.add('hidden');
-                showOverlay('元請けが入札・割り当てを行っています...');
-            }
-            else if (state.phase === 'results') {
-                document.getElementById('sub-action-form').classList.add('hidden');
-                document.getElementById('main-action-form').classList.add('hidden');
-                document.getElementById('action-overlay').classList.add('hidden');
-                renderResults();
-            }
-        }
-
-        function showOverlay(text) {
-            document.getElementById('action-overlay').classList.remove('hidden');
-            document.getElementById('overlay-text').textContent = text;
-        }
-
-        function renderSubForm() {
-            const container = document.getElementById('sub-inputs');
-            container.innerHTML = '';
-            const availCap = config.maxCapacity - getUsedCap(state.players[myId]);
-            const m1 = state.market.m1;
-            const m2 = state.market.m2;
-            
-            const createInput = (key, type, capNeeded, labelName) => {
-                let cost = config[type].cost;
-                let name = type === 'large' ? '大工事' : '小工事';
-                let disabled = availCap < capNeeded;
-                let s = getStyles(type);
-                
-                let overlayHTML = disabled ? `<div class="absolute inset-0 z-10 flex flex-col items-center justify-center bg-slate-200/90 rounded-xl"><span class="font-black text-red-600 text-lg border-2 border-red-500 bg-white px-3 py-1 rounded shadow-sm">キャパ不足</span><span class="text-xs font-bold text-slate-700 mt-1">(必要:${capNeeded} / 残り:${availCap})</span></div>` : '';
-                
-                return `
-                    <div class="p-4 rounded-xl border-2 ${disabled ? 'bg-slate-200 border-slate-300' : s.bg + ' ' + s.border} relative shadow-sm">
-                        ${overlayHTML}
-                        <div class="flex items-center gap-2 mb-2">
-                            <span class="${s.label} px-2 py-1 rounded text-xs font-bold">${labelName}</span>
-                            <h3 class="font-bold text-lg ${s.text}">${name}</h3>
-                        </div>
-                        <input type="number" id="sub-est-${key}" class="w-full border-2 border-slate-300 p-3 rounded mb-2 font-bold text-xl text-right outline-none focus:border-blue-500" placeholder="見積額を入力" oninput="updateSubProfit('${key}', ${cost})" ${disabled?'disabled':''}>
-                        <div class="text-sm text-slate-700 bg-white p-2 border rounded">
-                            末端原価: ${cost} Y<br>
-                            利益: <span id="sub-prof-${key}" class="font-black text-blue-600 text-base">0</span> Y
-                        </div>
-                    </div>
-                `;
-            };
-
-            let html = "";
-            if (m1 === 'large' && m2 === 'large') {
-                container.className = "grid grid-cols-1 gap-4"; // 1つだけなので全幅に
-                html += createInput('large', 'large', config['large'].cap, '大工事 (市場①・②共通)');
-            } else {
-                container.className = "grid grid-cols-2 gap-4";
-                html += createInput('m1', m1, config[m1].cap, '市場①');
-                html += createInput('m2', m2, config[m2].cap, '市場②');
-            }
-            container.innerHTML = html;
-        }
-
-        function updateSubProfit(key, cost) {
-            const val = parseInt(document.getElementById(`sub-est-${key}`).value) || 0;
-            document.getElementById(`sub-prof-${key}`).textContent = val - cost;
-        }
-
-        function submitSubEstimate() {
-            let bids = {};
-            const availCap = config.maxCapacity - getUsedCap(state.players[myId]);
-            
-            const getVal = (id) => {
-                const el = document.getElementById(id);
-                if(!el || el.disabled || el.value === '') return null;
-                const val = parseInt(el.value);
-                return isNaN(val) || val <= 0 ? null : val;
-            };
-
-            if (state.market.m1 === 'large' && state.market.m2 === 'large') {
-                let v = getVal('sub-est-large');
-                if (v && availCap >= config['large'].cap) {
-                    bids['m1'] = v;
-                    bids['m2'] = v; // 同じ金額を両方の市場に提示
-                }
-            } else {
-                let v1 = getVal('sub-est-m1');
-                if (v1 && availCap >= config[state.market.m1].cap) bids['m1'] = v1;
-
-                let v2 = getVal('sub-est-m2');
-                if (v2 && availCap >= config[state.market.m2].cap) bids['m2'] = v2;
-            }
-
-            if(Object.keys(bids).length === 0) bids.pass = true;
-
-            if(isHost) handleSubSubmit(myId, bids);
-            else onlineChannel.send({ type: 'broadcast', event: 'sub_submit', payload: { id: myId, bids } });
-            
-            document.getElementById('sub-action-form').classList.add('hidden');
-            showOverlay('提出完了。元請けの入札を待っています...');
-        }
-
-        function renderMainForm() {
-            document.getElementById('main-m1-bid').value = '';
-            document.getElementById('main-m2-bid').value = '';
-            document.getElementById('m1-sub-drop').innerHTML = '';
-            document.getElementById('m2-sub-drop').innerHTML = '';
-            document.getElementById('m1-score').textContent = '0.00';
-            document.getElementById('m2-score').textContent = '0.00';
-            calculateMainProfit(1);
-            calculateMainProfit(2);
-
-            document.getElementById('main-m1-type').textContent = state.market.m1 === 'large' ? '大工事' : '小工事';
-            document.getElementById('main-m2-type').textContent = state.market.m2 === 'large' ? '大工事' : '小工事';
-            
-            const s1 = getStyles(state.market.m1);
-            const s2 = getStyles(state.market.m2);
-            document.getElementById('m1-panel').className = `bg-white border-2 rounded-xl p-3 flex flex-col relative transition-colors ${s1.border}`;
-            document.getElementById('m2-panel').className = `bg-white border-2 rounded-xl p-3 flex flex-col relative transition-colors ${s2.border}`;
-            document.getElementById('m1-header').className = `font-bold text-center rounded py-1 mb-2 ${s1.bg} ${s1.text}`;
-            document.getElementById('m2-header').className = `font-bold text-center rounded py-1 mb-2 ${s2.bg} ${s2.text}`;
-
-            const availCap = config.maxCapacity - getUsedCap(state.players[myId]);
-            document.getElementById('m1-lock-overlay').classList.toggle('hidden', availCap >= config[state.market.m1].cap);
-            document.getElementById('m2-lock-overlay').classList.toggle('hidden', availCap >= config[state.market.m2].cap);
-
-            const allSubs = Object.entries(state.players).filter(([id, p]) => ROLES.find(r=>r.id===p.role).type === 'sub');
-            const unassigned = document.getElementById('unassigned-subs');
-            unassigned.innerHTML = '';
-            
-            allSubs.forEach(([sid, p]) => {
-                let subData = state.subBids[sid];
-                if(subData && !subData.pass) {
-                    let div = document.createElement('div');
-                    div.draggable = true;
-                    div.id = `sub-card-${sid}`;
-                    div.dataset.id = sid;
-                    div.dataset.name = p.name;
-                    
-                    let p1 = subData.m1 || 0;
-                    let p2 = subData.m2 || 0;
-                    div.dataset.p1 = p1;
-                    div.dataset.p2 = p2;
-                    
-                    updateSubCardDisplay(div, 'unassigned-subs');
-                    div.ondragstart = (e) => { e.dataTransfer.setData('text/plain', sid); };
-                    unassigned.appendChild(div);
-                }
-            });
-
-            setupDropzone('unassigned-subs', 0);
-            setupDropzone('m1-sub-drop', 1);
-            setupDropzone('m2-sub-drop', 2);
-        }
-
-        function updateSubCardDisplay(card, zoneId) {
-            const p1 = parseInt(card.dataset.p1) || 0;
-            const p2 = parseInt(card.dataset.p2) || 0;
-            const name = card.dataset.name;
-            const s1 = getStyles(state.market.m1);
-            const s2 = getStyles(state.market.m2);
-            const n1 = state.market.m1 === 'large' ? '大' : '小';
-            const n2 = state.market.m2 === 'large' ? '大' : '小';
-
-            if (zoneId === 'm1-sub-drop') {
-                card.className = `p-2 rounded-lg border-2 draggable text-sm cursor-grab active:cursor-grabbing font-bold shadow-md w-full ${s1.bg} ${s1.border} transition-colors`;
-                card.innerHTML = `👷 ${name} <br><span class="text-xs font-bold ${s1.text} block mt-1 bg-white p-1 rounded border text-center shadow-sm">提示額: ${p1 > 0 ? p1 + 'Y' : '辞退'}</span>`;
-            } else if (zoneId === 'm2-sub-drop') {
-                card.className = `p-2 rounded-lg border-2 draggable text-sm cursor-grab active:cursor-grabbing font-bold shadow-md w-full ${s2.bg} ${s2.border} transition-colors`;
-                card.innerHTML = `👷 ${name} <br><span class="text-xs font-bold ${s2.text} block mt-1 bg-white p-1 rounded border text-center shadow-sm">提示額: ${p2 > 0 ? p2 + 'Y' : '辞退'}</span>`;
-            } else {
-                card.className = "bg-white p-2 rounded-lg border-2 border-slate-300 draggable text-sm cursor-grab active:cursor-grabbing font-bold shadow-md w-36 hover:bg-slate-50 transition-colors";
-                card.innerHTML = `👷 ${name} 
-                    <div class="mt-1 flex flex-col gap-1 text-[11px]">
-                        <div class="${s1.bg} ${s1.border} border ${s1.text} p-1 rounded text-center leading-tight">①${n1}: ${p1 > 0 ? p1 + 'Y' : '辞退'}</div>
-                        <div class="${s2.bg} ${s2.border} border ${s2.text} p-1 rounded text-center leading-tight">②${n2}: ${p2 > 0 ? p2 + 'Y' : '辞退'}</div>
-                    </div>`;
-            }
-        }
-
-        function setupDropzone(id, marketIndex) {
-            const zone = document.getElementById(id);
-            zone.ondragover = (e) => { e.preventDefault(); zone.classList.add('dragover'); };
-            zone.ondragleave = (e) => { zone.classList.remove('dragover'); };
-            zone.ondrop = (e) => {
-                e.preventDefault();
-                zone.classList.remove('dragover');
-                const sid = e.dataTransfer.getData('text/plain');
-                if (!sid) return;
-                const el = document.getElementById(`sub-card-${sid}`);
-                if (!el) return;
-                
-                if (id === 'm1-sub-drop' && (!el.dataset.p1 || parseInt(el.dataset.p1) <= 0)) {
-                    alert('この下請けは市場①に見積もりを出していません。');
-                    return;
-                }
-                if (id === 'm2-sub-drop' && (!el.dataset.p2 || parseInt(el.dataset.p2) <= 0)) {
-                    alert('この下請けは市場②に見積もりを出していません。');
-                    return;
-                }
-
-                // すでに別の下請けが枠内にいる場合、それを unassigned-subs に戻す入れ替え処理
-                if (id !== 'unassigned-subs' && zone.children.length > 0 && zone.children[0] !== el) {
-                    const existing = zone.children[0];
-                    document.getElementById('unassigned-subs').appendChild(existing);
-                    updateSubCardDisplay(existing, 'unassigned-subs');
-                }
-
-                zone.appendChild(el);
-                updateSubCardDisplay(el, id);
-                calculateMainProfit(1);
-                calculateMainProfit(2);
-            };
-        }
-
-        function calculateMainProfit(mIdx) {
-            const bidStr = document.getElementById(`main-m${mIdx}-bid`).value;
-            const bid = parseInt(bidStr) || 0;
-            const zone = document.getElementById(`m${mIdx}-sub-drop`);
-            let subCost = 0;
-            if(zone.children.length > 0) {
-                const el = zone.children[0];
-                subCost = parseInt(mIdx === 1 ? el.dataset.p1 : el.dataset.p2);
-            }
-            document.getElementById(`m${mIdx}-sub-cost`).textContent = subCost;
-            document.getElementById(`m${mIdx}-profit`).textContent = bid > 0 ? (bid - config.turnFixedCost - subCost) : 0;
-
-            let score = 0;
-            if (bid > 0) {
-                const mType = mIdx === 1 ? state.market.m1 : state.market.m2;
-                const c = config[mType];
-                const sBase = state.players[myId].scores[mType];
-                score = (sBase * c.limit) / bid;
-            }
-            document.getElementById(`m${mIdx}-score`).textContent = score > 0 ? score.toFixed(2) : '0.00';
-        }
-
-        function submitMainBid() {
-            const getZoneData = (mIdx) => {
-                const zone = document.getElementById(`m${mIdx}-sub-drop`);
-                if(zone.children.length > 0) {
-                    let el = zone.children[0];
-                    return { subId: el.dataset.id, subPrice: parseInt(mIdx===1 ? el.dataset.p1 : el.dataset.p2) };
-                }
-                return { subId: null, subPrice: 0 };
-            };
-
-            const z1 = getZoneData(1);
-            const z2 = getZoneData(2);
-            const b1 = parseInt(document.getElementById(`main-m1-bid`).value) || 0;
-            const b2 = parseInt(document.getElementById(`main-m2-bid`).value) || 0;
-
-            if ((b1 > 0 && !z1.subId) || (b1 <= 0 && z1.subId)) {
-                alert('市場①：入札額と下請けの割り当ては両方同時に行う必要があります。'); return;
-            }
-            if ((b2 > 0 && !z2.subId) || (b2 <= 0 && z2.subId)) {
-                alert('市場②：入札額と下請けの割り当ては両方同時に行う必要があります。'); return;
-            }
-
-            let bids = {
-                m1: { bid: b1, subId: z1.subId, subPrice: z1.subPrice },
-                m2: { bid: b2, subId: z2.subId, subPrice: z2.subPrice }
-            };
-
-            if(isHost) handleMainSubmit(myId, bids);
-            else onlineChannel.send({ type: 'broadcast', event: 'main_submit', payload: { id: myId, bids } });
-            
-            document.getElementById('main-action-form').classList.add('hidden');
-            showOverlay('提出完了。結果を待機中...');
-        }
-
-        function renderResults() {
-            const modal = document.getElementById('result-modal');
-            const container = document.getElementById('result-content');
-            
-            if(!state.lastResults) return;
-
-            const s1 = getStyles(state.market.m1);
-            const s2 = getStyles(state.market.m2);
-
-            let html = `
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div class="${s1.bg} p-4 rounded-xl border-2 ${s1.border} shadow-sm">
-                        <h3 class="font-black ${s1.text} text-lg border-b ${s1.border} pb-1 mb-2">市場① (${state.market.m1==='large'?'大工事':'小工事'})</h3>
-                        <p class="text-base text-slate-800 mb-2 font-bold">${state.lastResults.m1.log}</p>
-                        <p class="text-sm text-slate-700 bg-white p-3 rounded-lg border shadow-inner leading-relaxed">${state.lastResults.m1.detail}</p>
-                    </div>
-                    <div class="${s2.bg} p-4 rounded-xl border-2 ${s2.border} shadow-sm">
-                        <h3 class="font-black ${s2.text} text-lg border-b ${s2.border} pb-1 mb-2">市場② (${state.market.m2==='large'?'大工事':'小工事'})</h3>
-                        <p class="text-base text-slate-800 mb-2 font-bold">${state.lastResults.m2.log}</p>
-                        <p class="text-sm text-slate-700 bg-white p-3 rounded-lg border shadow-inner leading-relaxed">${state.lastResults.m2.detail}</p>
-                    </div>
-                </div>
-                <h3 class="font-black text-lg mt-6 border-b-2 border-slate-200 pb-1 text-slate-800">今ターンの最終収支 (固定費-50Y適用済み)</h3>
-                <div class="grid grid-cols-2 gap-3 mt-3">
-            `;
-            
-            Object.entries(state.lastResults.profits).forEach(([id, prof]) => {
-                html += `<div class="bg-slate-50 p-3 rounded-lg border border-slate-200 text-sm flex justify-between items-center shadow-sm">
-                    <span class="font-bold text-slate-700">${state.players[id].name}</span>
-                    <span class="font-black text-lg ${prof>0?'text-emerald-600':(prof<0?'text-red-600':'text-slate-600')}">${prof>0?'+':''}${prof}Y</span>
                 </div>`;
             });
-            html += `</div>`;
-            
-            container.innerHTML = html;
-            modal.classList.remove('hidden');
+
+            if(state.market.m1) {
+                const s1=getStyles(state.market.m1), s2=getStyles(state.market.m2);
+                document.getElementById('market-container').innerHTML = `<div class="${s1.bg} p-2 rounded-lg border-2 ${s1.border} shadow-sm"><span class="font-black ${s1.text}">市場①: ${state.market.m1==='large'?'大工事':'小工事'}</span><div class="text-[11px] text-slate-700 mt-1 font-semibold">基準:${config[state.market.m1].base}Y / 上限:${config[state.market.m1].limit}Y / キャパ:${config[state.market.m1].cap} (拘束${config[state.market.m1].restraint}T)</div></div><div class="${s2.bg} p-2 rounded-lg border-2 ${s2.border} shadow-sm"><span class="font-black ${s2.text}">市場②: ${state.market.m2==='large'?'大工事':'小工事'}</span><div class="text-[11px] text-slate-700 mt-1 font-semibold">基準:${config[state.market.m2].base}Y / 上限:${config[state.market.m2].limit}Y / キャパ:${config[state.market.m2].cap} (拘束${config[state.market.m2].restraint}T)</div></div>`;
+            }
+
+            if(!myD||!myD.role) return;
+            let rInfo = getRoleData(myD.role);
+
+            ['main-target-form', 'sub-response-form', 'main-action-form'].forEach(id => document.getElementById(id).classList.add('hidden'));
+
+            if (state.phase === 'main_target') {
+                if (rInfo.type === 'main') {
+                    if (state.targets[myId]) {
+                        showOverlay('CPU（下請け）が見積・応答を処理中です...');
+                    } else {
+                        document.getElementById('action-overlay').classList.add('hidden');
+                        if (rInfo.bType === 'employee') {
+                            let targetObj = {pass: true};
+                            if (isHost || isSolo) {
+                                handleMainTarget(myId, targetObj);
+                            } else {
+                                onlineChannel.send({type:'broadcast',event:'main_target',payload:{id:myId,target:targetObj}});
+                                state.targets[myId] = targetObj; 
+                                renderGame();
+                            }
+                            showOverlay('正社員型のため下請け提示をスキップしました...');
+                        } else {
+                            document.getElementById('main-target-form').classList.remove('hidden');
+                            let m1K = state.market.m1 || 'small'; let m2K = state.market.m2 || 'small';
+                            document.getElementById('target-m1-type').textContent = m1K==='large'?'大工事':'小工事';
+                            document.getElementById('target-m2-type').textContent = m2K==='large'?'大工事':'小工事';
+                        }
+                    }
+                } else showOverlay('CPU（元請け）が希望価格を検討中です...');
+            } 
+            else if (state.phase === 'sub_response') {
+                if (rInfo.type === 'sub') {
+                    if (state.subResponses[myId]) {
+                        showOverlay('他の下請けの応答を待っています...');
+                    } else {
+                        document.getElementById('action-overlay').classList.add('hidden');
+                        document.getElementById('sub-response-form').classList.remove('hidden');
+                        renderSubResponseForm();
+                    }
+                } else showOverlay('CPU（下請け）が見積・応答を処理中です...');
+            }
+            else if (state.phase === 'main_bidding') {
+                if (rInfo.type === 'main') {
+                    if (state.mainBids[myId]) {
+                        showOverlay('開票・結果集計中です...');
+                    } else {
+                        document.getElementById('action-overlay').classList.add('hidden');
+                        document.getElementById('main-action-form').classList.remove('hidden');
+                        if(renderedMainTurn !== state.turn) { renderMainForm(); renderedMainTurn = state.turn; }
+                    }
+                } else showOverlay('CPU（元請け）が入札・下請け選定を行っています...');
+            }
+            else if (state.phase === 'results') {
+                document.getElementById('action-overlay').classList.add('hidden');
+                if(!state.readies[myId]) renderResults(); else { document.getElementById('result-modal').classList.add('hidden'); showOverlay('他のプレイヤーが確認するのを待っています...'); }
+            }
+            else if (state.phase === 'game_end') {
+                document.getElementById('action-overlay').classList.add('hidden'); document.getElementById('result-modal').classList.add('hidden'); renderGameEnd();
+            }
         }
 
-        function closeResult() {
-            if(isHost) {
-                document.getElementById('result-modal').classList.add('hidden');
-                showOverlay('次のターンへ移行中...');
-                setTimeout(hostNextTurn, 1000);
-            } else {
-                if (state.phase === 'results') {
-                    document.getElementById('result-modal').classList.add('hidden');
-                    showOverlay('ホストが次のターンへ進むのを待っています...');
-                }
-            }
+        function showBidStatus() {
+            if(!state.bidHistory || state.bidHistory.length === 0) return alert('データがありません。');
+            const c = document.getElementById('bid-status-content'); let h = '';
+            [...state.bidHistory].reverse().forEach(hist => {
+                h += `<div class="col-span-1 md:col-span-2 bg-slate-200 p-2 font-bold text-center rounded mt-4 text-slate-800 border-2 border-slate-300">第 ${hist.turn} ターン</div>`;
+                h += ['m1','m2'].map(k=>{
+                    let d = hist[k]; let h_bids = '';
+                    Object.keys(d.bids).forEach(rId => {
+                        let rName = state.roles.find(x=>x.id===rId)?.name || rId;
+                        let v = d.bids[rId], isW = d.winnerRole===rId, isU = v<d.base, cls = `font-bold text-lg inline-block px-2 py-1 ${isU?'text-red-600':'text-slate-800'} ${isW?'border-[3px] border-red-500 rounded bg-red-50':''}`;
+                        h_bids += `<div class="flex justify-between items-center mb-1"><span class="font-bold text-sm text-slate-700 bg-white px-2 py-1 rounded border shadow-sm">${rName}</span>${v>0?`<span class="${cls}">${v}Y</span>`:'<span class="text-slate-400">未入札</span>'}</div>`;
+                    });
+                    return `<div class="bg-slate-50 p-4 rounded-xl border-2 shadow-sm"><h3 class="font-black text-center mb-2 text-lg text-slate-800">市場${k==='m1'?'①':'②'} (${d.type==='large'?'大工事':'小工事'})</h3><div class="text-xs text-center text-slate-600 mb-3 border-b pb-2">基準: ${d.base}Y / 上限: ${d.limit}Y</div>${h_bids}</div>`;
+                }).join('');
+            });
+            c.innerHTML = h; document.getElementById('bid-status-modal').classList.remove('hidden');
+        }
+
+        function showPlayerGraph(id) {
+            const p = state.players[id]; if(!p) return;
+            document.getElementById('player-graph-title').textContent = `📈 ${p.name} の資金推移`; document.getElementById('player-graph-modal').classList.remove('hidden');
+            if(playerChartInstance) playerChartInstance.destroy();
+            const ctx = document.getElementById('playerMoneyChart').getContext('2d');
+            let d = state.moneyHistory[id] || [1000]; let color = d[d.length-1] >= d[0] ? '#10b981' : '#ef4444';
+            let labels = Array.from({length: d.length}, (_, i) => i === 0 ? '開始' : (i <= 10 ? `${i}T` : `精算+${i-10}`));
+            playerChartInstance = new Chart(ctx, { type: 'line', data: { labels: labels, datasets: [{ label: '所持金', data: d, borderColor: color, backgroundColor: color, fill: false, tension: 0.1, borderWidth: 3 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { title: { display: true, text: 'ターン' } }, y: { title: { display: true, text: '所持金 (Y)' } } } } });
+        }
+
+        function openGraphModal() {
+            document.getElementById('graph-modal').classList.remove('hidden'); if(moneyChartInstance) moneyChartInstance.destroy();
+            const ctx = document.getElementById('moneyChart').getContext('2d'), cols = ['#ef4444','#3b82f6','#10b981','#f59e0b','#8b5cf6','#ec4899'];
+            let maxLen = 0; Object.values(state.moneyHistory).forEach(h => { if(h.length > maxLen) maxLen = h.length; });
+            let labels = Array.from({length: maxLen}, (_, i) => i === 0 ? '開始' : (i <= 10 ? `${i}T` : `精算+${i-10}`));
+            moneyChartInstance = new Chart(ctx, { type:'line', data:{ labels: labels, datasets:Object.keys(state.players).map((id,i)=>({label:state.players[id].name, data:state.moneyHistory[id]||[], borderColor:cols[i%cols.length], backgroundColor:cols[i%cols.length], fill:false, tension:0.1, borderWidth:3})) }, options:{ responsive:true, maintainAspectRatio:false } });
         }
     </script>
 </body>
