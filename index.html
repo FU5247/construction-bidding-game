@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>入札ゲーム ver.144 </title>
+    <title>入札ゲーム ver.145</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -124,7 +124,7 @@
 
     <header class="bg-slate-800 text-white p-3 shadow-md flex justify-between items-center z-[85] shrink-0">
         <div class="flex items-center gap-3">
-            <h1 class="text-xl font-bold">入札 ver.144 <span class="text-sm font-normal ml-2">第 <span id="turn-display" class="text-yellow-400 font-bold text-2xl">1</span> / <span id="total-turn-display">10</span> ターン</span></h1>
+            <h1 class="text-xl font-bold">入札 ver.145 <span class="text-sm font-normal ml-2">第 <span id="turn-display" class="text-yellow-400 font-bold text-2xl">1</span> / <span id="total-turn-display">10</span> ターン</span></h1>
             <button id="room-badge" class="hidden px-2 py-0.5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 rounded text-xs font-bold text-white shadow border border-indigo-500 transition-colors" onclick="if(myPlayerIndex === 0) document.getElementById('lobby-modal').classList.remove('hidden')">🏠 ルーム: <span id="current-room-id-display">---</span></button>
             <div id="ai-status" class="hidden px-2 py-1 bg-emerald-500 rounded text-xs font-bold shadow animate-pulse">🤖 データ学習済</div>
             
@@ -2278,7 +2278,7 @@
             if (allReady) {
                 resultConfirmations = {}; 
                 if (onlineChannel) {
-                    await onlineChannel.send({ type: 'broadcast', event: 'start_hiring_phase', payload: {} });
+                    await onlineChannel.send({ type: 'broadcast', event: 'start_hiring_phase', payload: { turn: currentTurn } });
                 }
                 startHiringPhase();
             }
@@ -2318,7 +2318,7 @@
                 }
 
                 if (onlineChannel) {
-                    await onlineChannel.send({ type: 'broadcast', event: 'all_hiring_completed', payload: { hiringInputs: hiringInputs } });
+                    await onlineChannel.send({ type: 'broadcast', event: 'all_hiring_completed', payload: { hiringInputs: hiringInputs, turn: currentTurn } });
                 }
                 
                 hideCalculatingModal();
@@ -2414,7 +2414,7 @@
             if (isOnlineMode) {
                 showCalculatingModal('待機中...', '他のプレイヤーの確認を待っています。');
                 if (myPlayerIndex !== 0) {
-                    await onlineChannel.send({ type: 'broadcast', event: 'result_confirmed', payload: { playerIndex: myPlayerIndex } });
+                    await onlineChannel.send({ type: 'broadcast', event: 'result_confirmed', payload: { playerIndex: myPlayerIndex, turn: currentTurn } });
                 } else {
                     await handleResultConfirmed(0);
                 }
@@ -2528,7 +2528,7 @@
                 showCalculatingModal('待機中...', '他のプレイヤーの操作を待っています。');
                 
                 if (myPlayerIndex !== 0) {
-                    await onlineChannel.send({ type: 'broadcast', event: 'hiring_completed', payload: { playerIndex: myPlayerIndex, hire: myHire } });
+                    await onlineChannel.send({ type: 'broadcast', event: 'hiring_completed', payload: { playerIndex: myPlayerIndex, hire: myHire, turn: currentTurn } });
                 } else {
                     await handleHiringCompleted(0, myHire);
                 }
@@ -3163,7 +3163,8 @@
                     }
                 })
                 .on('broadcast', { event: 'player_bid' }, async payload => {
-                    const { playerIndex, bid } = payload.payload;
+                    const { playerIndex, bid, turn } = payload.payload;
+                    if (turn && turn !== currentTurn) return; // ターン検証：過去/未来の通信は破棄
                     bidInputs[playerIndex] = bid;
                     if (myPlayerIndex === 0) {
                         await checkAndTriggerProcessBids();
@@ -3171,30 +3172,40 @@
                 })
                 .on('broadcast', { event: 'all_bids_determined' }, payload => {
                     if (myPlayerIndex !== 0) {
-                        bidInputs = payload.payload.bids;
-                        currentTieBreaker = payload.payload.tieBreaker;
+                        const { bids, tieBreaker, turn } = payload.payload;
+                        if (turn && turn !== currentTurn) return; // ターン検証
+                        bidInputs = bids;
+                        currentTieBreaker = tieBreaker;
                         hideCalculatingModal();
                         processBids();
                     }
                 })
                 .on('broadcast', { event: 'result_confirmed' }, async payload => {
                     if (myPlayerIndex === 0) {
-                        await handleResultConfirmed(payload.payload.playerIndex);
+                        const { playerIndex, turn } = payload.payload;
+                        if (turn && turn !== currentTurn) return; // ターン検証
+                        await handleResultConfirmed(playerIndex);
                     }
                 })
                 .on('broadcast', { event: 'start_hiring_phase' }, payload => {
                     if (myPlayerIndex !== 0) {
+                        const { turn } = payload.payload;
+                        if (turn && turn !== currentTurn) return; // ターン検証
                         startHiringPhase();
                     }
                 })
                 .on('broadcast', { event: 'hiring_completed' }, async payload => {
                     if (myPlayerIndex === 0) {
-                        await handleHiringCompleted(payload.payload.playerIndex, payload.payload.hire);
+                        const { playerIndex, hire, turn } = payload.payload;
+                        if (turn && turn !== currentTurn) return; // ターン検証
+                        await handleHiringCompleted(playerIndex, hire);
                     }
                 })
                 .on('broadcast', { event: 'all_hiring_completed' }, payload => {
                     if (myPlayerIndex !== 0) {
-                        const hInputs = payload.payload.hiringInputs;
+                        const { hiringInputs, turn } = payload.payload;
+                        if (turn && turn !== currentTurn) return; // ターン検証
+                        const hInputs = hiringInputs;
                         for (let i = 0; i < 4; i++) {
                             if (hInputs[i]) {
                                 players[i].employees += hInputs[i].f;
@@ -3208,13 +3219,16 @@
                 })
                 .on('broadcast', { event: 'start_coin_toss' }, async payload => {
                     if (myPlayerIndex !== 0) {
-                        currentTurn = payload.payload.turn;
+                        const { turn, economy } = payload.payload;
+                        if (turn && turn < currentTurn) return; // 古いターンの開始合図を無視
+                        
+                        currentTurn = turn;
                         const turnDisplayNode = document.getElementById('turn-display');
                         if (turnDisplayNode) turnDisplayNode.textContent = currentTurn;
                         
                         document.getElementById('turn-profit-modal').classList.add('hidden');
 
-                        await playCoinTossAnimation(payload.payload.economy);
+                        await playCoinTossAnimation(economy);
                     }
                 })
                 .on('broadcast', { event: 'start_game' }, async payload => {
@@ -3295,7 +3309,7 @@
                     await onlineChannel.send({
                         type: 'broadcast',
                         event: 'all_bids_determined',
-                        payload: { bids: bidInputs, tieBreaker: currentTieBreaker }
+                        payload: { bids: bidInputs, tieBreaker: currentTieBreaker, turn: currentTurn }
                     });
                 }
 
