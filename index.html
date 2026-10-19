@@ -625,7 +625,6 @@
             <div id="ranking-buttons" class="mt-4 flex flex-col gap-3"></div>
         </div>
     </div>
-
     <script>
         const SUPABASE_URL = 'https://qurypyztchaatyvmmigs.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF1cnlweXp0Y2hhYXR5dm1taWdzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA0MDgzMzcsImV4cCI6MjEwNTk4NDMzN30.eCsv82GKCULbgvc1dyUyfcG423YHIQ--zQlTDUpqM9g';
@@ -1500,7 +1499,6 @@
             await decideCPUBids(); 
             await processBids();
         }
-
         function cpuReq(project) { return projects[project].labor; }
         
         function cpuLabourCost(state, playerId, project) { 
@@ -2278,7 +2276,6 @@
             resultConfirmations[playerIndex] = true;
             let allReady = true;
             for(let i=0; i<6; i++) {
-                // 破産したプレイヤーからの確認は待たない
                 if(!players[i].isDefaulter && !players[i].isCPU && !resultConfirmations[i]) {
                     allReady = false;
                 }
@@ -2292,7 +2289,6 @@
             }
         }
 
-        // 雇用フェーズ開始時にフラグを確実に初期化
         function startHiringPhase() {
             hiringInputs = {}; 
             isProcessingHiring = false;
@@ -2769,13 +2765,16 @@
         }
 
         async function showTurnProfitAndNext(turnProfits, allBankrupt) {
+            // [FIX] 収益画面の表示処理が開始された時点の「ターン数」を記憶しておく
+            const displayTurn = currentTurn;
+
             const modal = document.getElementById('turn-profit-modal');
             const tpTitle = document.getElementById('tp-title');
             
-            if (currentTurn === totalTurns) {
+            if (displayTurn === totalTurns) {
                 tpTitle.innerHTML = `<span class="text-red-600">最終ターン</span> 収益結果`;
             } else {
-                tpTitle.innerHTML = `第 <span id="tp-turn">${currentTurn}</span> ターン 収益結果`;
+                tpTitle.innerHTML = `第 <span id="tp-turn">${displayTurn}</span> ターン 収益結果`;
             }
 
             const content = document.getElementById('tp-content');
@@ -2806,7 +2805,8 @@
                 }, 1000);
             });
 
-            if (allBankrupt || currentTurn >= totalTurns) {
+            // [FIX] 記憶したターン数（displayTurn）を使用して終了判定を行う
+            if (allBankrupt || displayTurn >= totalTurns) {
                 endGame();
                 return;
             }
